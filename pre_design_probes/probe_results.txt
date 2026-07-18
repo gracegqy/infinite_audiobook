@@ -216,9 +216,30 @@ Script: probe1c_multilang_tts.py · Outputs: data/interim/probe1c/
     http://100.117.147.107:8765/audio/probe1c/zh_original_zf_xiaobei.m4a
     http://100.117.147.107:8765/audio/probe1c/zh_original_zm_yunxia.m4a
     http://100.117.147.107:8765/audio/probe1c/fr_lehorla_ff_siwis.m4a
-- GRACE: native-speaker judgment on the two zh voices (tones, prosody, horror
-  register); learner-ear check on fr. Verdict gates zh/fr channel design; OpenAI TTS
-  remains the per-story fallback for any language that fails.
+- VERDICTS (Grace, 2026-07-18): **fr PASSES** — French channel TTS gate is OPEN on
+  Kokoro ff_siwis. **zh FAILS** — "quite off, weird accents" on both zf_xiaobei and
+  zm_yunxia (consistent with Kokoro's zh voices carrying low model-card quality
+  grades; this is the model, not the G2P pipeline).
+- ROUND 2 rendered for Grace's comparison (all served at /audio/probe1c/):
+  (a) The six remaining Kokoro zh voices (zf_xiaoni, zf_xiaoxiao, zf_xiaoyi,
+      zm_yunjian, zm_yunxi, zm_yunyang), zh_original_<voice>.m4a — honest
+      expectation: same model, accent problem likely persists; included so the
+      Kokoro option is judged on its best voice, not its first two.
+  (b) edge-tts (Microsoft Edge neural voices, $0, unofficial endpoint; v7.2.8
+      actively maintained 2026): zh_edgetts_xiaoxiao.mp3 (female,
+      zh-CN-XiaoxiaoNeural) and zh_edgetts_yunxi.mp3 (male, zh-CN-YunxiNeural) —
+      these ARE native Azure zh voices; this is the $0 quality ceiling. Caveats to
+      accept if adopted: cloud call per render (story text goes to Microsoft),
+      undocumented endpoint that can rate-limit or break, so Kokoro/OpenAI must
+      stay as fallback engines.
+- Researched local (fully offline) zh candidates, unprobed — next tier if Grace
+  wants no cloud: CosyVoice2-0.5B (top community pick for Mandarin, open weights,
+  human-parity claims), Fish Speech V1.5, IndexTTS-2. All are heavier installs and
+  likely sub-realtime on this Mac — acceptable for a pre-rendering pipeline (0.5x
+  realtime still renders a 30-min story in ~1 h), but each needs its own
+  install+quality probe before design relies on it.
+- Design implication either way: TTS engine becomes per-language configuration
+  (en=kokoro, fr=kokoro, zh=TBD by this listen), not one global primary.
 - Japanese still untested (misaki[ja]) — original texts out of TTS scope for now;
   translated-into-zh/en works arrive via local_import regardless.
 

@@ -232,6 +232,27 @@ Measurements invalidated by this change: none. Probe-3 curation cost ($1.65 at O
 was measured on an English channel; zh-channel cost is unmeasured — watch the first
 real zh curation_runs rows before trusting the ≤$0.40 target there.
 
+## Entry 13 — 2026-07-18 — Probe 1c verdicts: fr PASSES, zh Kokoro FAILS; zh alternatives rendered
+
+- Grace's verdicts: fr passes (French channels gated open on Kokoro ff_siwis); zh
+  fails — "quite off, weird accents" on both first-round voices. Matches Kokoro's own
+  low quality grades for zh; model-level, not fixable by our pipeline.
+- Rendered for her second listen (same original paragraph, /audio/probe1c/): the six
+  remaining Kokoro zh voices (so Kokoro is judged on its best, though the accent
+  problem likely persists) and two edge-tts samples (Microsoft Edge neural voices —
+  native Azure zh, $0, actively maintained v7.2.8). edge-tts caveats recorded: per-
+  render cloud call (story text to Microsoft), undocumented endpoint that can
+  rate-limit/break → must keep Kokoro/OpenAI as fallbacks if adopted.
+- Fully-local alternatives researched but unprobed: CosyVoice2-0.5B (top Mandarin
+  pick), Fish Speech V1.5, IndexTTS-2 — heavier installs, likely sub-realtime on this
+  Mac (fine for pre-rendering); each needs its own probe if Grace prefers no-cloud.
+- Design change queued for v0.3 (pending Grace's pick): TTS engine becomes
+  per-language configuration (en/fr = kokoro; zh = her choice), replacing the single
+  global primary.
+
+Measurements invalidated by this change: none (adds measurements; prior en/fr/es
+numbers stand).
+
 ## Entry 13 — 2026-07-18 — Correction: bank paths updated after meta-folder rename
 
 Grace renamed `~/Code/*META_working_knowledge` → `_META_working_knowledge` and the bank
