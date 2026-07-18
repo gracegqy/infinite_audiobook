@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 17 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 18 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -62,20 +62,16 @@
 
 ## Next actions
 
-1. Grace: **verdict on AMENDMENT_04 part C** (chunked audio) — recommendation is
-   DECLINE (adopted instead: abort-render-on-skip + pre-marking; assessment in the
-   amendment doc). Parts A/B/D are in force (A/B her directives, D her delegation).
-2. Build the queue at $0: retry the remaining credit-failure stories
-   (`python -m pipeline.retry --list` → 65983…owl-creek, 239fec…damned-thing,
-   9370ca…the-willows; Monkey's Paw retry running at session close) and let the
-   pool duds fail into history. Then Phase 4 player MVP per TASKS.
-3. Owed alongside Phase 4: voice audition gallery + queue-window voice picker
-   (AMENDMENT_04 D); re-run the 3 review angles killed by the session limit
-   (Entry 16); Entry-16 implementation debts (source-class registry, edge-tts
-   fallback granularity, stored source_ref, vocab-genre coupling).
+1. Finish the $0 queue build: retry 65983…owl-creek, 239fec…damned-thing,
+   9370ca…the-willows (`python -m pipeline.retry <id>`); let pool duds fail
+   into history. Library already: Yellow Wallpaper + Monkey's Paw ready.
+2. Phase 4 player MVP per TASKS (FastAPI + PWA on the probe-5-proven mechanism;
+   binding iOS rules in DESIGN §6). Owed alongside: voice audition gallery +
+   queue-window voice picker (AMENDMENT_04 D); re-run the 3 review angles killed
+   by the session limit (Entry 16); Entry-16 implementation debts (source-class
+   registry, edge-tts fallback granularity, stored source_ref, vocab-genre
+   coupling).
 
 ## Open decisions
 
-AMENDMENT_04 part C (5-min chunking): PROPOSED, recommendation DECLINE — awaiting
-Grace. Everything else ruled: DESIGN FROZEN v1.0 + AMENDMENTS 01–03 binding,
-04 A/B/D in force (Entry 17).
+None. DESIGN FROZEN v1.0; AMENDMENTS 01–04 all FULLY BINDING (Entry 18).

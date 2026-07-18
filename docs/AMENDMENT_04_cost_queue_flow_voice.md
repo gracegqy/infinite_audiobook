@@ -1,10 +1,10 @@
 # AMENDMENT 04 — Curation cost ~$0, pre-extraction flow, chunking verdict, voice policy (2026-07-18)
 
-> **Authority: HIGHEST once confirmed**, applied on top of BRIEF_VERBATIM.md +
-> AMENDMENTS 01–03 + DESIGN v1.0. Status: parts A/B/D BINDING (A/B are Grace's
-> directives; D is Claude's ruling under Grace's explicit delegation — vetoable);
-> part C PROPOSED, awaiting Grace's verdict. Never edit after full confirmation;
-> further changes are new amendment docs.
+> **Authority: HIGHEST**, applied on top of BRIEF_VERBATIM.md + AMENDMENTS 01–03 +
+> DESIGN v1.0. Status: **FULLY BINDING** — parts A/B were Grace's directives,
+> part D her explicit delegation, and part C (chunking declined, abort-on-skip
+> adopted) approved by Grace 2026-07-18: "chunking verdict approved" (JOURNAL
+> Entry 18). Never edited from here; further changes are new amendment docs.
 
 ## Verbatim (Grace, 2026-07-18)
 
@@ -50,7 +50,7 @@ story". The fix is architectural — stop paying per replenishment:
   rendered. Extends AMENDMENT_02's "skips are permanent history" to the candidate
   stage, before any cost is incurred.
 
-## C. ~5-minute audio chunks (PROPOSED — recommendation: DECLINE)
+## C. ~5-minute audio chunks (DECLINED — approved by Grace 2026-07-18)
 
 Assessment (Grace asked for critical): chunked delivery attacks costs that are
 already ~zero, and pays real costs to do it —

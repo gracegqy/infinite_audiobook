@@ -386,3 +386,21 @@ audio measurements unaffected.
 
 Measurements invalidated by this change: none yet (implementation follows this
 entry; curation cost baseline will change once pool flow lands).
+
+## Entry 18 — 2026-07-18 — AMENDMENT_04 fully binding; queue at 2 ready stories, $0
+
+- Grace, verbatim: "chunking verdict approved" — part C (chunking declined,
+  abort-render-on-skip adopted) confirmed; **AMENDMENT_04 is now FULLY BINDING**
+  (status flipped in the doc; the flip is the confirmation act).
+- AMENDMENT_04 implementation had landed same day (Entry 17 commit 70ea94b):
+  pool.py ($0 replenishment draw), mark.py (pre-extraction read/skip),
+  record_provisional, AbortRender + should_abort hook, retry --voice,
+  run_story --build-pool flow. 39 tests green.
+- Flow proven live at $0: The Monkey's Paw retried end-to-end (fetch → clean →
+  tag → Kokoro render), READY — 22.0 min, 152 paras. Library: 2 ready stories
+  (Yellow Wallpaper 32.2 min + Monkey's Paw 22.0 min); Owl Creek / Damned Thing /
+  Willows remain retryable at $0; pool holds 6 candidates (mostly known-dead
+  creepypasta stubs that will fail fast into history + 2 iffy gutenberg refs).
+
+Measurements invalidated by this change: none. Curation cost baseline going
+forward: $0 marginal per story from the pool; paid builds explicit only.
