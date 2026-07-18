@@ -1,8 +1,8 @@
 # AMENDMENT 02 — Queue redesign: 3 + skip + autoplay (2026-07-18)
 
-> **Authority: HIGHEST once confirmed**, applied on top of BRIEF_VERBATIM.md +
-> AMENDMENT_01. Status: PROPOSED — becomes binding with Grace's DESIGN v0.2 sign-off
-> (JOURNAL-recorded). Never edit after that; further changes are new amendment docs.
+> **Authority: HIGHEST**, applied on top of BRIEF_VERBATIM.md + AMENDMENT_01.
+> Status: **BINDING** as of Grace's DESIGN sign-off (v0.3 → frozen v1.0, 2026-07-18,
+> JOURNAL Entry 15). Never edited from here; further changes are new amendment docs.
 > Supersedes brief §2's "queue of 5".
 
 ## Verbatim (Grace, 2026-07-18)

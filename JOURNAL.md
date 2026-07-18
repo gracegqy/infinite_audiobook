@@ -281,3 +281,23 @@ parentheses there — this entry names that historical edit per the corrections 
 No rule or design content changed.
 
 Measurements invalidated by this change: none.
+
+## Entry 15 — 2026-07-18 — Phase 2 CLOSED: Grace signed off DESIGN v0.3 → FROZEN v1.0
+
+- Grace's sign-off, verbatim: "I sign off DESIGN v0.3." Per STATE next-action 1:
+  DESIGN.md header flipped to **FROZEN v1.0**; AMENDMENTS 02 (queue 3+skip) and 03
+  (zh/fr multilingual) flipped PROPOSED → **BINDING** (their status lines updated —
+  the flip is the binding act; content untouched, immutable from here).
+- Freeze-time reconciliation inside DESIGN (mechanical, no decision content): §10 and
+  §11 still said "zh/fr pending probe-1c verdict" — stale since Entries 13–14 recorded
+  the verdicts §5/§9 already encode. Updated to "en/fr/zh passed, ja untested".
+- Phase 2 gate check: sign-off recorded (this entry) + every REQUIREMENTS row R1–R15
+  maps to a design element in §11 with explicit deferrals → **Phase 2 DONE**.
+- Numbering note per corrections norm: the meta-folder-rename correction above is
+  mislabeled "Entry 13" (second of that number); it is chronologically the 15th entry.
+  Left as-is (append-only); this entry takes 15 as its label since STATE's "reconciled
+  through Entry 14" already resolves the sequence through the zh-TTS entry.
+- Next: stop probe-5 server; Phase 3 pipeline MVP per TASKS (edge-tts into the
+  pipeline env; mp3-duration offsets unit test per DESIGN §5).
+
+Measurements invalidated by this change: none (freeze + bookkeeping only).

@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 14 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 15 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -9,8 +9,8 @@
 |---|---|---|---|
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
 | 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
-| 2 — Design | IN PROGRESS | DESIGN.md frozen; Grace sign-off | v0.3 complete — all §9 decisions ruled incl. zh=edge-tts (Entries 12–14); the ONLY open step is Grace's explicit sign-off on v0.3 |
-| 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
+| 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
+| 3 — Pipeline MVP | IN PROGRESS | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
@@ -62,18 +62,12 @@
 
 ## Next actions
 
-1. Grace: final review of DESIGN v0.3 — everything is already ruled and encoded
-   (§5 per-language TTS incl. zh=edge-tts/Yunxi, §7 queue 3+skip, §9 rulings 1–6,
-   §10 negative spec). Say "sign off v0.3" (or object to specifics). On sign-off:
-   mark DESIGN frozen v1.0 + flip AMENDMENTS 02/03 from PROPOSED to binding +
-   JOURNAL entry. Phase 2 closes there.
-2. Then: stop the probe-5 server (its job is done), start Phase 3 pipeline MVP per
-   TASKS — one story end-to-end against the frozen schema; unit + round-trip tests
-   same day; edge-tts must be added to the pipeline env (probe venv only, today);
-   its mp3-duration offsets math needs a unit test (DESIGN §5). Reddit app creation
-   waits until NoSleep matters.
+1. Phase 3 pipeline MVP per TASKS — one story end-to-end against the frozen schema
+   (curate → fetch → clean → tag → synthesize → library entry); unit + round-trip
+   tests same day; edge-tts must be added to the pipeline env (probe venv only);
+   its mp3-duration offsets math needs a unit test (DESIGN §5). Gate ends on Grace's
+   listen to the rendered story. Reddit app creation waits until NoSleep matters.
 
 ## Open decisions
 
-None. Every design decision is ruled and encoded in DESIGN v0.3 (Entries 12–14);
-the only open item is the sign-off act itself (next action 1).
+None. DESIGN is FROZEN v1.0 (Entry 15); changes from here are amendment docs only.

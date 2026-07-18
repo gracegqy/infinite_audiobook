@@ -1,8 +1,8 @@
 # AMENDMENT 03 — Multilingual scope: zh/fr channels + non-Western sources (2026-07-18)
 
-> **Authority: HIGHEST once confirmed**, applied on top of BRIEF_VERBATIM.md +
-> AMENDMENTS 01–02. Status: PROPOSED — becomes binding with Grace's DESIGN v0.2
-> sign-off (JOURNAL-recorded). Never edit after that; changes are new amendment docs.
+> **Authority: HIGHEST**, applied on top of BRIEF_VERBATIM.md + AMENDMENTS 01–02.
+> Status: **BINDING** as of Grace's DESIGN sign-off (v0.3 → frozen v1.0, 2026-07-18,
+> JOURNAL Entry 15). Never edited from here; changes are new amendment docs.
 
 ## Verbatim (Grace, 2026-07-18)
 

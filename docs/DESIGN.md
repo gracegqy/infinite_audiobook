@@ -1,12 +1,12 @@
 # DESIGN — horror_readaloud
 
-> **STATUS: DRAFT v0.3 (2026-07-18) — NOT FROZEN.** Freezes only on Grace's sign-off
-> recorded in JOURNAL. After freezing, changes happen via amendment docs + journal line.
-> Authority once frozen: below BRIEF_VERBATIM.md + amendments, above everything else.
-> v0.2 incorporated Grace's rulings on v0.1 §9 + AMENDMENT_02 (queue = 3 + skip) +
-> AMENDMENT_03 (zh/fr multilingual scope); v0.3 adds her probe-1c TTS verdicts:
-> per-language engines, zh = edge-tts (verdict a, Entry 14). Amendments bind at
-> this sign-off.
+> **STATUS: FROZEN v1.0 (2026-07-18)** — Grace signed off v0.3 in session ("I sign off
+> DESIGN v0.3", JOURNAL Entry 15). Changes from here happen via amendment docs +
+> journal line only. Authority: below BRIEF_VERBATIM.md + amendments, above everything
+> else. History: v0.2 incorporated Grace's rulings on v0.1 §9 + AMENDMENT_02 (queue =
+> 3 + skip) + AMENDMENT_03 (zh/fr multilingual scope); v0.3 added her probe-1c TTS
+> verdicts: per-language engines, zh = edge-tts (verdict a, Entry 14). AMENDMENTS
+> 02/03 became BINDING at this sign-off.
 
 ## 1. Architecture
 
@@ -234,7 +234,7 @@ before/after diff. Trends screen reads the same aggregation.
   synthesized once and cached forever (R11).
 - No social features, sharing, or comments.
 - No offline audio caching in MVP (§9.4). No channel in a language without a passed
-  TTS probe (ja currently; zh/fr pending Grace's probe-1c verdict).
+  TTS probe (ja currently; en/fr/zh passed — §5).
 - No paid TTS as primary — OpenAI is per-story fallback only.
 - No API keys in frontend code or responses, ever.
 - **No DRM circumvention**: DRM'd reading platforms (微信读书 etc.) are never scraping
@@ -261,6 +261,6 @@ before/after diff. Trends screen reads the same aggregation.
 | R14 model selection UI + quality notice | §5 policy + §6 settings |
 | R15 multilingual sources (zh/fr) | §5 fetch tiers + language gating (AMENDMENT_03) |
 
-Deferrals: offline caching (§9.4, nice-to-have) · zh/fr channels pending probe-1c
-verdict; ja TTS untested (§5) · sustained ≥5-min backgrounding evidence (re-proven by
-Phase 4 gate itself) · Tier-B sources (X岛-successors, 知乎) unprobed.
+Deferrals: offline caching (§9.4, nice-to-have) · ja TTS untested (§5; zh/fr passed
+probe 1c) · sustained ≥5-min backgrounding evidence (re-proven by Phase 4 gate
+itself) · Tier-B sources (X岛-successors, 知乎) unprobed.

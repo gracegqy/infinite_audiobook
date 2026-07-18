@@ -55,6 +55,9 @@ deferred with a risk note.**
 > Kokoro quality or iOS playback fails — those change the architecture."*
 
 ## Phase 2 — Design   · Owner: Both (Grace signs off)
+**Status: DONE (2026-07-18)** — Grace signed off DESIGN v0.3 in session (JOURNAL
+Entry 15); DESIGN.md frozen v1.0; AMENDMENTS 02/03 BINDING; §11 traceability maps
+R1–R15 with explicit deferrals.
 **Goal:** Frozen DESIGN.md: architecture, SQLite schema (stories, channels, progress,
 bookmarks, ratings, tags), library layout on disk, curation prompt design, negative spec.
 **Actions:** draft from probe results; schema checklist from bank 09-B (nullable over
@@ -69,6 +72,7 @@ element or an explicit ⚠️ deferral.
 > TASKS Phase 2; walk me through the schema and negative spec before freezing."*
 
 ## Phase 3 — Pipeline MVP   · Owner: Claude Code
+**Status: [IN PROGRESS]** — started 2026-07-18 immediately after the Phase 2 freeze.
 **Goal:** One story end-to-end: curate → fetch → clean → tag → synthesize → library entry.
 **Actions:** implement pipeline/ stages against the frozen schema; per-paragraph synthesis
 with offsets manifest; SQLite writes; unit tests for chunking/offset math; round-trip test
