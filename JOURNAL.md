@@ -171,3 +171,30 @@ Measurements invalidated by this change: none (verification + bookkeeping only).
 Measurements invalidated by this change: Grace's earlier "resume works" verdict
 (Entry 9) still stands — this failure was a different path (resume of a *finished*
 story), not a regression of mid-story resume. No numeric measurements affected.
+
+## Entry 11 — 2026-07-18 — Phase 1 CLOSED on Grace's four reports; DESIGN.md drafted
+
+- Grace's final probe-5 run (fixed page): (1) no "restarting from 0" log line — the
+  end-of-file diagnosis stays plausible-but-unconfirmed (likely her post-failure taps
+  moved the saved position off the end before the fixed page loaded); playback works,
+  defenses stay. (2) Lock screen: title shows; skip buttons work — icons show Apple's
+  default "10s" but after kill+reload they perform the handler's ±15s exactly (the
+  pre-reload 30s jumps were stale handler state). (3) Speed selector honored — R13
+  viable on iOS. (4) Mid-story kill+reopen resume works on the fixed page.
+- Probe 5 ANSWERED; one explicit deferral with risk note: sustained ≥5-min single-track
+  backgrounding (all samples < 5 min; lock-screen playback proven; re-tested verbatim by
+  the Phase 4 gate on a real story). **Phase 1 gate CLOSED — all six probes answered.**
+  pre_design_probes/ authority ends here per CLAUDE.md.
+- Standing-rule interpretation, stated for Grace to veto: the "/code-review at phase
+  close" checkpoint was not run for Phase 1 — its output is knowledge
+  (probe_results.txt), and its code is committed throwaway explicitly stripped of
+  authority. First /code-review lands at Phase 3 close (first production code).
+- Phase 2 started per STATE next-action 2: docs/DESIGN.md DRAFT v0.1 written from
+  probe results + REQUIREMENTS + carry-ins (line-unwrap clean rule, loadedmetadata
+  resume rule, ended-clears-resume rule, curation cost levers, lock-screen icon
+  quirk). Proposed decisions awaiting Grace: queue = 5-per-active-channel; Reddit via
+  OAuth script app (NoSleep disabled until she creates it); curation on Sonnet with
+  capped searches (~≤$0.40/batch target vs $1.65 measured at Opus); offline PWA
+  caching out of MVP. Gate = Grace sign-off after walkthrough; NOT frozen yet.
+
+Measurements invalidated by this change: none (design is downstream of measurements).

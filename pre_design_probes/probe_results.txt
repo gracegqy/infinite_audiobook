@@ -111,8 +111,9 @@ Script: probe4_fetch_clean.py · Outputs: data/interim/probe4/
 
 =====================================================================
 PROBE 5 — Phone playback reality (iOS Safari over Tailscale)
-Status: RESUME RETEST PASSED (Grace, 2026-07-18) · remaining sub-checks: lock-screen
-controls, ≥5-min backgrounded playback, speed selector honored — no recorded evidence yet
+Status: ANSWERED (Grace's four reports, 2026-07-18, recorded at section bottom; one
+sub-item — sustained ≥5-min single-track backgrounding — explicitly deferred with a
+risk note to the Phase 4 gate, where it is re-tested on a real 30-min story)
 Script: probe5_phone_server.py + probe5_static/index.html
 
 - 2026-07-18 earlier: Tailscale was not installed (contradicted brief assumption).
@@ -156,16 +157,27 @@ Script: probe5_phone_server.py + probe5_static/index.html
   locked until the story ended, which is precisely what the check exists to prove.
   Confirmation: on next open, the log line "saved position … at the end — restarting
   from 0" retroactively proves played-to-end-while-backgrounded.
-  STILL UNANSWERED (no recorded evidence from either phone run):
-    (a) lock-screen / Media Session controls (artwork+title show? play/pause/±15s
-        from lock screen work?)
-    (b) backgrounded/locked playback — does audio keep playing unattended to the end
-        of the story? (Likely already true per the end-of-file evidence above; the
-        "restarting from 0" log line on next open confirms it.)
-    (c) speed selector: does iOS actually honor audio.playbackRate at 0.75/1.5/2x?
-        (R13; the on-page log records the effective rate)
-  These decide Phase 4's Media-Session/PWA scope; probe 5 closes when Grace reports
-  all three.
+  FINAL PHONE RUN (Grace, 2026-07-18, on the fixed page) — probe CLOSED:
+    (1) "restarting from 0" log line NOT seen. The end-of-file diagnosis therefore
+        stays plausible-but-unconfirmed (most likely the saved position was moved
+        off the end by her post-failure taps before the fixed page loaded, so no
+        clamp triggered). What matters is direct: playback works, no auto-pause,
+        and the ended->clear + end-clamp defenses are in place regardless.
+    (2) Lock screen: title shows; skip buttons present and functional. iOS renders
+        them with Apple-default "10s" icons, but after a kill+reload they perform
+        exactly the handler's ±15s. (Pre-reload she observed 30s jumps — stale
+        handler state; gone after reload.) DESIGN NOTE (Phase 4): the lock-screen
+        icon label can disagree with handler behavior; keep app skip = ±15s per R7
+        and accept the cosmetic icon mismatch, or revisit with details.seekOffset.
+    (3) Speed selector honored: YES (R13 viable on iOS).
+    (4) Kill+reopen mid-story: resumes correctly on the fixed page.
+  Backgrounded/locked playback evidence: audio demonstrably plays and is
+  controllable under the lock screen (report 2), and the auto-pause episode is
+  consistent with played-to-end-while-locked. Sustained ≥5-min single-track
+  backgrounding is unmeetable with these samples (all < 5 min) — DEFERRED with
+  risk note: re-verified at the Phase 4 gate on a real 30-min story ("background
+  ≥5 min" is literally in that gate). Risk judged low given lock-screen playback
+  works and iOS kills silent pages, not playing audio.
 - Test server: FastAPI StaticFiles (the exact mechanism Phase 4 will use) on port 8765.
   Range requests verified locally: GET with Range: bytes=100000-100999 returned
   206 Partial Content, accept-ranges: bytes, correct content-range. Serving policy per
@@ -189,7 +201,7 @@ Script: probe6_openai_tts.py · Output: data/interim/probe6/usher_openai_tts.mp3
   ≈ $0.32. Fallback is viable and cheap enough for per-story use.
 
 =====================================================================
-GATE STATUS: probes 1, 2, 3, 4, 6 ANSWERED with recorded evidence. Probe 5: resume +
-range-seeking answered (retest passed 2026-07-18); gate open ONLY on the three
-remaining probe-5 sub-checks — lock-screen controls, ≥5-min backgrounding, speed
-selector. Server live on 100.117.147.107:8765 for Grace's 5-minute check.
+GATE STATUS: ALL SIX PROBES ANSWERED (2026-07-18). Probe 5's sustained-≥5-min
+backgrounding sub-item is the only explicit deferral (risk note above; re-tested by
+the Phase 4 gate itself). Phase 1 gate CLOSED — findings promoted to STATE.md,
+JOURNAL Entries 5-11. This directory carries no authority from here on.

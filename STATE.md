@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 10 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 11 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -8,8 +8,8 @@
 | Phase | Status | Gate | Gate evidence (command/check + result) |
 |---|---|---|---|
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
-| 1 — Pre-design probes | IN PROGRESS | All 6 probe questions answered in probe_results.txt | 1, 2, 3, 4, 6 answered with recorded evidence (probe_results.txt, Entries 5–9); 5: resume retest passed (Entry 9), awaits only lock-screen / ≥5-min backgrounding / speed-selector reports |
-| 2 — Design | not started | DESIGN.md frozen; Grace sign-off | — |
+| 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
+| 2 — Design | IN PROGRESS | DESIGN.md frozen; Grace sign-off | DESIGN.md DRAFT v0.1 written (Entry 11); awaiting Grace's walkthrough + sign-off |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
@@ -42,6 +42,10 @@
   (probe 6, 2026-07-18).
 - Tailscale installed on Mac + iPhone; Mac Tailscale IP 100.117.147.107. Probe 5
   server running on it (page 200, range 206 re-verified from Mac, Entry 9).
+- iOS lock-screen/Media-Session controls work: title shows, skip buttons perform the
+  handler's ±15s (icons cosmetically show Apple's default "10s"); playbackRate honored
+  (R13 viable). Sustained ≥5-min backgrounding deferred w/ risk note to the Phase 4
+  gate (Entry 11).
 - iOS resume works on the real target: kill Safari + reopen resumes at saved position,
   scrubbing works (Grace retest, Entry 9). Design rules: apply resume seeks
   loadedmetadata-or-later, never at page init; AND on `ended`, clear/complete the
@@ -52,22 +56,18 @@
 
 ## Next actions
 
-1. Grace: finish probe 5 on iPhone Safari (http://100.117.147.107:8765/, server
-   running; page fixed for the resume-to-end bug) — reload the page first. Checks:
-   (a) on open, look for the log line "saved position … at the end — restarting
-   from 0" (this both confirms the auto-pause diagnosis and proves the story
-   played to its end while backgrounded); (b) play → tap the lock screen: story
-   title shown? play/pause and ±15s work from there? (c) speed selector at 1.5x
-   or 2x: audibly faster? log line "ratechange" with the new rate? (d) one more
-   kill+reopen MID-story to confirm mid-story resume still works on the fixed
-   page. Report all four.
-2. On those three reports: close Phase 1 gate (all six probes answered), start
-   Phase 2 design (carry in: line-unwrap clean rule, resume-after-loadedmetadata
-   iOS rule, Reddit OAuth-vs-HTML decision, curation cost levers — $1.65/batch at
-   Opus needs trimming toward pennies, Media-Session scope per probe-5 findings).
+1. Grace: review docs/DESIGN.md DRAFT v0.1 (walkthrough in session close-out,
+   2026-07-18) and rule on the four §9 decisions: queue = 5-per-active-channel ·
+   Reddit OAuth app (NoSleep disabled until created) · curation on Sonnet w/ capped
+   searches (≤$0.40/batch target) · offline caching out of MVP. Sign-off freezes
+   DESIGN.md (recorded in JOURNAL) and closes the Phase 2 gate.
+2. After sign-off: stop the probe-5 server (its job is done), then Phase 3 pipeline
+   MVP per TASKS — one story end-to-end against the frozen schema, unit + round-trip
+   tests same day.
 
 ## Open decisions
 
-- Queue semantics under multiple channels: one global queue of 5 vs. 5 per active channel
-  (Phase 2; default assumption = queue of 5 for the active channel).
-- Frontend PWA offline caching of audio (nice-to-have; decide in Phase 4).
+All current open decisions are proposed with recommendations in DESIGN.md §9 and resolve
+at Grace's sign-off: queue semantics (proposed: 5 per active channel) · Reddit OAuth vs
+HTML (proposed: OAuth app) · curation model/cost (proposed: Sonnet, capped searches) ·
+offline PWA caching (proposed: out of MVP).
