@@ -1,0 +1,26 @@
+# secrets
+.env
+.env.*
+
+# content & state — never committed (rights posture + size)
+data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# node / frontend
+node_modules/
+dist/
+.vite/
+
+# macOS / editors
+.DS_Store
+.claude/settings.local.json
+
+# audio scratch anywhere
+*.wav
+*.mp3
+*.m4a

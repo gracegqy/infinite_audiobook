@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(ls:*)",
+      "Bash(python3 --version)",
+      "Bash(node --version)",
+      "Bash(pytest:*)",
+      "Bash(sqlite3 * .schema)"
+    ]
+  }
+}
