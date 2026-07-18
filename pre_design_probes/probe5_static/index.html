@@ -53,22 +53,49 @@ const log = (m, cls) => {
 const KEY = "probe5-pos";
 const srcSel = document.getElementById("src");
 
+// iOS Safari drops currentTime seeks issued before metadata is loaded (and it does
+// not load metadata until a user gesture). So: remember the resume target and apply
+// it once the element is actually ready — loadedmetadata normally, `playing` as the
+// backup for iOS's gesture-gated loading.
+let pendingSeek = null;
+
 function load(restore) {
   audio.src = srcSel.value;
+  audio.preload = "metadata";
   const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
   if (restore && saved.src === srcSel.value && saved.t) {
-    audio.currentTime = saved.t;
-    log(`restored position ${saved.t.toFixed(1)}s from localStorage`, "ok");
+    pendingSeek = saved.t;
+    document.getElementById("pos").textContent = `resume pending @ ${saved.t.toFixed(1)}s`;
+    log(`resume target ${saved.t.toFixed(1)}s queued (applies when audio is ready)`, "ok");
+  } else {
+    pendingSeek = null;
   }
+  audio.load();
 }
 srcSel.onchange = () => load(false);
 load(true);
+
+function applyPendingSeek(when) {
+  if (pendingSeek == null) return;
+  audio.currentTime = pendingSeek;
+  log(`resume seek applied on ${when}: ${pendingSeek.toFixed(1)}s -> currentTime=${audio.currentTime.toFixed(1)}`,
+      Math.abs(audio.currentTime - pendingSeek) < 2 ? "ok" : "bad");
+  pendingSeek = null;
+}
+audio.addEventListener("loadedmetadata", () => {
+  log(`loadedmetadata: duration=${(audio.duration || 0).toFixed(1)}s`);
+  applyPendingSeek("loadedmetadata");
+});
+audio.addEventListener("playing", () => applyPendingSeek("playing"));
 
 document.getElementById("play").onclick = () => audio.paused ? audio.play() : audio.pause();
 document.getElementById("back").onclick = () => { audio.currentTime -= 15; log("seek −15s"); };
 document.getElementById("fwd").onclick  = () => { audio.currentTime += 15; log("seek +15s"); };
 const seek = document.getElementById("seek");
-seek.oninput = () => { if (audio.duration) audio.currentTime = audio.duration * seek.value / 100; };
+seek.oninput = () => {
+  if (!audio.duration) { log("scrub ignored: metadata not loaded yet (tap play first)", "bad"); return; }
+  audio.currentTime = audio.duration * seek.value / 100;
+};
 const rate = document.getElementById("rate");
 rate.onchange = () => {
   audio.playbackRate = parseFloat(rate.value);
@@ -81,7 +108,8 @@ audio.addEventListener("timeupdate", () => {
   document.getElementById("pos").textContent =
     `${audio.currentTime.toFixed(1)} / ${(audio.duration || 0).toFixed(1)}`;
   if (audio.duration) seek.value = 100 * audio.currentTime / audio.duration;
-  localStorage.setItem(KEY, JSON.stringify({src: srcSel.value, t: audio.currentTime}));
+  if (pendingSeek == null)  // don't clobber the saved position before the resume applies
+    localStorage.setItem(KEY, JSON.stringify({src: srcSel.value, t: audio.currentTime}));
 });
 ["play","pause","seeking","seeked","stalled","waiting","ended","error"].forEach(ev =>
   audio.addEventListener(ev, () => log(`event: ${ev}` +

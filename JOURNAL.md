@@ -115,3 +115,19 @@ Grace's listening test (probe 1/2, on the *_fixed files) and the phone-over-Tail
 walk-through (probe 5; server live on 100.117.147.107:8765).
 
 Measurements invalidated by this change: none.
+
+## Entry 8 — 2026-07-18 — Probes 1+2 closed by Grace's verdict; iOS resume bug fixed; probe 5 on retest
+
+- Grace approved the fixed Kokoro audio -> probe 1 ANSWERED (Kokoro stays primary
+  TTS). Because the fixed files are 7 butt-joined chunks, the approval also closes
+  probe 2's seam question: butt-join is the design default.
+- Probe 5 first phone run: everything worked on first open; after kill+reopen the
+  audio restarted and scrubbing died. Root cause: iOS Safari drops currentTime seeks
+  issued before metadata load (gesture-gated), and duration=NaN no-ops the scrubber.
+  Fixed in the test page: pending-seek applied on loadedmetadata (backup on
+  `playing`), guarded scrubber, save-suppression until resume applies. Promoted to
+  Phase 4 design constraint: apply resume seeks loadedmetadata-or-later, never at
+  page init. Grace retesting the kill+reopen cycle.
+- Phase 1 gate now rests solely on the probe 5 retest.
+
+Measurements invalidated by this change: none.

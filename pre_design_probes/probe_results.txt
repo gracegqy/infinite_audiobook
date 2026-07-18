@@ -4,7 +4,8 @@ Machine: Grace's Mac (Darwin 25.2.0, Python 3.12.12 via probe venv .venv/).
 
 =====================================================================
 PROBE 1 — Kokoro on this Mac
-Status: MACHINE-SIDE ANSWERED · Grace listening test PENDING
+Status: ANSWERED — Grace approved the *_fixed audio quality in session 2026-07-18
+("I listened to the fixed audios and confirm they're good"). Kokoro stays primary TTS.
 Script: probe1_kokoro.py · Outputs: data/interim/probe1/*.wav
 
 - Installs: YES. pip install kokoro soundfile in a py3.12 venv, no espeak-ng brew
@@ -38,7 +39,9 @@ Script: probe1b_pause_fix.py
 
 =====================================================================
 PROBE 2 — Chunked synthesis: seams + offset accuracy
-Status: OFFSETS VERIFIED · Grace seam-listen PENDING
+Status: ANSWERED — offsets verified programmatically (below); seam question closed by
+Grace's 2026-07-18 approval of the *_fixed files, which are themselves 7 butt-joined
+chunks (6 seams) — seams are inaudible in practice. Butt-join is the design default.
 Script: probe2_chunked_offsets.py · Outputs: data/interim/probe2/
 
 - 6 Usher paragraphs rendered separately, concatenated two ways:
@@ -120,6 +123,19 @@ Script: probe5_phone_server.py + probe5_static/index.html
   correct content-range. Log: data/interim/probe5_server.log.
 - Test page now includes a playback-speed selector (0.75-2x via audio.playbackRate,
   with on-page logging of whether iOS honors it) — probes requirement R13.
+- FIRST PHONE RUN (Grace, 2026-07-18): everything worked on first open — play, scrub,
+  ±15s. After kill+reopen: audio restarted at 0 and scrubbing went dead.
+  ROOT CAUSE: iOS Safari silently drops currentTime seeks issued before metadata is
+  loaded, and gates media loading behind a user gesture; audio.duration is NaN until
+  then, so the scrubber's fraction-of-duration math no-ops too. Desktop queues early
+  seeks, which is why it worked from the Mac.
+  FIX (live on the server): resume target is queued and applied on loadedmetadata
+  (backup: on `playing`); scrubber guarded + logs when metadata isn't ready;
+  localStorage writes suppressed until the pending resume applies (no position
+  clobbering by early timeupdate ticks at 0).
+  PHASE 4 DESIGN LESSON: resume must be applied loadedmetadata-or-later on iOS —
+  never at page init. (Real app stores position server-side, not localStorage.)
+  RETEST PENDING: Grace repeats the kill+reopen cycle.
 - Test server: FastAPI StaticFiles (the exact mechanism Phase 4 will use) on port 8765.
   Range requests verified locally: GET with Range: bytes=100000-100999 returned
   206 Partial Content, accept-ranges: bytes, correct content-range. Serving policy per
