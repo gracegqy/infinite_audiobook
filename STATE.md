@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 7 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 8 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -8,7 +8,7 @@
 | Phase | Status | Gate | Gate evidence (command/check + result) |
 |---|---|---|---|
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
-| 1 — Pre-design probes | IN PROGRESS | All 6 probe questions answered in probe_results.txt | 2, 3, 4, 6 answered with recorded evidence (probe_results.txt, Entries 5–7); 1 + 5 await only Grace's listen + phone test |
+| 1 — Pre-design probes | IN PROGRESS | All 6 probe questions answered in probe_results.txt | 1, 2, 3, 4, 6 answered with recorded evidence (probe_results.txt, Entries 5–8; Kokoro quality Grace-approved); 5 awaits only the kill+reopen retest on the phone |
 | 2 — Design | not started | DESIGN.md frozen; Grace sign-off | — |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
@@ -46,13 +46,13 @@
 
 ## Next actions
 
-1. Grace: listening test on the FIXED files — data/interim/probe1/*_fixed.wav (horror
-   ≥2 min, male + Spanish variants) and probe2/concat_A_buttjoin.wav (seam check).
-2. Grace: phone test — server is already running; open http://100.117.147.107:8765/ in
-   iPhone Safari and walk the on-page checklist (now includes speed control).
-3. When both tests are answered: close Phase 1 gate, start Phase 2 design (carry in the
-   probe findings: line-unwrap clean rule, Reddit OAuth-vs-HTML decision, curation cost
-   levers — $1.65/batch at Opus needs trimming toward pennies).
+1. Grace: probe 5 retest on iPhone Safari (http://100.117.147.107:8765/, server
+   running): play, scrub, then KILL Safari and reopen → audio should resume at the
+   saved position once playing, and scrubbing should work. Also check lock-screen
+   controls, ≥5-min backgrounding, and whether the speed selector is honored.
+2. On a good retest: close Phase 1 gate, start Phase 2 design (carry in: line-unwrap
+   clean rule, resume-after-loadedmetadata iOS rule, Reddit OAuth-vs-HTML decision,
+   curation cost levers — $1.65/batch at Opus needs trimming toward pennies).
 
 ## Open decisions
 
