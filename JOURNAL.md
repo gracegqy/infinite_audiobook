@@ -301,3 +301,55 @@ Measurements invalidated by this change: none.
   pipeline env; mp3-duration offsets unit test per DESIGN §5).
 
 Measurements invalidated by this change: none (freeze + bookkeeping only).
+
+## Entry 16 — 2026-07-18 — Phase 3 pipeline built; gate story rendered; review fixes; costs
+
+- **Pipeline implemented** against frozen DESIGN v1.0: pipeline/ package (config,
+  db schema, models, textproc, fetch, curate, tag, synthesize, ingest, retry,
+  run_story driver) + scripts/spot_check_offsets.py + tests/. Project venv at .venv
+  (requirements.txt; edge-tts now in the pipeline env per Entry 14's note).
+  32 unit/round-trip tests green (offsets math, serialization round-trips, dedup
+  keys, clean rules, tag normalization, schema constraints, AAC decode-duration).
+- **Gate run lessons (all fixed + regression-tested):**
+  1. Curator's "Tell-Tale Heart" Gutenberg ref fetched a 550KB Poe COLLECTION;
+     22 min into a ~10h render before kill. → MAX_STORY_CHARS ceiling (120k chars),
+     curator prompt demands standalone single-story editions.
+  2. The 40-char paragraph floor (probe-4 wiki-chrome rule) dropped 29 real
+     paragraphs from The Yellow Wallpaper ("And what can one do?"). → floor now
+     applies to HTML sources only; Gutenberg keeps every paragraph.
+  3. Anthropic credit balance EXHAUSTED mid-run → every candidate died at the tag
+     stage. → tagging made non-fatal (tags are Phase 6 enhancement; render is the
+     expensive part), and pipeline/retry.py re-runs a failed/stranded story from
+     its stored row without re-paying curation.
+- **Gate story READY: The Yellow Wallpaper** (aa80b0587f70, Gilman, PG1952) —
+  32.2 min, 269 paras, kokoro/af_heart, 11 tags, meta/offsets/audio on disk.
+  Mechanical spot-check: all 269 char spans match story.txt paragraphs exactly;
+  audio vs manifest drift 0 ms; ear-check clips (first/middle/last para) in
+  data/interim/spotcheck/. **Gate remaining: Grace's listen** (audio served at
+  http://100.117.147.107:8765/audio/gate_listen/yellow_wallpaper.m4a; probe-5
+  server restarted for this purpose after Entry 15 stopped it).
+- **/code-review run (phase-close checkpoint, high effort): 10 confirmed findings,
+  all fixed** — worst: pause_turn continuation dropped earlier search results;
+  synthesis fallback bypassed on non-SynthesisError (degrade rule §9.6 violated);
+  pre-insert failures left no history so curation would re-propose doomed picks
+  forever; cost-ledger row skipped on unparseable curation responses. Coverage
+  honesty: 5 of 8 review angles completed — three (removed-behavior, reuse,
+  efficiency) died on the Claude session usage limit; re-run them at Phase 4 close.
+- **Costs (R11):** curation $0.90 and $2.13/batch at Sonnet w/ 6 searches — far
+  over the ≤$0.40 target; token volume (search results), not search count, is the
+  driver. Tuning pass owed (fewer searches, smaller batch, trimmed results).
+  API balance now empty: **Grace must top up credits** before the next curation
+  or tagging call. Everything local (Kokoro, tests, retry) runs at $0.
+- **Accepted debts (Phase 4/5, from review):** source-class knowledge spread over
+  4 sites (curate prompt, SOURCE_HINTS, fetch dispatch, run_story skip) → needs a
+  single registry before nosleep/scp_cn; edge-tts asyncio.run-per-paragraph breaks
+  under an async caller + story-restart fallback discards free renders (paragraph-
+  level retry wanted); candidate_from_row reverse-parses source_ref from URL
+  (store source_ref explicitly — needs schema amendment); CONTROLLED_VOCAB
+  subgenres are horror-leaning (channel-genre coupling for Phase 5); timestamps
+  (created_at/ready_at) don't take a clock param — read as audit stamps, not
+  time-dependent behavior; revisit if logic ever branches on them.
+
+Measurements invalidated by this change: the two curation cost figures above
+supersede the probe-3 $1.65 Opus figure as the current cost baseline. Probe-era
+audio measurements unaffected.

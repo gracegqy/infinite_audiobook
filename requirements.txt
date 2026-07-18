@@ -1,0 +1,8 @@
+# Pipeline + app runtime deps (Phase 3+). Install: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+kokoro>=0.9
+soundfile
+numpy
+edge-tts
+anthropic
+openai
+pytest

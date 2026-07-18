@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 15 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 16 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -10,7 +10,7 @@
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
 | 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
 | 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
-| 3 — Pipeline MVP | IN PROGRESS | One story end-to-end, playable audio + offsets | — |
+| 3 — Pipeline MVP | IN PROGRESS | One story end-to-end, playable audio + offsets | Pipeline built + 32 tests green + Yellow Wallpaper READY (32.2 min, offsets 0 ms drift, spot-check OK, Entry 16); gate rests SOLELY on Grace's listen |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
@@ -62,12 +62,18 @@
 
 ## Next actions
 
-1. Phase 3 pipeline MVP per TASKS — one story end-to-end against the frozen schema
-   (curate → fetch → clean → tag → synthesize → library entry); unit + round-trip
-   tests same day; edge-tts must be added to the pipeline env (probe venv only);
-   its mp3-duration offsets math needs a unit test (DESIGN §5). Gate ends on Grace's
-   listen to the rendered story. Reddit app creation waits until NoSleep matters.
+1. Grace: **top up Anthropic API credits** (balance exhausted mid-gate-run,
+   Entry 16) — blocks all future curation/tagging; local pipeline runs fine at $0.
+2. Grace: **listen to the gate story** — The Yellow Wallpaper, 32.2 min, on phone:
+   http://100.117.147.107:8765/audio/gate_listen/yellow_wallpaper.m4a (probe-5
+   server is up; ear-check clips under /audio/spotcheck/aa80b0587f70-the-yellow-wallpaper/).
+   Verdict closes the Phase 3 gate ("gate passed" / describe problems).
+3. On gate close: journal it, then Phase 4 player MVP per TASKS. Owed alongside
+   Phase 4: curation cost tuning (measured $0.90–$2.13/batch vs ≤$0.40 target) and
+   re-running the 3 review angles killed by the session limit (Entry 16).
 
 ## Open decisions
 
 None. DESIGN is FROZEN v1.0 (Entry 15); changes from here are amendment docs only.
+Accepted implementation debts are listed in Entry 16 (source-class registry,
+edge-tts async/fallback granularity, stored source_ref, vocab-genre coupling).
