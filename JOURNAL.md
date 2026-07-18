@@ -82,3 +82,36 @@ probe_results.txt). Key results:
 
 Measurements invalidated by this change: none (first measurements of the project).
 
+## Entry 6 — 2026-07-18 — Pause bug root-caused; speed-control requirement added; keys in; Tailscale live
+
+- Grace reported random mid-sentence pauses in all probe audio. Root cause found and
+  verified (probe1b_pause_fix.py): probe scripts fed Kokoro hard-line-wrapped text and
+  KPipeline splits chunks on newlines — 27 chunks for the Usher passage, one padded
+  boundary per wrapped line. Fixed by whitespace normalization (chunks 27→7; remaining
+  ≥500ms gaps verified punctuation/sentence-aligned). Promoted to design constraint:
+  the pipeline clean stage must unwrap hard-wrapped lines within paragraphs
+  (Gutenberg wraps at ~70 cols).
+- SCOPE ADDITION (Grace, in-session): playback speed control in the player. Added as
+  R13 in REQUIREMENTS.md; probe5 test page now exercises audio.playbackRate on iOS.
+- .env created by Grace with both keys (names verified, file confirmed gitignored).
+  Probe 6 ANSWERED: gpt-4o-mini-tts render succeeded, $0.004/paragraph, ~$0.32/30-min
+  story. Probe 3 API run in flight.
+- Tailscale installed by Grace on Mac + iPhone; Mac IP 100.117.147.107. Blank-page
+  report explained: server wasn't running. Server now up on that IP, page 200 +
+  range 206 verified from the Mac.
+
+Measurements invalidated by this change: probe-1 speed numbers unaffected (re-render
+same ~6.5x); the ORIGINAL probe1 wav/m4a files are superseded by *_fixed.* for quality
+judgment — Grace's listening verdict must use the _fixed files.
+
+## Entry 7 — 2026-07-18 — Probe 3 API run complete; Phase 1 now blocked only on Grace's two tests
+
+probe3_curation_api.py succeeded end-to-end (Opus 4.8 + web_search): 10 candidates with
+named, checkable evidence and correct PD/modern classification; honest flags on 2
+unverified Gutenberg IDs. Actual cost $1.65/batch — above the "pennies" expectation;
+cost levers (cheaper model, capped searches, cached criteria) recorded as Phase 2
+design inputs. Probes 3 and 6 are now ANSWERED. Remaining for the Phase 1 gate:
+Grace's listening test (probe 1/2, on the *_fixed files) and the phone-over-Tailscale
+walk-through (probe 5; server live on 100.117.147.107:8765).
+
+Measurements invalidated by this change: none.

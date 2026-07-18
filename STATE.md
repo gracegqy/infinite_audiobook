@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 5 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 6 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -35,18 +35,23 @@
 - Gutenberg + creepypasta-wiki fetch/clean work (with empty/deleted-page validation
   needed); Reddit anonymous JSON API is dead — OAuth app or HTML parsing required
   (probe 4; decision in Phase 2).
-- Tailscale is NOT installed on this Mac (probe 5, contradicts brief assumption) —
-  blocks phone-target testing until Grace installs it on Mac + iPhone.
-- No .env yet; Anthropic/OpenAI keys obtained by Grace 2026-07-18 but not yet placed.
+- Kokoro "random pauses" bug root-caused: newline-split chunking from hard-wrapped
+  input text, fixed by whitespace normalization (probe 1b). Design constraint: clean
+  stage must unwrap lines within paragraphs. Grace re-listens to *_fixed.* files.
+- OpenAI TTS fallback confirmed working: $0.004/paragraph, ~$0.32/30-min story
+  (probe 6, 2026-07-18).
+- Tailscale installed on Mac + iPhone; Mac Tailscale IP 100.117.147.107. Probe 5
+  server running on it (page 200, range 206 verified from Mac).
+- .env exists with both keys (verified gitignored).
 
-## Next actions (all on Grace; scripts are ready to run)
+## Next actions
 
-1. Put API keys in `.env` (project root: `ANTHROPIC_API_KEY=…` / `OPENAI_API_KEY=…`),
-   then have a session run `probe3_curation_api.py` and `probe6_openai_tts.py`.
-2. Listening test: data/interim/probe1/*.wav (≥2 min horror sample, male-voice + Spanish
-   variants) and data/interim/probe2/concat_A_buttjoin.wav (seam check).
-3. Install Tailscale on Mac + iPhone (same tailnet) → run probe 5 phone test
-   (instructions in probe_results.txt §5).
+1. Grace: listening test on the FIXED files — data/interim/probe1/*_fixed.wav (horror
+   ≥2 min, male + Spanish variants) and probe2/concat_A_buttjoin.wav (seam check).
+2. Grace: phone test — server is already running; open http://100.117.147.107:8765/ in
+   iPhone Safari and walk the on-page checklist (now includes speed control).
+3. Confirm probe 3 API run results (in flight at session close if not yet recorded in
+   probe_results.txt).
 4. When all six probes are answered: close Phase 1 gate, start Phase 2 design.
 
 ## Open decisions

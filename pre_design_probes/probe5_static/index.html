@@ -19,8 +19,9 @@
 return (position kept?) → kill Safari, reopen (position restored from localStorage?).</p>
 
 <select id="src">
-  <option value="/audio/probe1/horror_usher_af_heart.m4a">Usher — m4a 64k (production-like)</option>
-  <option value="/audio/probe1/horror_usher_af_heart.wav">Usher — wav (raw)</option>
+  <option value="/audio/probe1/horror_usher_af_heart_fixed.m4a">Usher FIXED — m4a 64k (production-like)</option>
+  <option value="/audio/probe1/horror_usher_af_heart_fixed.wav">Usher FIXED — wav (raw)</option>
+  <option value="/audio/probe1/horror_usher_af_heart.wav">Usher OLD (line-wrap pauses, for comparison)</option>
   <option value="/audio/probe2/concat_A_buttjoin.wav">Probe2 — butt-join seams</option>
 </select>
 
@@ -28,6 +29,13 @@ return (position kept?) → kill Safari, reopen (position restored from localSto
   <button id="play">▶︎ / ⏸</button>
   <button id="back">−15 s</button>
   <button id="fwd">+15 s</button>
+  <select id="rate">
+    <option value="0.75">0.75×</option>
+    <option value="1" selected>1×</option>
+    <option value="1.25">1.25×</option>
+    <option value="1.5">1.5×</option>
+    <option value="2">2×</option>
+  </select>
 </div>
 <input type="range" id="seek" min="0" max="100" value="0" style="width:100%">
 <div id="pos">0.0 / 0.0</div>
@@ -61,6 +69,13 @@ document.getElementById("back").onclick = () => { audio.currentTime -= 15; log("
 document.getElementById("fwd").onclick  = () => { audio.currentTime += 15; log("seek +15s"); };
 const seek = document.getElementById("seek");
 seek.oninput = () => { if (audio.duration) audio.currentTime = audio.duration * seek.value / 100; };
+const rate = document.getElementById("rate");
+rate.onchange = () => {
+  audio.playbackRate = parseFloat(rate.value);
+  log(`playbackRate set to ${rate.value}x -> audio.playbackRate=${audio.playbackRate}`,
+      audio.playbackRate === parseFloat(rate.value) ? "ok" : "bad");
+};
+audio.addEventListener("ratechange", () => log(`ratechange event: ${audio.playbackRate}x`));
 
 audio.addEventListener("timeupdate", () => {
   document.getElementById("pos").textContent =

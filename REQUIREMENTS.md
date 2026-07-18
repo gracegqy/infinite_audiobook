@@ -28,5 +28,6 @@ G4. Over time the picks get more Grace-shaped.
 | R10 | Preference adaptation from 1–5 ratings, trend record, weighted curation (brief §4) | ❌ not built | Phase 6. **Feasibility answer: YES, cheap** — tag-at-ingest (~$0.01/story) + SQLite aggregation + prompt weighting; no ML, no UI latency |
 | R11 | Economical: no exorbitant cost, no sprawl, snappy UI (brief §5) | ❌ standing constraint | $0/mo baseline (Kokoro + self-host); pennies for curation/tagging; audio synthesized once, cached forever; SQLite keeps UI reads local |
 | R12 | Channels: genre/language/topic editable in UI (AMENDMENT_01) | ❌ not built | schema (Phase 2), editor UI (Phase 5) |
+| R13 | Playback speed control in player (Grace, in-session 2026-07-18, JOURNAL Entry 6) | ❌ not built | app/ player (Phase 4); iOS `playbackRate` support probed in probe 5 test page |
 
 Legend: ✅ covered (evidence cited) · ⚠️ rescoped (sign-off + date) · ❌ not built.

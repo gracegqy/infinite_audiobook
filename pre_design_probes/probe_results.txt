@@ -21,6 +21,21 @@ Script: probe1_kokoro.py · Outputs: data/interim/probe1/*.wav
 - GRACE: listen to the three wavs (≥2 min of the horror one). Verdict decides whether
   Kokoro stays primary TTS.
 
+PROBE 1b — mid-sentence pause bug (Grace's report 2026-07-18): ROOT-CAUSED + FIXED
+Script: probe1b_pause_fix.py
+- Cause: probe scripts fed Kokoro text with hard line-wraps; KPipeline splits chunks on
+  newlines, so every wrapped line ended in a padded chunk boundary mid-sentence
+  (HORROR literal had 26 embedded newlines -> 27 chunks). NOT a Kokoro quality issue.
+- Fix: collapse whitespace runs to single spaces before synthesis. Chunks 27->7 (EN),
+  5->1 (ES). Remaining ≥500ms gaps verified punctuation-aligned: chunk-boundary joins
+  (~0.85s) match Kokoro's own natural sentence pauses within a chunk (0.8-0.9s);
+  0.5-0.6s gaps sit at Poe's dashes/semicolons. Structure is audiobook pacing, not
+  random breaks.
+- PIPELINE LESSON (promote to Phase 2 design): the clean stage MUST unwrap hard-wrapped
+  lines within paragraphs (Gutenberg wraps at ~70 cols) or every story gets this bug.
+- New files for Grace's re-listen: probe1/horror_usher_af_heart_fixed.wav,
+  horror_usher_am_michael_fixed.wav, spanish_quiroga_ef_dora_fixed.wav (+ _fixed.m4a).
+
 =====================================================================
 PROBE 2 — Chunked synthesis: seams + offset accuracy
 Status: OFFSETS VERIFIED · Grace seam-listen PENDING
@@ -58,8 +73,16 @@ Script: probe3_curation_api.py (runs the real Messages API + web_search once .en
      story" (fetched page, confirmed).
 - Classification PD vs modern was correct on all spot-checks. Conclusion: reputation
   evidence is abundant and checkable; curation-by-LLM-search is viable.
-- PENDING: one run of probe3_curation_api.py (needs ANTHROPIC_API_KEY in .env) to
-  confirm the API-side mechanics (web_search tool, cost/candidate batch). Est. <$0.50.
+- API-side run COMPLETED 2026-07-18 (probe3_curation_api.py, claude-opus-4-8 +
+  web_search tool): stop_reason=end_turn, 12 searches, 244k in / 12k out tokens,
+  actual cost $1.65. Output (data/interim/probe3_candidates.md): 10 candidates,
+  5 PD + 5 modern, all with named evidence (NPR 100 Best, Channel Zero adaptations,
+  Gutenberg IDs), correct classifications, and honest flags on 2 unverified IDs.
+- COST FINDING for Phase 2: $1.65/batch at Opus 4.8 is above the "pennies" target.
+  Levers to design in: cheaper model for curation (Sonnet ~40% less, Haiku ~80% less),
+  fewer/capped searches, cached channel criteria, smaller batches. Mechanism itself:
+  CONFIRMED WORKING.
+Status: ANSWERED (both halves).
 
 =====================================================================
 PROBE 4 — Fetch + clean on real samples
@@ -88,9 +111,15 @@ PROBE 5 — Phone playback reality (iOS Safari over Tailscale)
 Status: SERVER+PAGE READY, RANGE SUPPORT VERIFIED LOCALLY · BLOCKED on Tailscale install + Grace's phone
 Script: probe5_phone_server.py + probe5_static/index.html
 
-- FINDING: Tailscale is NOT installed on this Mac (no /Applications/Tailscale.app, no
-  CLI in PATH or /opt/homebrew, no 100.x interface). The brief assumed it; it must be
-  installed on Mac + iPhone before this probe (and before Phase 4's gate) can run.
+- 2026-07-18 earlier: Tailscale was not installed (contradicted brief assumption).
+  RESOLVED same day: Grace installed it on Mac + iPhone; Mac's Tailscale IP is
+  100.117.147.107 (verified via Tailscale.app CLI + curl below).
+- Grace's first phone attempt showed a blank page because the server wasn't running
+  bound to the Tailscale IP. Now running: probe5_phone_server.py 100.117.147.107,
+  verified from the Mac: GET / -> 200; Range request on the fixed m4a -> 206 with
+  correct content-range. Log: data/interim/probe5_server.log.
+- Test page now includes a playback-speed selector (0.75-2x via audio.playbackRate,
+  with on-page logging of whether iOS honors it) — probes requirement R13.
 - Test server: FastAPI StaticFiles (the exact mechanism Phase 4 will use) on port 8765.
   Range requests verified locally: GET with Range: bytes=100000-100999 returned
   206 Partial Content, accept-ranges: bytes, correct content-range. Serving policy per
@@ -106,12 +135,12 @@ Script: probe5_phone_server.py + probe5_static/index.html
 
 =====================================================================
 PROBE 6 — OpenAI TTS fallback
-Status: SCRIPT READY · BLOCKED on OPENAI_API_KEY in .env
-Script: probe6_openai_tts.py
+Status: ANSWERED
+Script: probe6_openai_tts.py · Output: data/interim/probe6/usher_openai_tts.mp3
 
-- One-call render of the same Usher paragraph (direct Kokoro comparison), voice onyx,
-  model gpt-4o-mini-tts. Cost math in-script: ~$0.004/paragraph, ~$0.32 for a 30-min
-  story at $12/M chars. Run: .venv/bin/python probe6_openai_tts.py
+- One-call render succeeded 2026-07-18: 330 chars -> 321KB mp3, voice onyx,
+  model gpt-4o-mini-tts. Cost this call $0.00396; a full 30-min story (~27k chars)
+  ≈ $0.32. Fallback is viable and cheap enough for per-story use.
 
 =====================================================================
 GATE STATUS: 3 of 6 fully machine-answered (2, 4, and 3's signal half).
