@@ -7,7 +7,7 @@
 
 | Phase | Status | Gate | Gate evidence (command/check + result) |
 |---|---|---|---|
-| 0 — Scaffold | IN PROGRESS | Scaffold gate (TASKS.md §0) | pending |
+| 0 — Scaffold | IN PROGRESS (all boxes checked except Grace's review) | Scaffold gate (TASKS.md §0) | commit 0f138ca pushed to private gracegqy/horror_readaloud; ignore-proof + smoke evidence in TASKS §0 |
 | 1 — Pre-design probes | not started | All 6 probe questions answered in probe_results.txt | — |
 | 2 — Design | not started | DESIGN.md frozen; Grace sign-off | — |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
@@ -30,8 +30,7 @@
 
 ## Next actions
 
-1. Finish Phase 0 gate: first commit, private remote pushed, .gitignore proven, smoke
-   test run, Grace reviews STATE.md + CLAUDE.md.
+1. Grace reviews STATE.md + CLAUDE.md → flip Phase 0 to DONE.
 2. Run Phase 1 probes (TASKS.md §1), starting with Kokoro install/quality — it's the
    biggest architectural unknown.
 

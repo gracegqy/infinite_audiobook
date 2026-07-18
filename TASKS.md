@@ -12,14 +12,16 @@ recorded evidence is a bug. Keep this file pristine in structure; annotate statu
 .claude/settings.json allowlist; git init + commit; private remote + push; smoke test.
 **Output:** this repo, pushed.
 **Gate:**
-- [ ] `git log` shows initial commit; `git status` clean.
-- [ ] `.gitignore` proven: `touch data/library/x.mp3 .env` → `git status` shows neither.
-- [ ] Private remote `gracegqy/horror_readaloud` exists; `git push` succeeded; identity =
-      graceguqianying@uchicago.edu (`git config user.email`).
-- [ ] Environment smoke test run, not declared: `python3 --version` ≥3.11, `node --version`
-      ≥18 present; result recorded in JOURNAL/STATE.
-- [ ] STATE.md + CLAUDE.md reviewed by Grace.
-- [ ] JOURNAL Entry 1 written.
+- [x] `git log` shows initial commit (`0f138ca`); `git status` clean (2026-07-18).
+- [x] `.gitignore` proven: touched `data/library/x.mp3` + `.env`, `git add -A && git
+      status --short` listed neither (2026-07-18).
+- [x] Private remote exists: GitHub API returned `HTTP 201, gracegqy/horror_readaloud
+      private: True`; `git push -u origin main` succeeded, `## main...origin/main` clean;
+      `git config user.email` = graceguqianying@uchicago.edu (2026-07-18).
+- [x] Smoke test run: `python3 --version` → 3.12.12; `node --version` → v25.8.1
+      (2026-07-18).
+- [ ] STATE.md + CLAUDE.md reviewed by Grace. **← only open item**
+- [x] JOURNAL Entry 1 written (and Entry 2 for the channels amendment).
 
 ## Phase 1 — Pre-design probes   · Owner: Claude Code
 **Goal:** Kill the assumptions the architecture rests on, with throwaway scripts in
