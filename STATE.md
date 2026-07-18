@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 3 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 4 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -7,8 +7,8 @@
 
 | Phase | Status | Gate | Gate evidence (command/check + result) |
 |---|---|---|---|
-| 0 — Scaffold | IN PROGRESS (all boxes checked except Grace's review) | Scaffold gate (TASKS.md §0) | commit 0f138ca pushed to private gracegqy/horror_readaloud; ignore-proof + smoke evidence in TASKS §0; all items re-verified from artifacts 2026-07-18 (JOURNAL Entry 3) |
-| 1 — Pre-design probes | not started | All 6 probe questions answered in probe_results.txt | — |
+| 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
+| 1 — Pre-design probes | IN PROGRESS | All 6 probe questions answered in probe_results.txt | — |
 | 2 — Design | not started | DESIGN.md frozen; Grace sign-off | — |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
@@ -30,8 +30,7 @@
 
 ## Next actions
 
-1. Grace reviews STATE.md + CLAUDE.md → flip Phase 0 to DONE.
-2. Run Phase 1 probes (TASKS.md §1), starting with Kokoro install/quality — it's the
+1. Run Phase 1 probes (TASKS.md §1), starting with Kokoro install/quality — it's the
    biggest architectural unknown.
 
 ## Open decisions

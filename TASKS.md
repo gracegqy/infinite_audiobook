@@ -20,7 +20,8 @@ recorded evidence is a bug. Keep this file pristine in structure; annotate statu
       `git config user.email` = graceguqianying@uchicago.edu (2026-07-18).
 - [x] Smoke test run: `python3 --version` → 3.12.12; `node --version` → v25.8.1
       (2026-07-18).
-- [ ] STATE.md + CLAUDE.md reviewed by Grace. **← only open item**
+- [x] STATE.md + CLAUDE.md reviewed by Grace — approval given in session, recorded
+      JOURNAL Entry 4 (2026-07-18).
 - [x] JOURNAL Entry 1 written (and Entry 2 for the channels amendment).
 
 ## Phase 1 — Pre-design probes   · Owner: Claude Code

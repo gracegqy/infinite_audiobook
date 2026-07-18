@@ -47,3 +47,12 @@ No work started past the gate: the only open Phase 0 item is Grace's review of S
 CLAUDE.md, and Phase 1 probes sit behind it. Session ends with the review handed to Grace.
 
 Measurements invalidated by this change: none (verification only; nothing changed).
+
+## Entry 4 — 2026-07-18 — Phase 0 closed: Grace approved STATE.md + CLAUDE.md review
+
+Grace gave "Phase 0 review approved" in session. That was the last open gate item; every
+other item was re-verified from artifacts the same day (Entry 3). Phase 0 → DONE. Current
+phase is now Phase 1 (pre-design probes), starting with Kokoro install/quality per STATE
+next actions.
+
+Measurements invalidated by this change: none.
