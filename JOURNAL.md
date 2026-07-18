@@ -353,3 +353,36 @@ Measurements invalidated by this change: none (freeze + bookkeeping only).
 Measurements invalidated by this change: the two curation cost figures above
 supersede the probe-3 $1.65 Opus figure as the current cost baseline. Probe-era
 audio measurements unaffected.
+
+## Entry 17 — 2026-07-18 — Phase 3 CLOSED; Grace's cost/flow rulings → AMENDMENT_04
+
+- **Phase 3 gate PASSED** — Grace, verbatim: "Phase 3 gate passed." (After a
+  blank-page detour: server was healthy, phone-side connectivity + a wrong
+  folder-URL in my instructions; direct file links worked.) API credits topped up.
+  Phase 3 → DONE.
+- Grace's three follow-ups, same message (verbatim in AMENDMENT_04): (2a) should
+  queued stories be rendered in ~5-min chunks? (asked for assessment); (2b) show
+  the next story's title BEFORE extraction so she can pre-mark known/read ones
+  (directive); (3) curation cost must drop to ~$0 — try Sonnet cost reduction
+  first, else cheaper models (directive).
+- Grace added mid-session (4): how does free voice selection square with
+  whole-story pre-extraction — real-time synthesis with a few-paragraph cache?
+  — explicitly delegating the decision ("you decide, critically").
+- Encoded as **AMENDMENT_04**: (A) pool-based curation — replenishment consumes
+  stored candidates at $0 marginal; paid pool builds are rare, explicit,
+  Grace-initiated (extends R14's no-silent-spend to curation spend); (B)
+  pre-extraction announcement + `pipeline.mark` pre-marking (extends
+  AMENDMENT_02's skip-history to the candidate stage); (C) chunked audio
+  DECLINED-recommended (iOS seams/resume complexity vs $0 local renders +
+  Phase 5 pre-rendering), replaced by abort-render-on-skip — awaiting Grace's
+  verdict on C specifically; (D) voice policy RULED under her delegation:
+  pre-render stays, real-time voice conversion declined (playback-time
+  dependence on live render loop + undocumented zh endpoint, iOS streaming
+  fragility probe 5 exists to avoid, R11 no-per-listen-calls violation) —
+  instead voice chosen at text_ready, audition gallery in Phase 4 settings,
+  explicit $0 re-render via retry --voice.
+- Economics recorded: today's $2.13 batch has 4 unconsumed candidates + 4
+  credit-failure rows retryable at $0 — the next ~8 stories are already paid for.
+
+Measurements invalidated by this change: none yet (implementation follows this
+entry; curation cost baseline will change once pool flow lands).

@@ -16,6 +16,9 @@ QUEUE_DEPTH = 3  # AMENDMENT_02
 CURATION_MODEL = "claude-sonnet-5"
 CURATION_MAX_SEARCHES = 6
 CURATION_BATCH_SIZE = 8
+# AMENDMENT_04 A: paid curation only refills the pool (explicit --build-pool);
+# replenishment consumes stored candidates at $0 marginal.
+POOL_BATCH_SIZE = 40
 # $/M tokens (in, out) + $/search, for the curation_runs cost ledger (R11).
 MODEL_PRICING = {
     "claude-sonnet-5": (3.0, 15.0),

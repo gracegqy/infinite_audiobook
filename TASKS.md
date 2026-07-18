@@ -72,10 +72,11 @@ element or an explicit ⚠️ deferral.
 > TASKS Phase 2; walk me through the schema and negative spec before freezing."*
 
 ## Phase 3 — Pipeline MVP   · Owner: Claude Code
-**Status: [IN PROGRESS]** — built + gate-run 2026-07-18 (Entry 16): pipeline/ complete,
-32 tests green, Yellow Wallpaper rendered + mechanically spot-checked (0 ms drift),
-/code-review done (10 findings fixed; 3 angles owed at Phase 4 close). Gate rests
-solely on Grace's listen; server + URLs in STATE next actions.
+**Status: DONE (2026-07-18)** — pipeline/ complete, 39 tests green, Yellow Wallpaper
+rendered + mechanically spot-checked (0 ms drift), /code-review done (10 findings
+fixed; 3 angles owed at Phase 4 close, Entry 16). Gate closed on Grace's verdict:
+"Phase 3 gate passed" (Entry 17). Post-gate: AMENDMENT_04 flow (pool curation at $0,
+pre-marking, abort-on-skip, voice re-render) implemented same day.
 **Goal:** One story end-to-end: curate → fetch → clean → tag → synthesize → library entry.
 **Actions:** implement pipeline/ stages against the frozen schema; per-paragraph synthesis
 with offsets manifest; SQLite writes; unit tests for chunking/offset math; round-trip test

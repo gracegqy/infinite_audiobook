@@ -1,7 +1,8 @@
-"""Re-run the pipeline for an existing story row (typically failed) without a
-new curation call.
+"""Re-run the pipeline for an existing story row without a new curation call:
+failed/stranded rows, or a voice re-render of a ready story (AMENDMENT_04 D).
 
 Run: .venv/bin/python -m pipeline.retry <story_id>
+     .venv/bin/python -m pipeline.retry <story_id> --voice am_michael
      .venv/bin/python -m pipeline.retry --list   # show retryable rows
 """
 import sys
@@ -20,8 +21,13 @@ def main(argv: list[str]) -> int:
                 "ORDER BY created_at"):
             print(f"{r['id']}  [{r['status']}]  {r['failure_note'] or ''}")
         return 0
-    sid = ingest.retry_story(conn, argv[0])
-    print(f"retried OK: {sid}")
+    voice = None
+    if "--voice" in argv:
+        i = argv.index("--voice")
+        voice = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    sid = ingest.retry_story(conn, argv[0], voice_override=voice)
+    print(f"retried OK: {sid}" + (f" (voice {voice})" if voice else ""))
     return 0
 
 

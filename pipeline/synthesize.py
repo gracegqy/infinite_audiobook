@@ -21,6 +21,11 @@ class SynthesisError(Exception):
     pass
 
 
+class AbortRender(Exception):
+    """Story was skipped/read mid-render (AMENDMENT_04 C) — abort remaining
+    paragraphs; never triggers the OpenAI fallback."""
+
+
 def _to_np(chunk):
     return chunk.numpy() if hasattr(chunk, "numpy") else np.asarray(chunk)
 
@@ -114,9 +119,12 @@ class OpenAIEngine:
 ENGINES = {"kokoro": KokoroEngine, "edge_tts": EdgeTTSEngine, "openai": OpenAIEngine}
 
 
-def _render_story(engine, paragraphs: list[str]) -> tuple[np.ndarray, int, list[float]]:
+def _render_story(engine, paragraphs: list[str],
+                  should_abort=None) -> tuple[np.ndarray, int, list[float]]:
     parts, durations, sr = [], [], None
     for i, p in enumerate(paragraphs):
+        if should_abort and should_abort():
+            raise AbortRender(f"story marked skipped/read at paragraph {i}")
         samples, this_sr = engine.render(p)
         if sr is None:
             sr = this_sr
@@ -128,26 +136,35 @@ def _render_story(engine, paragraphs: list[str]) -> tuple[np.ndarray, int, list[
     return np.concatenate(parts), sr, durations
 
 
-def synthesize_story(paragraphs: list[str], language: str, out_m4a: pathlib.Path):
+def synthesize_story(paragraphs: list[str], language: str, out_m4a: pathlib.Path,
+                     voice_override: str | None = None, should_abort=None):
     """Render all paragraphs with the language's primary engine; on failure,
     restart the story on OpenAI TTS (per-story fallback). Writes out_m4a and
-    returns (engine_name, voice, sample_rate, durations_s)."""
+    returns (engine_name, voice, sample_rate, durations_s).
+
+    voice_override (AMENDMENT_04 D) swaps the voice within the language's
+    configured engine; should_abort() is polled between paragraphs."""
     config.INTERIM_DIR.mkdir(parents=True, exist_ok=True)
     engine_name, voice = config.TTS_BY_LANGUAGE.get(language, config.FALLBACK_TTS)
+    if voice_override:
+        voice = voice_override
     attempts = [(engine_name, voice)]
-    if (engine_name, voice) != config.FALLBACK_TTS:
+    if engine_name != config.FALLBACK_TTS[0]:
         attempts.append(config.FALLBACK_TTS)
 
     last_err = None
     for name, v in attempts:
         # catch everything, not just SynthesisError: the degrade rule (DESIGN
         # §9.6) must fire on Kokoro/edge-tts internal errors too, or a raw
-        # RuntimeError bypasses the OpenAI fallback entirely
+        # RuntimeError bypasses the OpenAI fallback entirely. AbortRender is
+        # the one deliberate exception — a skip must not start a paid render.
         try:
             engine = ENGINES[name](language, v)
-            audio, sr, durations = _render_story(engine, paragraphs)
+            audio, sr, durations = _render_story(engine, paragraphs, should_abort)
             _write_m4a(audio, sr, out_m4a)
             return name, v, sr, durations
+        except AbortRender:
+            raise
         except Exception as e:
             print(f"  [synth] {name} failed ({e}); "
                   f"{'falling back to OpenAI' if (name, v) != config.FALLBACK_TTS else 'no fallback left'}")

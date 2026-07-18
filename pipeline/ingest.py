@@ -37,7 +37,8 @@ def _fetch_clean(candidate: dict) -> tuple[list[str], str, str]:
 
 
 def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
-              paragraphs: list[str], text: str, source_url: str) -> None:
+              paragraphs: list[str], text: str, source_url: str,
+              voice_override: str | None = None) -> None:
     """Everything after the stories row exists: files, tags, audio, ready."""
     title = candidate["title"]
     author = candidate.get("author")
@@ -53,8 +54,13 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
     except Exception as e:
         print(f"[ingest] WARNING: tagging failed ({e}) — continuing untagged")
 
+    def skipped_meanwhile():
+        row = conn.execute("SELECT status FROM stories WHERE id=?", (sid,)).fetchone()
+        return row is not None and row["status"] in ("skipped", "read")
+
     engine, voice, sr, durations = synthesize.synthesize_story(
-        paragraphs, language, story_dir / "audio.m4a")
+        paragraphs, language, story_dir / "audio.m4a",
+        voice_override=voice_override, should_abort=skipped_meanwhile)
     offsets = OffsetsManifest(
         engine=engine, voice=voice, sample_rate=sr,
         paragraphs=textproc.build_offsets(paragraphs, durations))
@@ -110,39 +116,45 @@ def ingest_candidate(conn, candidate: dict, channel) -> str:
         return sid
     except DuplicateStory:
         raise
+    except synthesize.AbortRender as e:
+        print(f"[ingest] {sid}: render aborted ({e}) — status stays as marked")
+        raise
     except Exception as e:
         if sid:
             db.set_status(conn, sid, "failed", failure_note=str(e)[:500])
         else:
-            _record_rejection(conn, candidate, channel, str(e)[:500])
+            record_provisional(conn, candidate, channel, "failed", str(e)[:500])
         raise
 
 
-def _record_rejection(conn, candidate: dict, channel, note: str) -> None:
-    """A candidate that dies BEFORE its row exists (bad fetch, wrong length)
-    still enters history — otherwise its title never reaches the curation
-    exclusion list and every future batch re-proposes the same doomed pick
-    (gate-run lesson: the 550KB Poe collection). Uses a provisional dedup key
-    (no clean text exists to key on)."""
+def record_provisional(conn, candidate: dict, channel, status: str,
+                       note: str | None = None) -> str:
+    """Enter a candidate into history WITHOUT fetched text: rejected candidates
+    (bad fetch, wrong length — gate-run lesson: the 550KB Poe collection would
+    be re-proposed forever otherwise) and Grace's pre-extraction read/skip marks
+    (AMENDMENT_04 B). Uses a provisional dedup key since no clean text exists."""
     import hashlib
     title = candidate["title"]
-    basis = f"rejected|{textproc.normalize_ws(title).lower()}|" \
-            f"{candidate['source_class']}:{candidate.get('source_ref', '')}"
+    basis = f"provisional|{textproc.normalize_ws(title).lower()}|" \
+            f"{candidate.get('source_class', '')}:{candidate.get('source_ref', '')}"
     key = hashlib.sha1(basis.encode()).hexdigest()
+    sid = textproc.story_id(key, title)
     conn.execute(
         "INSERT OR IGNORE INTO stories(id, channel_id, dedup_key, title, author, "
         "author_present, year, year_present, source_class, source_url, "
         "license_class, language, curation_evidence_json, status, failure_note) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'failed',?)",
-        (textproc.story_id(key, title), channel["id"], key, title,
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (sid, channel["id"], key, title,
          candidate.get("author"), int(bool(candidate.get("author"))),
          candidate.get("year"), int(candidate.get("year") is not None),
-         candidate["source_class"],
-         f"{candidate['source_class']}:{candidate.get('source_ref', '')}",
-         candidate["license_class"],
+         candidate.get("source_class") or "other",
+         f"{candidate.get('source_class', 'other')}:{candidate.get('source_ref', '')}",
+         candidate.get("license_class") or "modern_private",
          candidate.get("language") or channel["language"],
-         json.dumps(candidate.get("evidence", []), ensure_ascii=False), note))
+         json.dumps(candidate.get("evidence", []), ensure_ascii=False),
+         status, note))
     conn.commit()
+    return sid
 
 
 def candidate_from_row(row) -> dict:
@@ -163,10 +175,12 @@ def candidate_from_row(row) -> dict:
             "evidence": json.loads(row["curation_evidence_json"] or "[]")}
 
 
-def retry_story(conn, sid: str) -> str:
+def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
     """Re-run fetch→clean→tag→synthesize for an existing (typically failed)
-    story row, updating it in place — no new curation spend. The dedup key is
-    recomputed (clean rules may have changed) and updated on the same row."""
+    story row, updating it in place — no new curation spend. Also the voice
+    re-render path (AMENDMENT_04 D): retry --voice <v> on a ready story. The
+    dedup key is recomputed (clean rules may have changed) and updated on the
+    same row."""
     row = conn.execute("SELECT * FROM stories WHERE id=?", (sid,)).fetchone()
     if row is None:
         raise ValueError(f"no story {sid}")
@@ -184,8 +198,10 @@ def retry_story(conn, sid: str) -> str:
                      (key, source_url, sid))
         conn.commit()
         _finalize(conn, sid, key, candidate, row["language"], paragraphs, text,
-                  source_url)
+                  source_url, voice_override=voice_override)
         return sid
+    except synthesize.AbortRender:
+        raise
     except Exception as e:
         db.set_status(conn, sid, "failed", failure_note=str(e)[:500])
         raise
