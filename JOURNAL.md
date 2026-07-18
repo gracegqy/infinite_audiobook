@@ -32,3 +32,18 @@ config row. Accepted costs: genre-specific fetchers added incrementally; non-Eng
 Kokoro quality added to Phase 1 probes.
 
 Measurements invalidated by this change: none (nothing measured yet).
+
+## Entry 3 — 2026-07-18 — Resume session: Phase 0 evidence re-verified; stopped at review gate
+
+Re-derived every checked Phase 0 gate item from artifacts rather than trusting prose:
+- `git log` shows 0f138ca (+ 3d772d5, 1d7cf34); `git status` clean, `## main...origin/main`
+  in sync.
+- `git check-ignore -v` matches both `data/library/x.mp3` (rule `data/`) and `.env`.
+- Remote private re-proven: authenticated `git ls-remote` returns heads while
+  unauthenticated `GET api.github.com/repos/gracegqy/horror_readaloud` → HTTP 404.
+- Smoke re-run: python3 3.12.12, node v25.8.1 (match Entry-1-era records).
+
+No work started past the gate: the only open Phase 0 item is Grace's review of STATE.md +
+CLAUDE.md, and Phase 1 probes sit behind it. Session ends with the review handed to Grace.
+
+Measurements invalidated by this change: none (verification only; nothing changed).
