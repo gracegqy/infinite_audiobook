@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 9 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 10 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -43,19 +43,24 @@
 - Tailscale installed on Mac + iPhone; Mac Tailscale IP 100.117.147.107. Probe 5
   server running on it (page 200, range 206 re-verified from Mac, Entry 9).
 - iOS resume works on the real target: kill Safari + reopen resumes at saved position,
-  scrubbing works (Grace retest, Entry 9). Design rule stands: apply resume seeks
-  loadedmetadata-or-later, never at page init.
+  scrubbing works (Grace retest, Entry 9). Design rules: apply resume seeks
+  loadedmetadata-or-later, never at page init; AND on `ended`, clear/complete the
+  resume position and mark the story read — never persist end-of-file as a resume
+  point (Entry 10: a finished story "resumed" to its end, causing instant
+  ended→pause that looked like broken playback).
 - .env exists with both keys (verified gitignored).
 
 ## Next actions
 
 1. Grace: finish probe 5 on iPhone Safari (http://100.117.147.107:8765/, server
-   running) — three remaining checks, ~5 min: (a) lock screen: does the story
-   title show, do play/pause and ±15s work from there? (b) backgrounding: lock the
-   phone or leave Safari for ≥5 min mid-story — does audio keep playing?
-   (c) speed selector: set 1.5x or 2x — does playback speed actually change (page
-   log shows the effective rate)? Report all three; if any was already covered in
-   the retest, saying so counts as the evidence.
+   running; page fixed for the resume-to-end bug) — reload the page first. Checks:
+   (a) on open, look for the log line "saved position … at the end — restarting
+   from 0" (this both confirms the auto-pause diagnosis and proves the story
+   played to its end while backgrounded); (b) play → tap the lock screen: story
+   title shown? play/pause and ±15s work from there? (c) speed selector at 1.5x
+   or 2x: audibly faster? log line "ratechange" with the new rate? (d) one more
+   kill+reopen MID-story to confirm mid-story resume still works on the fixed
+   page. Report all four.
 2. On those three reports: close Phase 1 gate (all six probes answered), start
    Phase 2 design (carry in: line-unwrap clean rule, resume-after-loadedmetadata
    iOS rule, Reddit OAuth-vs-HTML decision, curation cost levers — $1.65/batch at

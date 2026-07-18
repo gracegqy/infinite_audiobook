@@ -141,11 +141,27 @@ Script: probe5_phone_server.py + probe5_static/index.html
   fix holds on the real target. Server re-verified same day from the Mac: GET / -> 200,
   Range bytes=100000-100999 on probe1/horror_usher_af_heart_fixed.m4a -> 206 with
   correct content-range (1,154,657 total).
+  SECOND BUG (Grace's report, 2026-07-18, after the ≥5-min backgrounding attempt):
+  play immediately auto-paused on reopen. Cause: the 2:30 sample PLAYED TO THE END
+  during backgrounding; timeupdate had saved position ≈ duration, so the next open
+  resumed to the end and iOS fired ended->pause instantly. Not a playback failure —
+  faithful resume to a saved end-of-file position. Fix (live on the server): resume
+  targets within 2s of duration are discarded (restart at 0), saved position cleared
+  on `ended`, pause log now records currentTime + ended flag, play() rejections logged.
+  PHASE 4/5 DESIGN LESSON: a story reaching `ended` must clear/complete its resume
+  position (and mark the story read) — never store end-of-file as a resume point.
+  NOTE: this reframes the backgrounding check. Every probe sample is shorter than
+  5 min (fixed m4a 2:30; probe2 concat ~1:16), so "backgrounded ≥5 min" can't be met
+  literally — and if the end-of-file diagnosis is right, the audio KEPT PLAYING while
+  locked until the story ended, which is precisely what the check exists to prove.
+  Confirmation: on next open, the log line "saved position … at the end — restarting
+  from 0" retroactively proves played-to-end-while-backgrounded.
   STILL UNANSWERED (no recorded evidence from either phone run):
     (a) lock-screen / Media Session controls (artwork+title show? play/pause/±15s
         from lock screen work?)
-    (b) backgrounded playback ≥5 min (screen locked or Safari backgrounded — does
-        audio keep playing to the end?)
+    (b) backgrounded/locked playback — does audio keep playing unattended to the end
+        of the story? (Likely already true per the end-of-file evidence above; the
+        "restarting from 0" log line on next open confirms it.)
     (c) speed selector: does iOS actually honor audio.playbackRate at 0.75/1.5/2x?
         (R13; the on-page log records the effective rate)
   These decide Phase 4's Media-Session/PWA scope; probe 5 closes when Grace reports

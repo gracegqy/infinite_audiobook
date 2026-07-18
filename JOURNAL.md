@@ -147,3 +147,27 @@ Measurements invalidated by this change: none.
   line, STATE next actions.
 
 Measurements invalidated by this change: none (verification + bookkeeping only).
+
+## Entry 10 — 2026-07-18 — "Play auto-pauses" root-caused: resume-to-end-of-file; page fixed
+
+- Grace's second retest failed: play immediately followed by an auto-triggered pause.
+  Root cause: during the ≥5-min backgrounding check the 2:30 sample played to the END;
+  timeupdate saved position ≈ duration to localStorage, so the next open faithfully
+  resumed to end-of-file and iOS fired ended→pause instantly. Playback itself never
+  broke — the resume logic stored a completed story's end as a resume point.
+- Test-page fix (live; StaticFiles serves from disk, verified in the served HTML):
+  resume targets within 2s of duration are discarded (restart at 0); saved position
+  cleared on `ended`; pause log now includes currentTime + ended flag; play()
+  rejections logged.
+- Promoted to Phase 4/5 design constraint: `ended` must clear/complete the resume
+  position and mark the story read — never persist end-of-file as a resume point.
+- Backgrounding check reframed: all probe samples are < 5 min, so the literal
+  "background ≥5 min" is unmeetable; the real question is "does audio keep playing
+  unattended to the end of the story", which the end-of-file evidence suggests is
+  already true — the "restarting from 0" log line on Grace's next open confirms it.
+- Also corrected in-session: I briefly cited the probe2 concat as 4.6 min; it is
+  ~76 s (1,829,400 samples @ 24 kHz). probe_results.txt carries the corrected figure.
+
+Measurements invalidated by this change: Grace's earlier "resume works" verdict
+(Entry 9) still stands — this failure was a different path (resume of a *finished*
+story), not a regression of mid-story resume. No numeric measurements affected.

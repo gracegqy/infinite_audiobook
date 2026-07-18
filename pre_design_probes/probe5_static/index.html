@@ -77,6 +77,13 @@ load(true);
 
 function applyPendingSeek(when) {
   if (pendingSeek == null) return;
+  // A position at/near the end means the story finished (e.g. it played out during a
+  // backgrounding test); resuming there just triggers ended->pause. Start over instead.
+  if (audio.duration && pendingSeek >= audio.duration - 2) {
+    log(`saved position ${pendingSeek.toFixed(1)}s is at the end (duration ${audio.duration.toFixed(1)}s) — restarting from 0`, "ok");
+    pendingSeek = null;
+    return;
+  }
   audio.currentTime = pendingSeek;
   log(`resume seek applied on ${when}: ${pendingSeek.toFixed(1)}s -> currentTime=${audio.currentTime.toFixed(1)}`,
       Math.abs(audio.currentTime - pendingSeek) < 2 ? "ok" : "bad");
@@ -88,7 +95,9 @@ audio.addEventListener("loadedmetadata", () => {
 });
 audio.addEventListener("playing", () => applyPendingSeek("playing"));
 
-document.getElementById("play").onclick = () => audio.paused ? audio.play() : audio.pause();
+document.getElementById("play").onclick = () => audio.paused
+  ? audio.play().catch(e => log(`play() rejected: ${e.name}: ${e.message}`, "bad"))
+  : audio.pause();
 document.getElementById("back").onclick = () => { audio.currentTime -= 15; log("seek −15s"); };
 document.getElementById("fwd").onclick  = () => { audio.currentTime += 15; log("seek +15s"); };
 const seek = document.getElementById("seek");
@@ -112,8 +121,14 @@ audio.addEventListener("timeupdate", () => {
     localStorage.setItem(KEY, JSON.stringify({src: srcSel.value, t: audio.currentTime}));
 });
 ["play","pause","seeking","seeked","stalled","waiting","ended","error"].forEach(ev =>
-  audio.addEventListener(ev, () => log(`event: ${ev}` +
+  audio.addEventListener(ev, () => log(`event: ${ev} @ ${audio.currentTime.toFixed(1)}s` +
+    (ev === "pause" ? ` (ended=${audio.ended})` : "") +
     (ev === "error" ? " " + JSON.stringify(audio.error) : ""), ev === "error" ? "bad" : undefined)));
+// A finished story must not be "resumed" at its end — clear the saved position.
+audio.addEventListener("ended", () => {
+  localStorage.removeItem(KEY);
+  log("ended: saved position cleared (next open starts from 0)", "ok");
+});
 
 if ("mediaSession" in navigator) {
   navigator.mediaSession.metadata = new MediaMetadata({
