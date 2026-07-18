@@ -253,6 +253,25 @@ real zh curation_runs rows before trusting the ≤$0.40 target there.
 Measurements invalidated by this change: none (adds measurements; prior en/fr/es
 numbers stand).
 
+## Entry 14 — 2026-07-18 — zh TTS decided (verdict a: edge-tts, Yunxi); v0.3; session handoff
+
+- Grace's round-2 verdict: **(a) edge-tts passes**, with zh-CN-YunxiNeural preferred
+  over Xiaoxiao. Probe 1c fully ANSWERED: en=Kokoro, fr=Kokoro ff_siwis, zh=edge-tts
+  Yunxi (Kokoro zh rejected), ja untested/out.
+- DESIGN.md → v0.3: §5 synthesize rewritten to per-language engine config; edge-tts
+  caveats accepted on record (cloud render call — story text is not personal data;
+  undocumented endpoint) with a binding degrade rule: edge-tts failure → OpenAI TTS
+  for that story, never a blocked queue. §9 gains ruling 6. NOT yet frozen.
+- Handoff state: Phase 2 gate = Grace's explicit sign-off on v0.3 (single remaining
+  step; all §9 decisions are ruled, both amendments stand PROPOSED and bind at
+  sign-off). Next session: get sign-off → freeze DESIGN v1.0 + mark amendments
+  binding + journal it → stop probe-5 server → Phase 3 per TASKS.
+- Note for Phase 3: edge-tts is installed only in pre_design_probes/.venv; the
+  pipeline env must add it (and its offsets math needs the §5 duration-read unit
+  test, since edge-tts returns mp3 rather than wav).
+
+Measurements invalidated by this change: none.
+
 ## Entry 13 — 2026-07-18 — Correction: bank paths updated after meta-folder rename
 
 Grace renamed `~/Code/*META_working_knowledge` → `_META_working_knowledge` and the bank

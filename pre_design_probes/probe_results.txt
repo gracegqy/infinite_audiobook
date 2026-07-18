@@ -204,7 +204,9 @@ Script: probe6_openai_tts.py · Output: data/interim/probe6/usher_openai_tts.mp3
 PROBE 1c — Kokoro zh + fr quality (added post-Phase-1 by AMENDMENT_03; this section
 carries design authority for the multilingual amendment despite the directory's
 Phase-1 expiry — see JOURNAL Entry 12)
-Status: RENDERED, AWAITING GRACE'S LISTEN (the gate for zh/fr channels)
+Status: ANSWERED (Grace's verdicts 2026-07-18: fr = Kokoro ff_siwis PASSES; zh =
+Kokoro FAILS, edge-tts PASSES — "verdict a", zh-CN-YunxiNeural preferred over
+Xiaoxiao. TTS becomes per-language config; DESIGN v0.3 §5 encodes it.)
 Script: probe1c_multilang_tts.py · Outputs: data/interim/probe1c/
 
 - misaki[zh] installed clean into the probe venv (2026-07-18). Renders single-chunk

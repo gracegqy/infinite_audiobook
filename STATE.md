@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 13 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 14 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
 | 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
-| 2 — Design | IN PROGRESS | DESIGN.md frozen; Grace sign-off | v0.2 draft encodes Grace's rulings + AMENDMENTS 02/03 (proposed); sign-off awaits her probe-1c zh/fr listen + v0.2 review (Entry 12) |
+| 2 — Design | IN PROGRESS | DESIGN.md frozen; Grace sign-off | v0.3 complete — all §9 decisions ruled incl. zh=edge-tts (Entries 12–14); the ONLY open step is Grace's explicit sign-off on v0.3 |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
@@ -53,33 +53,27 @@
   point (Entry 10: a finished story "resumed" to its end, causing instant
   ended→pause that looked like broken playback).
 - .env exists with both keys (verified gitignored).
-- TTS language gates (probe 1c, Entries 12–13): **fr OPEN** (Kokoro ff_siwis passed
-  Grace's ear); **zh: Kokoro FAILED** ("weird accents", both first-round voices —
-  model-level). zh candidates awaiting Grace's listen: 6 remaining Kokoro voices +
-  edge-tts native Azure voices ($0, cloud, unofficial endpoint — needs fallback if
-  adopted). Local no-cloud tier if those fail: CosyVoice2-0.5B / Fish Speech /
-  IndexTTS-2, each needing its own probe. TTS engine will be per-language config.
-  ja untested.
+- TTS is per-language config, all gates decided (probe 1c, Entries 12–14):
+  en = Kokoro · fr = Kokoro ff_siwis (passed) · zh = edge-tts zh-CN-YunxiNeural
+  (Grace's "verdict a", Yunxi > Xiaoxiao; Kokoro zh rejected — "weird accents";
+  edge-tts caveats accepted: $0 cloud call, undocumented endpoint, degrade rule =
+  OpenAI TTS per story on failure) · ja untested, out of scope. edge-tts currently
+  installed only in the probe venv — pipeline env must add it (Phase 3).
 
 ## Next actions
 
-1. Grace: zh round-2 listen at http://100.117.147.107:8765/audio/probe1c/ —
-   start with the ceiling: zh_edgetts_xiaoxiao.mp3 + zh_edgetts_yunxi.mp3 (native
-   Azure voices, $0, cloud caveats); then, only if curious whether local Kokoro is
-   salvageable, the six zh_original_zm_*/zf_*.m4a voices. Verdict options:
-   (a) edge-tts passes → zh primary = edge-tts w/ fallback, (b) nothing passes →
-   probe CosyVoice2 locally next session, (c) drop zh channels for now.
-2. Grace: review DESIGN v0.2 (§7 queue, §5 source tiers + DRM boundary, §9
-   rulings). Sign-off + the zh pick freeze DESIGN (as v0.3 with per-language TTS
-   config) + bind AMENDMENTS 02/03, closing Phase 2.
-3. After sign-off: stop the probe-5 server, then Phase 3 pipeline MVP per TASKS —
-   one story end-to-end against the frozen schema, unit + round-trip tests same
-   day. (Reddit app creation can wait until NoSleep matters.)
+1. Grace: final review of DESIGN v0.3 — everything is already ruled and encoded
+   (§5 per-language TTS incl. zh=edge-tts/Yunxi, §7 queue 3+skip, §9 rulings 1–6,
+   §10 negative spec). Say "sign off v0.3" (or object to specifics). On sign-off:
+   mark DESIGN frozen v1.0 + flip AMENDMENTS 02/03 from PROPOSED to binding +
+   JOURNAL entry. Phase 2 closes there.
+2. Then: stop the probe-5 server (its job is done), start Phase 3 pipeline MVP per
+   TASKS — one story end-to-end against the frozen schema; unit + round-trip tests
+   same day; edge-tts must be added to the pipeline env (probe venv only, today);
+   its mp3-duration offsets math needs a unit test (DESIGN §5). Reddit app creation
+   waits until NoSleep matters.
 
 ## Open decisions
 
-- zh TTS engine: Grace's round-2 pick — edge-tts (native, $0, cloud/unofficial
-  caveats) vs. best remaining Kokoro voice vs. probe CosyVoice2 vs. drop zh (Entry
-  13). fr is decided: Kokoro. TTS becomes per-language config in v0.3 either way.
-- All v0.1 §9 decisions are RULED (Entry 12) and encoded in DESIGN v0.2 + AMENDMENTS
-  02/03 (proposed) — they bind at sign-off, nothing else is open.
+None. Every design decision is ruled and encoded in DESIGN v0.3 (Entries 12–14);
+the only open item is the sign-off act itself (next action 1).

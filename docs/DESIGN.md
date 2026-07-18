@@ -1,10 +1,12 @@
 # DESIGN — horror_readaloud
 
-> **STATUS: DRAFT v0.2 (2026-07-18) — NOT FROZEN.** Freezes only on Grace's sign-off
+> **STATUS: DRAFT v0.3 (2026-07-18) — NOT FROZEN.** Freezes only on Grace's sign-off
 > recorded in JOURNAL. After freezing, changes happen via amendment docs + journal line.
 > Authority once frozen: below BRIEF_VERBATIM.md + amendments, above everything else.
-> v0.2 incorporates Grace's rulings on v0.1 §9 + AMENDMENT_02 (queue = 3 + skip) +
-> AMENDMENT_03 (zh/fr multilingual scope) — both amendments bind at this sign-off.
+> v0.2 incorporated Grace's rulings on v0.1 §9 + AMENDMENT_02 (queue = 3 + skip) +
+> AMENDMENT_03 (zh/fr multilingual scope); v0.3 adds her probe-1c TTS verdicts:
+> per-language engines, zh = edge-tts (verdict a, Entry 14). Amendments bind at
+> this sign-off.
 
 ## 1. Architecture
 
@@ -141,14 +143,22 @@ paragraph. Serialization gets a `decode(encode(x)) == x` round-trip test day one
 - **tag** — one cheap Claude call (Haiku-class) at ingest (~$0.01, R10 feasibility):
   controlled-vocab tags per kind + verbatim labels; missing values stay NULL with
   `_present=0`.
-- **synthesize** — Kokoro per paragraph (6.9x realtime, probe 1) → butt-join concat →
-  `afconvert` to 64k AAC m4a → offsets manifest. Per-story OpenAI TTS fallback
-  (`gpt-4o-mini-tts`, ~$0.32/30-min story, probe 6) recorded in `tts_engine`.
-  Languages (AMENDMENT_03): a channel's language must have a **passed Kokoro quality
-  probe** before design relies on it. en: passed (probe 1). zh/fr: rendered at 5.0–5.7x
-  realtime (probe 1c, misaki[zh] installs clean), quality verdict awaiting Grace's
-  native/learner ear. ja: untested (translated works arrive via local_import in zh/en).
-  Any language that fails Kokoro falls back to OpenAI TTS per story.
+- **synthesize** — per paragraph → butt-join concat → `afconvert` to 64k AAC m4a →
+  offsets manifest. **Engine is per-language configuration** (Grace's probe-1c
+  verdicts, Entries 13–14), recorded per story in `tts_engine`/`voice`:
+  - **en**: Kokoro (passed, probe 1; 6.9x realtime).
+  - **fr**: Kokoro `ff_siwis` (passed, probe 1c; 5.0x realtime).
+  - **zh**: **edge-tts**, preferred voice `zh-CN-YunxiNeural` (Grace: Yunxi > Xiaoxiao;
+    Kokoro zh failed her native ear). Accepted caveats, on record: each render is a
+    cloud call to Microsoft's undocumented Edge endpoint (story text leaves the Mac —
+    acceptable: story text is not personal data), and the endpoint can rate-limit or
+    break — so synthesize must degrade gracefully: edge-tts failure → OpenAI TTS for
+    that story (never block the queue on the endpoint). Offsets still come from
+    per-paragraph renders (edge-tts returns per-call audio; concat math unchanged —
+    mp3/AAC durations read via afinfo/soundfile, worth a unit test).
+  - **ja**: untested; no ja channels (translated works arrive via local_import in zh/en).
+  - Per-story fallback for every language: OpenAI TTS (`gpt-4o-mini-tts`,
+    ~$0.32/30-min story, probe 6).
 
 ## 6. Server + player (Phase 4 scope)
 
@@ -207,8 +217,11 @@ before/after diff. Trends screen reads the same aggregation.
    a UI notice pointing at the model setting (§5, §6).
 4. **Offline PWA audio caching:** APPROVED — out of MVP.
 5. **NEW (AMENDMENT_03):** en/zh/fr in scope, each TTS-probe-gated; source tiers incl.
-   scp_cn + local_import; DRM'd platforms declined. zh/fr channel design is contingent
-   on Grace's probe-1c listening verdict.
+   scp_cn + local_import; DRM'd platforms declined.
+6. **zh TTS (Grace, 2026-07-18, "verdict a"):** edge-tts with `zh-CN-YunxiNeural`
+   preferred (Yunxi > Xiaoxiao); cloud/unofficial-endpoint caveats accepted with
+   OpenAI TTS as the per-story fallback. fr = Kokoro `ff_siwis` (passed). TTS is
+   per-language config (§5).
 
 ## 10. What This Is Not (negative spec)
 
