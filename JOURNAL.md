@@ -56,3 +56,29 @@ phase is now Phase 1 (pre-design probes), starting with Kokoro install/quality p
 next actions.
 
 Measurements invalidated by this change: none.
+
+## Entry 5 — 2026-07-18 — Phase 1 probes: 3 answered, 3 blocked on Grace-side inputs
+
+Ran probes per TASKS §1 (throwaway scripts in pre_design_probes/, full evidence in
+probe_results.txt). Key results:
+- Kokoro installs clean and runs 6.9x realtime on this Mac; 2.5-min horror sample +
+  male-voice + Spanish samples rendered for Grace's listening test.
+- Chunked synthesis offsets exact by construction AND verified by an independent
+  silence/speech energy check (6/6 offsets OK) — text↔audio sync architecture holds.
+- Curation signal confirmed: named checkable lists exist for both classic and NoSleep
+  channels; 3 candidates spot-checked (Monkey's Paw PD/PG12122, Yellow Wallpaper
+  PD/PG1952, Borrasca modern) with correct PD/modern classification.
+- Fetch+clean: Gutenberg 10/10; creepypasta wiki 8/10 (fetcher must validate empty/
+  deleted pages); Reddit anonymous JSON API is dead (403 everywhere) — HTML works,
+  OAuth app is the robust path. Decision deferred to Phase 2 design.
+- NEW FACT contradicting the brief's assumption: Tailscale is not installed on this
+  Mac. Probe 5 (and later the Phase 4 gate) blocked until Grace installs it on Mac +
+  iPhone. Test page + range-verified FastAPI server are ready (206 partial content
+  confirmed on localhost).
+- API keys not yet in .env (Grace obtained them mid-session; told her the format).
+  probe3_curation_api.py and probe6_openai_tts.py are one-command runs once keys land.
+- Deferred with risk note: Kokoro CJK quality (needs misaki[ja]/[zh]) — retest before
+  designing any CJK channel.
+
+Measurements invalidated by this change: none (first measurements of the project).
+

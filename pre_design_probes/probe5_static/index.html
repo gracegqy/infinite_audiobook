@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probe 5 — iOS playback test</title>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 1rem; background: #111; color: #eee; }
+  button { font-size: 1.1rem; padding: .6rem 1rem; margin: .2rem; border-radius: .5rem; border: 0; }
+  #log { font-family: ui-monospace, monospace; font-size: .75rem; white-space: pre-wrap;
+         background: #000; padding: .5rem; height: 14rem; overflow-y: scroll; margin-top: 1rem; }
+  select { font-size: 1rem; padding: .4rem; }
+  .ok { color: #7f7; } .bad { color: #f77; }
+</style>
+</head>
+<body>
+<h2>Probe 5 — iOS Safari over Tailscale</h2>
+<p>Checklist: play → scrub → ±15s → lock screen (controls? artwork?) → background ≥5 min →
+return (position kept?) → kill Safari, reopen (position restored from localStorage?).</p>
+
+<select id="src">
+  <option value="/audio/probe1/horror_usher_af_heart.m4a">Usher — m4a 64k (production-like)</option>
+  <option value="/audio/probe1/horror_usher_af_heart.wav">Usher — wav (raw)</option>
+  <option value="/audio/probe2/concat_A_buttjoin.wav">Probe2 — butt-join seams</option>
+</select>
+
+<div>
+  <button id="play">▶︎ / ⏸</button>
+  <button id="back">−15 s</button>
+  <button id="fwd">+15 s</button>
+</div>
+<input type="range" id="seek" min="0" max="100" value="0" style="width:100%">
+<div id="pos">0.0 / 0.0</div>
+<div id="log"></div>
+
+<script>
+const audio = new Audio();
+const log = (m, cls) => {
+  const el = document.getElementById("log");
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = `${new Date().toISOString().slice(11,19)} ${m}`;
+  el.prepend(line);
+};
+const KEY = "probe5-pos";
+const srcSel = document.getElementById("src");
+
+function load(restore) {
+  audio.src = srcSel.value;
+  const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+  if (restore && saved.src === srcSel.value && saved.t) {
+    audio.currentTime = saved.t;
+    log(`restored position ${saved.t.toFixed(1)}s from localStorage`, "ok");
+  }
+}
+srcSel.onchange = () => load(false);
+load(true);
+
+document.getElementById("play").onclick = () => audio.paused ? audio.play() : audio.pause();
+document.getElementById("back").onclick = () => { audio.currentTime -= 15; log("seek −15s"); };
+document.getElementById("fwd").onclick  = () => { audio.currentTime += 15; log("seek +15s"); };
+const seek = document.getElementById("seek");
+seek.oninput = () => { if (audio.duration) audio.currentTime = audio.duration * seek.value / 100; };
+
+audio.addEventListener("timeupdate", () => {
+  document.getElementById("pos").textContent =
+    `${audio.currentTime.toFixed(1)} / ${(audio.duration || 0).toFixed(1)}`;
+  if (audio.duration) seek.value = 100 * audio.currentTime / audio.duration;
+  localStorage.setItem(KEY, JSON.stringify({src: srcSel.value, t: audio.currentTime}));
+});
+["play","pause","seeking","seeked","stalled","waiting","ended","error"].forEach(ev =>
+  audio.addEventListener(ev, () => log(`event: ${ev}` +
+    (ev === "error" ? " " + JSON.stringify(audio.error) : ""), ev === "error" ? "bad" : undefined)));
+
+if ("mediaSession" in navigator) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: "The Fall of the House of Usher",
+    artist: "Edgar Allan Poe — Kokoro af_heart",
+    album: "horror_readaloud probe 5",
+  });
+  navigator.mediaSession.setActionHandler("seekbackward", () => { audio.currentTime -= 15; });
+  navigator.mediaSession.setActionHandler("seekforward", () => { audio.currentTime += 15; });
+  navigator.mediaSession.setActionHandler("play", () => audio.play());
+  navigator.mediaSession.setActionHandler("pause", () => audio.pause());
+  log("Media Session API available; metadata + handlers set", "ok");
+} else {
+  log("Media Session API NOT available", "bad");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+PROBE RESULTS — Phase 1 pre-design probes
+Updated 2026-07-18. Evidence commands are re-runnable; scripts live in this directory.
+Machine: Grace's Mac (Darwin 25.2.0, Python 3.12.12 via probe venv .venv/).
+
+=====================================================================
+PROBE 1 — Kokoro on this Mac
+Status: MACHINE-SIDE ANSWERED · Grace listening test PENDING
+Script: probe1_kokoro.py · Outputs: data/interim/probe1/*.wav
+
+- Installs: YES. pip install kokoro soundfile in a py3.12 venv, no espeak-ng brew
+  dependency needed (espeakng-loader wheel bundles it). Model (~330MB) auto-downloads
+  from HF on first KPipeline use; EN pipeline ready in 20.8s cold, ~2s warm.
+- Speed: 6.9x realtime on the 430-word Usher passage (149.6s audio in 21.7s wall,
+  voice af_heart); 6.7x on am_michael; Spanish 5.4x. A 30-min story renders in ~4.5 min.
+- Horror-prose sample for Grace: data/interim/probe1/horror_usher_af_heart.wav (2:30,
+  female) and horror_usher_am_michael.wav (2:46, male) — Poe, Usher opening.
+- Non-English (channels amendment): Spanish works out of the box (lang_code 'e',
+  voice ef_dora): spanish_quiroga_ef_dora.wav (24s, Quiroga). NOTE: Japanese/Chinese
+  need extra deps (misaki[ja]/[zh]) — untested, deferred with risk note: if Grace wants
+  CJK channels, rerun this probe for those languages before designing around them.
+- GRACE: listen to the three wavs (≥2 min of the horror one). Verdict decides whether
+  Kokoro stays primary TTS.
+
+=====================================================================
+PROBE 2 — Chunked synthesis: seams + offset accuracy
+Status: OFFSETS VERIFIED · Grace seam-listen PENDING
+Script: probe2_chunked_offsets.py · Outputs: data/interim/probe2/
+
+- 6 Usher paragraphs rendered separately, concatenated two ways:
+  concat_A_buttjoin.wav (raw butt-join) and concat_B_200ms_gaps.wav (200ms silence).
+- Offsets = cumulative chunk sample counts. Verified two ways:
+  (a) construction: concat length == sum of chunk lengths (1,829,400 samples exact);
+  (b) independent energy check at each offset in variant B: 150ms window before each
+      offset is silence (-120 dB), 500ms after is speech (-25..-29 dB) — 6/6 OK.
+  Offset error is 0 by construction, far inside the ~100ms budget.
+- Kokoro chunks end in digital silence (tail RMS < -200 dB), so butt-joins should be
+  clean; paragraph-final prosody sounds natural in isolation.
+- GRACE: listen to concat_A_buttjoin.wav — are the 5 seams audible/annoying? If yes,
+  design will insert ~200ms gaps (variant B), which costs nothing and offsets stay exact.
+
+=====================================================================
+PROBE 3 — Curation signal (Claude + web search)
+Status: SIGNAL ANSWERED YES (via in-session web search) · API-mechanism run PENDING KEY
+Script: probe3_curation_api.py (runs the real Messages API + web_search once .env exists)
+
+- Search for "best classic horror short stories" surfaced named, checkable lists:
+  Irish Times "10 most terrifying", NPR "100 Best Horror", Flavorwire 50, Goodreads
+  Best Horror Short Stories; candidates incl. The Monkey's Paw, Young Goodman Brown,
+  The Yellow Wallpaper, The Tell-Tale Heart, The Colour Out of Space.
+- Modern web channel equally strong: RehnWriter best-of-NoSleep list, CrimeReads
+  "10 Chilling Reddit Stories"; candidates incl. Borrasca (C.K. Walker), Penpal,
+  A Shattered Life (u/M59Gar), We Used to Live Here (NoSleep Scariest Story 2021).
+- Spot-checked 3 by hand:
+  1. The Monkey's Paw (1902) — PD correct; text confirmed on Gutenberg (in #12122
+     "The Lady of the Barge", HTTP 200, title grep hit).
+  2. The Yellow Wallpaper (1892) — PD correct; Gutenberg #1952 HTTP 200.
+  3. Borrasca — modern/author-owned correct; RehnWriter list names it "THE Nosleep
+     story" (fetched page, confirmed).
+- Classification PD vs modern was correct on all spot-checks. Conclusion: reputation
+  evidence is abundant and checkable; curation-by-LLM-search is viable.
+- PENDING: one run of probe3_curation_api.py (needs ANTHROPIC_API_KEY in .env) to
+  confirm the API-side mechanics (web_search tool, cost/candidate batch). Est. <$0.50.
+
+=====================================================================
+PROBE 4 — Fetch + clean on real samples
+Status: ANSWERED (with one source-class caveat)
+Script: probe4_fetch_clean.py · Outputs: data/interim/probe4/
+
+- Gutenberg: 10/10 classics fetched via /cache/epub/<id>/pg<id>.txt; *** START/END ***
+  header/footer markers found and stripped on all 10; paragraph segmentation sane
+  (median para 81-733 chars). RELIABLE.
+- Creepypasta wiki (Fandom MediaWiki action=parse + HTML strip): 8/10 usable clean
+  texts (Candle Cove short because story is transcript-style — legit). Findings:
+  "Ted the Caver" returned 0 chars (stub/redirect page) and "Jeff the Killer" resolved
+  to a Deleted Page notice -> fetcher MUST validate min length + detect
+  deleted/redirect pages. OTHERWISE RELIABLE.
+- Reddit r/NoSleep: anonymous JSON API is DEAD from this network — 403 "Blocked" on
+  www + old.reddit .json and .rss, with both probe UA and browser UA. HTML pages
+  return 200 (www and old.reddit). Pipeline options, decided in Phase 2:
+    (a) proper OAuth script app (free, 100 QPM) — needs Grace to create a Reddit app;
+    (b) parse old.reddit HTML (works today, fragile);
+  Probe answer: source class usable but NOT via the assumed anonymous JSON route.
+- Dedup keys: sha1(normalized title + first 500 normalized chars) — 20/20 unique
+  across all fetched samples. Adequate for Phase 2 schema.
+
+=====================================================================
+PROBE 5 — Phone playback reality (iOS Safari over Tailscale)
+Status: SERVER+PAGE READY, RANGE SUPPORT VERIFIED LOCALLY · BLOCKED on Tailscale install + Grace's phone
+Script: probe5_phone_server.py + probe5_static/index.html
+
+- FINDING: Tailscale is NOT installed on this Mac (no /Applications/Tailscale.app, no
+  CLI in PATH or /opt/homebrew, no 100.x interface). The brief assumed it; it must be
+  installed on Mac + iPhone before this probe (and before Phase 4's gate) can run.
+- Test server: FastAPI StaticFiles (the exact mechanism Phase 4 will use) on port 8765.
+  Range requests verified locally: GET with Range: bytes=100000-100999 returned
+  206 Partial Content, accept-ranges: bytes, correct content-range. Serving policy per
+  CLAUDE.md: binds 127.0.0.1 by default; pass the Tailscale 100.x IP once it exists —
+  never binds beyond Tailscale.
+- Test page covers: wav + m4a sources (m4a 64k AAC made via afconvert, 1.2MB vs 7.2MB
+  wav), play/pause, ±15s, scrub slider, Media Session metadata + lock-screen handlers,
+  localStorage position save/restore, on-screen event log.
+- GRACE (after installing Tailscale on Mac + iPhone, same tailnet):
+    1. cd pre_design_probes && .venv/bin/python probe5_phone_server.py <mac-100.x-ip>
+    2. iPhone Safari -> http://<mac-100.x-ip>:8765/
+    3. Walk the on-page checklist; report what the log shows for seeking/backgrounding.
+
+=====================================================================
+PROBE 6 — OpenAI TTS fallback
+Status: SCRIPT READY · BLOCKED on OPENAI_API_KEY in .env
+Script: probe6_openai_tts.py
+
+- One-call render of the same Usher paragraph (direct Kokoro comparison), voice onyx,
+  model gpt-4o-mini-tts. Cost math in-script: ~$0.004/paragraph, ~$0.32 for a 30-min
+  story at $12/M chars. Run: .venv/bin/python probe6_openai_tts.py
+
+=====================================================================
+GATE STATUS: 3 of 6 fully machine-answered (2, 4, and 3's signal half).
+Remaining human/blocked items:
+  - Grace listens: probe1 wavs, probe2 butt-join seams   [listening test]
+  - .env with both keys -> run probe3_curation_api.py + probe6_openai_tts.py
+  - Tailscale install on Mac + iPhone -> run probe 5 on the phone
