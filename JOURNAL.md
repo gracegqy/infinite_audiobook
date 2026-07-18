@@ -198,3 +198,36 @@ story), not a regression of mid-story resume. No numeric measurements affected.
   caching out of MVP. Gate = Grace sign-off after walkthrough; NOT frozen yet.
 
 Measurements invalidated by this change: none (design is downstream of measurements).
+
+## Entry 12 — 2026-07-18 — Grace's v0.1 rulings: queue redesign, multilingual scope, model policy; DESIGN v0.2
+
+- Grace ruled on the four §9 decisions: Reddit OAuth APPROVED; Sonnet APPROVED with a
+  condition (no auto-escalation ever; consistent quality disappointment → UI notice to
+  change the model — her choice only → new R14); offline caching out APPROVED.
+- Queue: Grace proposed 3-unread + autoplay in acquisition order + skip button and asked
+  for critical assessment. Assessment: adopted — cost difference vs 5 is negligible, but
+  3 shortens the taste-adaptation feedback lag and the skip button adds a curation-
+  quality signal ratings can't provide. Two refinements accepted into the design: skips
+  are permanent history (no-repeat guarantee covers them) and stories are queue-visible
+  at text_ready with synthesis in queue order (skip before render costs one fetch).
+  Encoded as AMENDMENT_02 (PROPOSED status; binds at v0.2 sign-off; supersedes brief
+  §2's "queue of 5"). R4 reworded accordingly.
+- Multilingual scope (Grace: en/zh natively, learning fr): encoded as AMENDMENT_03
+  (PROPOSED). Source tiers: A = Gutenberg zh/fr, SCP-CN (CC BY-SA — oobmab's branch is
+  legally fetchable), local_import for legitimately-owned commercial works
+  (周德东-class, translated ja fiction); B (probe first) = X岛-successors, 知乎;
+  C (declined) = 小红书 scraping and any DRM'd platform (微信读书) — DRM circumvention
+  is out regardless of private-use posture, local_import is the lawful route. New R15.
+- Probe 1c run (new probe under AMENDMENT_03; its section in probe_results.txt carries
+  design authority despite the directory's Phase-1 expiry): misaki[zh] installed clean;
+  zh renders 5.3–5.7x realtime (two voices), fr 5.0x (Le Horla, no extra deps); all
+  three m4as verified 200 over Tailscale. Grace's listen is the zh/fr channel gate.
+- DESIGN.md → v0.2: queue §7 rewritten, schema gains status values text_ready/skipped +
+  stories.language + source classes scp_cn/local_import, curation language-aware, model
+  policy + settings UI, negative spec gains no-DRM-circumvention and no-silent-model-
+  changes, traceability covers R14/R15. Phase 2 gate still open: sign-off pending
+  Grace's probe-1c listen + v0.2 review.
+
+Measurements invalidated by this change: none. Probe-3 curation cost ($1.65 at Opus)
+was measured on an English channel; zh-channel cost is unmeasured — watch the first
+real zh curation_runs rows before trusting the ≤$0.40 target there.

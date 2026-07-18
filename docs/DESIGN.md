@@ -1,8 +1,10 @@
 # DESIGN — horror_readaloud
 
-> **STATUS: DRAFT v0.1 (2026-07-18) — NOT FROZEN.** Freezes only on Grace's sign-off
+> **STATUS: DRAFT v0.2 (2026-07-18) — NOT FROZEN.** Freezes only on Grace's sign-off
 > recorded in JOURNAL. After freezing, changes happen via amendment docs + journal line.
 > Authority once frozen: below BRIEF_VERBATIM.md + amendments, above everything else.
+> v0.2 incorporates Grace's rulings on v0.1 §9 + AMENDMENT_02 (queue = 3 + skip) +
+> AMENDMENT_03 (zh/fr multilingual scope) — both amendments bind at this sign-off.
 
 ## 1. Architecture
 
@@ -13,9 +15,9 @@ directory:
   files, and story audio with HTTP range support (verified mechanism, probe 5). Binds the
   Mac's Tailscale IP only — never `0.0.0.0`.
 - **Pipeline worker** (`pipeline/`): replenishment loop. When the active channel's unread
-  count < 5: curate → dedup → fetch → clean → tag → synthesize until back to 5. Runs as a
-  separate process (launchd/manual per RUNBOOK); failures mark the story `failed` and
-  continue, never wedge the loop.
+  count < 3 (AMENDMENT_02): curate → dedup → fetch → clean → tag → synthesize until back
+  to 3. Runs as a separate process (launchd/manual per RUNBOOK); failures mark the story
+  `failed` and continue, never wedge the loop.
 
 All state in SQLite + `data/library/`. No cloud storage, no external services beyond the
 curation/tagging LLM calls and optional OpenAI TTS fallback.
@@ -58,16 +60,19 @@ stories(
   dedup_key TEXT UNIQUE NOT NULL,
   title TEXT NOT NULL, author TEXT, author_present INTEGER,
   year INTEGER, year_present INTEGER,                        -- LLM-extracted → nullable
-  source_class TEXT NOT NULL,                                -- gutenberg|creepypasta|nosleep|other
-  source_url TEXT NOT NULL,                                  -- provenance, always
-  license_class TEXT NOT NULL,                               -- pd|modern_private
+  source_class TEXT NOT NULL,                                -- gutenberg|creepypasta|nosleep|scp_cn|local_import|other
+  source_url TEXT NOT NULL,                                  -- provenance, always (file:// for local_import)
+  license_class TEXT NOT NULL,                               -- pd|modern_private|cc_by_sa
+  language TEXT NOT NULL DEFAULT 'en',                       -- en|zh|fr (TTS-probe-gated)
   curation_evidence_json TEXT,                               -- named lists/essays/ratings
-  status TEXT NOT NULL,                                      -- queued|fetching|ready|in_progress|read|failed
+  status TEXT NOT NULL,                                      -- queued|fetching|text_ready|ready|in_progress|read|skipped|failed
   tts_engine TEXT, voice TEXT, duration_s REAL, paragraph_count INTEGER,
   failure_note TEXT, created_at TEXT, ready_at TEXT
 )
 -- Rows are NEVER deleted: this table is the all-time history that guarantees
 -- "no repeats" (R6). Curation candidates are dedup-checked against it before fetch.
+-- 'skipped' (AMENDMENT_02) is permanent history too — a skipped story is never
+-- re-proposed, exactly like 'read'.
 
 tags(story_id TEXT REFERENCES stories, kind TEXT, value_verbatim TEXT, value_norm TEXT,
      PRIMARY KEY(story_id, kind, value_norm))
@@ -106,18 +111,30 @@ paragraph. Serialization gets a `decode(encode(x)) == x` round-trip test day one
 
 - **curate** — Messages API + web_search against: standing reputation bar (many named
   recommenders, video essays, ratings — channel-independent) + active channel criteria +
-  taste profile (Phase 6+). Returns candidates with named evidence, PD/modern
-  classification, and honest unverified flags (verified at fetch). **Cost levers from
-  probe 3** ($1.65/batch at Opus is over budget): default model `claude-sonnet-5`,
-  max ~6 searches, batch of 8, criteria cached in the prompt. Target ≤$0.40/batch,
-  measured via curation_runs; escalate model only if candidate quality disappoints.
-- **fetch** — per source_class:
+  taste profile (Phase 6+). Language-aware (AMENDMENT_03): zh channels search Chinese-web
+  reputation signals (豆瓣 ratings, 知乎 threads, bilibili 解说 essays) — same mechanism.
+  Returns candidates with named evidence, license classification, honest unverified
+  flags. **Cost levers from probe 3** ($1.65/batch at Opus is over budget): model
+  `claude-sonnet-5`, max ~6 searches, batch of 8, criteria cached in the prompt. Target
+  ≤$0.40/batch, measured via curation_runs. **Model policy (Grace, 2026-07-18): never
+  auto-escalate.** If quality consistently disappoints — trigger: skip-rate of recent
+  batches over a threshold — the UI shows a notice prompting Grace to change the model
+  in settings (§6); the choice is always hers.
+- **fetch** — per source_class (AMENDMENT_03 tiers):
   - gutenberg: `/cache/epub/<id>/pg<id>.txt`, strip `*** START/END ***` (10/10 probe 4).
+    Same fetcher covers zh/fr collections (聊斋志异, Maupassant) — near-zero extra work.
   - creepypasta: MediaWiki `action=parse` + HTML strip; MUST validate min length and
     detect deleted/redirect pages (probe 4 findings).
-  - nosleep: **Reddit OAuth script app** (recommended decision §9.2) — anonymous JSON is
-    dead (probe 4). Until the app exists, the NoSleep source class is disabled and
-    curation is told not to propose it.
+  - nosleep: **Reddit OAuth script app** (§9.2, approved) — anonymous JSON is dead
+    (probe 4). Until the app exists, the source class is disabled and curation is told
+    not to propose it.
+  - scp_cn: wikidot fetcher for the CC BY-SA-licensed SCP-CN branch (oobmab et al.);
+    attribution kept in meta. New fetcher, Phase 5+.
+  - local_import: Grace drops legitimately-obtained .txt/.epub into a watched folder;
+    pipeline runs clean→tag→synthesize. The lawful route to commercial authors
+    (周德东-class) and translated Japanese fiction. **Scraping DRM'd platforms
+    (微信读书 etc.) is declined — that's DRM circumvention, not scraping** (§10).
+  - Tier B (probe before any design relies on them): X岛-successor boards, 知乎 columns.
 - **clean** — strip boilerplate; **unwrap hard-wrapped lines within paragraphs**
   (probe 1b — mandatory, Gutenberg wraps at ~70 cols and wrapped lines cause chunk-break
   pauses); collapse whitespace; blank-line paragraph segmentation; min-length sanity.
@@ -127,8 +144,11 @@ paragraph. Serialization gets a `decode(encode(x)) == x` round-trip test day one
 - **synthesize** — Kokoro per paragraph (6.9x realtime, probe 1) → butt-join concat →
   `afconvert` to 64k AAC m4a → offsets manifest. Per-story OpenAI TTS fallback
   (`gpt-4o-mini-tts`, ~$0.32/30-min story, probe 6) recorded in `tts_engine`.
-  Non-English: Kokoro Spanish confirmed; **CJK deferred** — rerun probe 1 with
-  misaki[ja]/[zh] before designing any CJK channel (standing risk note).
+  Languages (AMENDMENT_03): a channel's language must have a **passed Kokoro quality
+  probe** before design relies on it. en: passed (probe 1). zh/fr: rendered at 5.0–5.7x
+  realtime (probe 1c, misaki[zh] installs clean), quality verdict awaiting Grace's
+  native/learner ear. ja: untested (translated works arrive via local_import in zh/en).
+  Any language that fails Kokoro falls back to OpenAI TTS per story.
 
 ## 6. Server + player (Phase 4 scope)
 
@@ -136,8 +156,11 @@ API: `GET /api/stories` (library list + status), `GET /api/stories/{id}` (meta +
 offsets), `GET /api/stories/{id}/audio` (range-capable), `GET|PUT /api/progress/{id}`,
 `PUT /api/ratings/{id}`, bookmarks CRUD, channels CRUD + activate (Phase 5).
 
-Player: library list, play/pause, ±15 s, scrubber, story select, text view, speed
-selector 0.75–2x (R13 — iOS honors playbackRate, probe 5), Media Session metadata.
+Player: queue view (autoplay order) + library list, play/pause, ±15 s, scrubber, story
+select, **skip/remove button** (AMENDMENT_02 — marks `skipped`, triggers replenishment),
+text view, speed selector 0.75–2x (R13 — iOS honors playbackRate, probe 5), Media
+Session metadata. Settings: curation model selector + the §5 quality notice (R14 —
+never auto-switched).
 
 **iOS rules (probe 5, binding):**
 1. Resume seeks apply on `loadedmetadata` or later — never at page init.
@@ -149,14 +172,21 @@ selector 0.75–2x (R13 — iOS honors playbackRate, probe 5), Media Session met
 
 ## 7. Queue + worker (Phase 5 scope)
 
-**Queue semantics (recommended, resolves the open decision): 5 unread for the ACTIVE
-channel only.** Switching channels re-targets replenishment to the new channel; other
-channels' unread stories stay in the library but don't count. Rationale: matches the
-brief's single-queue mental model, avoids N× curation cost per inactive channel.
+**Queue semantics (AMENDMENT_02): 3 unread for the ACTIVE channel**, autoplayed in
+acquisition order, every queued story selectable from a menu. Switching channels
+re-targets replenishment; other channels' unread stories stay in the library but don't
+count. **Skip** removes a story permanently (status `skipped`, counts as history for
+no-repeats) and triggers immediate replenishment.
 
-Worker cycle: check unread(active) < 5 → curate batch → dedup against all-time stories
-table → fetch/clean/tag/synthesize each until healed. Pure logic (replenishment decision,
-dedup) takes `now` and DB state as parameters — unit-tested from day one.
+Stories appear in the queue (title/author/evidence, skippable) at `text_ready` —
+before synthesis. The synthesis worker renders in queue order, so a skip before
+rendering costs one fetch, not a ~4.5-min render; autoplay only advances to `ready`
+stories. Skip-rate is also the §5 curation-quality signal.
+
+Worker cycle: check unread(active) < 3 → curate batch → dedup against all-time stories
+table → fetch/clean/tag each (queue-visible) → synthesize in order until healed. Pure
+logic (replenishment decision, dedup, skip transitions) takes `now` and DB state as
+parameters — unit-tested from day one.
 
 ## 8. Preference adaptation (Phase 6 scope)
 
@@ -165,17 +195,20 @@ short text block ("liked: cosmic-dread (4.7/5, n=3)... disliked: gore (1.5/5, n=
 injected into the curation prompt and stored on curation_runs for the gate's
 before/after diff. Trends screen reads the same aggregation.
 
-## 9. Decisions resolved by this design (Grace confirms at sign-off)
+## 9. Decisions (Grace's rulings, 2026-07-18 — encoded in v0.2)
 
-1. **Queue semantics:** 5-per-active-channel (§7). Alternative rejected: global 5 mixes
-   channels unpredictably; 5-per-every-channel multiplies cost.
-2. **Reddit/NoSleep:** OAuth script app — free, 100 QPM, robust. Needs Grace to create
-   the app at reddit.com/prefs/apps (~5 min, runbook step, Phase 3). Fallback rejected:
-   old.reddit HTML parsing is fragile. NoSleep disabled until the app exists.
-3. **Curation model:** Sonnet with capped searches, target ≤$0.40/batch (§5); Opus only
-   if quality disappoints on real batches.
-4. **Offline PWA audio caching:** OUT of MVP (negative spec); revisit after Phase 4 if
-   Tailscale-only listening ever chafes.
+1. **Queue:** Grace's redesign adopted — 3-per-active-channel + autoplay in acquisition
+   order + skip button (AMENDMENT_02, with the two accepted refinements: skips are
+   permanent history; queue-visible at text_ready with synthesis in queue order).
+2. **Reddit/NoSleep:** APPROVED — OAuth script app. Grace creates it at
+   reddit.com/prefs/apps (~5 min, runbook step, Phase 3). NoSleep disabled until then.
+3. **Curation model:** APPROVED — Sonnet, capped searches, ≤$0.40/batch target. Grace's
+   condition encoded: no auto-escalation ever; sustained quality disappointment surfaces
+   a UI notice pointing at the model setting (§5, §6).
+4. **Offline PWA audio caching:** APPROVED — out of MVP.
+5. **NEW (AMENDMENT_03):** en/zh/fr in scope, each TTS-probe-gated; source tiers incl.
+   scp_cn + local_import; DRM'd platforms declined. zh/fr channel design is contingent
+   on Grace's probe-1c listening verdict.
 
 ## 10. What This Is Not (negative spec)
 
@@ -187,9 +220,13 @@ before/after diff. Trends screen reads the same aggregation.
 - No cloud storage; no analytics/telemetry; no per-listen API calls — audio is
   synthesized once and cached forever (R11).
 - No social features, sharing, or comments.
-- No offline audio caching in MVP (§9.4). No CJK channels before the CJK probe rerun.
+- No offline audio caching in MVP (§9.4). No channel in a language without a passed
+  TTS probe (ja currently; zh/fr pending Grace's probe-1c verdict).
 - No paid TTS as primary — OpenAI is per-story fallback only.
 - No API keys in frontend code or responses, ever.
+- **No DRM circumvention**: DRM'd reading platforms (微信读书 etc.) are never scraping
+  targets; their content enters only via local_import of legitimately-obtained copies.
+- No silent model changes: curation model switches are Grace-initiated only (§9.3).
 
 ## 11. Requirements traceability (Phase 2 gate condition)
 
@@ -198,7 +235,7 @@ before/after diff. Trends screen reads the same aggregation.
 | R1 curation | §5 curate + reputation bar + curation_evidence_json |
 | R2 clean text | §5 fetch/clean; story.txt |
 | R3 narration | §5 synthesize (Kokoro primary, OpenAI fallback) |
-| R4 queue of 5 | §7 worker |
+| R4 queue (3, AMENDMENT_02) | §7 worker + skip semantics |
 | R5 mobile+laptop | §1 Tailscale binding + §6 PWA (probe-5-proven mechanism) |
 | R6 resume/history/no-repeats | §3 progress + append-only stories + dedup_key |
 | R7 Spotify-like controls | §6 player |
@@ -208,6 +245,9 @@ before/after diff. Trends screen reads the same aggregation.
 | R11 economical | §5 cost levers, tag-at-ingest ~$0.01, synth-once cache, SQLite-local reads, curation_runs cost ledger |
 | R12 channels | §3 channels + §7 re-targeting + Phase 5 editor UI |
 | R13 speed control | §6 player (iOS-verified, probe 5) |
+| R14 model selection UI + quality notice | §5 policy + §6 settings |
+| R15 multilingual sources (zh/fr) | §5 fetch tiers + language gating (AMENDMENT_03) |
 
-Deferrals: offline caching (§9.4, nice-to-have) · CJK channels (risk note, §5) ·
-sustained ≥5-min backgrounding evidence (re-proven by Phase 4 gate itself).
+Deferrals: offline caching (§9.4, nice-to-have) · zh/fr channels pending probe-1c
+verdict; ja TTS untested (§5) · sustained ≥5-min backgrounding evidence (re-proven by
+Phase 4 gate itself) · Tier-B sources (X岛-successors, 知乎) unprobed.

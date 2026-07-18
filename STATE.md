@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 11 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 12 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
 | 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
-| 2 — Design | IN PROGRESS | DESIGN.md frozen; Grace sign-off | DESIGN.md DRAFT v0.1 written (Entry 11); awaiting Grace's walkthrough + sign-off |
+| 2 — Design | IN PROGRESS | DESIGN.md frozen; Grace sign-off | v0.2 draft encodes Grace's rulings + AMENDMENTS 02/03 (proposed); sign-off awaits her probe-1c zh/fr listen + v0.2 review (Entry 12) |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
@@ -53,21 +53,25 @@
   point (Entry 10: a finished story "resumed" to its end, causing instant
   ended→pause that looked like broken playback).
 - .env exists with both keys (verified gitignored).
+- Kokoro zh works mechanically: misaki[zh] installs clean, renders 5.3–5.7x realtime
+  (two voices); fr 5.0x with no extra deps (probe 1c, Entry 12). Quality verdicts =
+  Grace's ear, pending. ja untested.
 
 ## Next actions
 
-1. Grace: review docs/DESIGN.md DRAFT v0.1 (walkthrough in session close-out,
-   2026-07-18) and rule on the four §9 decisions: queue = 5-per-active-channel ·
-   Reddit OAuth app (NoSleep disabled until created) · curation on Sonnet w/ capped
-   searches (≤$0.40/batch target) · offline caching out of MVP. Sign-off freezes
-   DESIGN.md (recorded in JOURNAL) and closes the Phase 2 gate.
+1. Grace: (a) listen to the three probe-1c samples (phone or Mac, server live):
+   http://100.117.147.107:8765/audio/probe1c/zh_original_zf_xiaobei.m4a ·
+   .../zh_original_zm_yunxia.m4a · .../fr_lehorla_ff_siwis.m4a — native-ear verdict
+   on zh (tones/prosody/horror register), learner-ear on fr; (b) review DESIGN v0.2
+   (esp. §7 queue-as-you-proposed, §5 source tiers + DRM boundary, §9 rulings as
+   encoded). Sign-off freezes DESIGN.md + binds AMENDMENTS 02/03, closing Phase 2.
 2. After sign-off: stop the probe-5 server (its job is done), then Phase 3 pipeline
    MVP per TASKS — one story end-to-end against the frozen schema, unit + round-trip
-   tests same day.
+   tests same day. (Reddit app creation can wait until NoSleep matters.)
 
 ## Open decisions
 
-All current open decisions are proposed with recommendations in DESIGN.md §9 and resolve
-at Grace's sign-off: queue semantics (proposed: 5 per active channel) · Reddit OAuth vs
-HTML (proposed: OAuth app) · curation model/cost (proposed: Sonnet, capped searches) ·
-offline PWA caching (proposed: out of MVP).
+- zh/fr channel go/no-go = Grace's probe-1c listening verdict (any failed language
+  falls back to OpenAI TTS per story, or drops).
+- All v0.1 §9 decisions are RULED (Entry 12) and encoded in DESIGN v0.2 + AMENDMENTS
+  02/03 (proposed) — they bind at sign-off, nothing else is open.

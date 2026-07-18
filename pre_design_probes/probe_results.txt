@@ -201,6 +201,28 @@ Script: probe6_openai_tts.py · Output: data/interim/probe6/usher_openai_tts.mp3
   ≈ $0.32. Fallback is viable and cheap enough for per-story use.
 
 =====================================================================
+PROBE 1c — Kokoro zh + fr quality (added post-Phase-1 by AMENDMENT_03; this section
+carries design authority for the multilingual amendment despite the directory's
+Phase-1 expiry — see JOURNAL Entry 12)
+Status: RENDERED, AWAITING GRACE'S LISTEN (the gate for zh/fr channels)
+Script: probe1c_multilang_tts.py · Outputs: data/interim/probe1c/
+
+- misaki[zh] installed clean into the probe venv (2026-07-18). Renders single-chunk
+  (probe-1b whitespace rule applied at the source).
+- Chinese (original modern-vernacular horror paragraph written for this probe):
+  zf_xiaobei 22.3s @ 5.7x realtime; zm_yunxia 20.1s @ 5.3x.
+- French (Le Horla opening, PD): ff_siwis 27.8s @ 5.0x realtime, no extra deps.
+- All three verified served over Tailscale (HTTP 200):
+    http://100.117.147.107:8765/audio/probe1c/zh_original_zf_xiaobei.m4a
+    http://100.117.147.107:8765/audio/probe1c/zh_original_zm_yunxia.m4a
+    http://100.117.147.107:8765/audio/probe1c/fr_lehorla_ff_siwis.m4a
+- GRACE: native-speaker judgment on the two zh voices (tones, prosody, horror
+  register); learner-ear check on fr. Verdict gates zh/fr channel design; OpenAI TTS
+  remains the per-story fallback for any language that fails.
+- Japanese still untested (misaki[ja]) — original texts out of TTS scope for now;
+  translated-into-zh/en works arrive via local_import regardless.
+
+=====================================================================
 GATE STATUS: ALL SIX PROBES ANSWERED (2026-07-18). Probe 5's sustained-≥5-min
 backgrounding sub-item is the only explicit deferral (risk note above; re-tested by
 the Phase 4 gate itself). Phase 1 gate CLOSED — findings promoted to STATE.md,
