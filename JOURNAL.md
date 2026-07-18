@@ -16,7 +16,7 @@ Decisions (from Grace's brief + interview, verbatim in docs/BRIEF_VERBATIM.md):
 - Governance: lean app stack (CLAUDE/STATE/JOURNAL/TASKS + REQUIREMENTS traceability)
   per CLAUDE_BANK 09; brief is feature-dense enough to warrant the requirements table.
 
-Trigger/reasoning: fresh scaffold from `~/Code/*META_working_knowledge/new_proj_claude_bank/`
+Trigger/reasoning: fresh scaffold from `~/Code/_META_working_knowledge/claude_bank/` (pre-rename: `*META_working_knowledge/new_proj_claude_bank/`)
 (00_GENERATOR + 09_SCAFFOLDER), interview answers in BRIEF_VERBATIM.md §Interview.
 
 Measurements invalidated by this change: none (nothing measured yet).
@@ -231,3 +231,13 @@ Measurements invalidated by this change: none (design is downstream of measureme
 Measurements invalidated by this change: none. Probe-3 curation cost ($1.65 at Opus)
 was measured on an English channel; zh-channel cost is unmeasured — watch the first
 real zh curation_runs rows before trusting the ≤$0.40 target there.
+
+## Entry 13 — 2026-07-18 — Correction: bank paths updated after meta-folder rename
+
+Grace renamed `~/Code/*META_working_knowledge` → `_META_working_knowledge` and the bank
+`new_proj_claude_bank/` → `claude_bank/`. Mechanical path-only edits in this repo:
+CLAUDE.md's rules-provenance footer, and Entry 1's scaffold-source path (old path kept in
+parentheses there — this entry names that historical edit per the corrections norm).
+No rule or design content changed.
+
+Measurements invalidated by this change: none.

@@ -77,5 +77,5 @@ scripts/             # one-off tools
    things stand — the next session re-inspects rather than assumes.
 
 ---
-Rules distilled from `~/Code/*META_working_knowledge/new_proj_claude_bank/`; when a rule
+Rules distilled from `~/Code/_META_working_knowledge/claude_bank/`; when a rule
 chafes or a new lesson lands, improvements flow back to the bank (per its 08 protocol).
