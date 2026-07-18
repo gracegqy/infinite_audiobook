@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 8 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 9 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -8,7 +8,7 @@
 | Phase | Status | Gate | Gate evidence (command/check + result) |
 |---|---|---|---|
 | 0 — Scaffold | DONE | Scaffold gate (TASKS.md §0) | all items re-verified from artifacts 2026-07-18 (Entry 3); Grace review approved (Entry 4) |
-| 1 — Pre-design probes | IN PROGRESS | All 6 probe questions answered in probe_results.txt | 1, 2, 3, 4, 6 answered with recorded evidence (probe_results.txt, Entries 5–8; Kokoro quality Grace-approved); 5 awaits only the kill+reopen retest on the phone |
+| 1 — Pre-design probes | IN PROGRESS | All 6 probe questions answered in probe_results.txt | 1, 2, 3, 4, 6 answered with recorded evidence (probe_results.txt, Entries 5–9); 5: resume retest passed (Entry 9), awaits only lock-screen / ≥5-min backgrounding / speed-selector reports |
 | 2 — Design | not started | DESIGN.md frozen; Grace sign-off | — |
 | 3 — Pipeline MVP | not started | One story end-to-end, playable audio + offsets | — |
 | 4 — Player MVP | not started | Full listen on phone over Tailscale | — |
@@ -41,18 +41,25 @@
 - OpenAI TTS fallback confirmed working: $0.004/paragraph, ~$0.32/30-min story
   (probe 6, 2026-07-18).
 - Tailscale installed on Mac + iPhone; Mac Tailscale IP 100.117.147.107. Probe 5
-  server running on it (page 200, range 206 verified from Mac).
+  server running on it (page 200, range 206 re-verified from Mac, Entry 9).
+- iOS resume works on the real target: kill Safari + reopen resumes at saved position,
+  scrubbing works (Grace retest, Entry 9). Design rule stands: apply resume seeks
+  loadedmetadata-or-later, never at page init.
 - .env exists with both keys (verified gitignored).
 
 ## Next actions
 
-1. Grace: probe 5 retest on iPhone Safari (http://100.117.147.107:8765/, server
-   running): play, scrub, then KILL Safari and reopen → audio should resume at the
-   saved position once playing, and scrubbing should work. Also check lock-screen
-   controls, ≥5-min backgrounding, and whether the speed selector is honored.
-2. On a good retest: close Phase 1 gate, start Phase 2 design (carry in: line-unwrap
-   clean rule, resume-after-loadedmetadata iOS rule, Reddit OAuth-vs-HTML decision,
-   curation cost levers — $1.65/batch at Opus needs trimming toward pennies).
+1. Grace: finish probe 5 on iPhone Safari (http://100.117.147.107:8765/, server
+   running) — three remaining checks, ~5 min: (a) lock screen: does the story
+   title show, do play/pause and ±15s work from there? (b) backgrounding: lock the
+   phone or leave Safari for ≥5 min mid-story — does audio keep playing?
+   (c) speed selector: set 1.5x or 2x — does playback speed actually change (page
+   log shows the effective rate)? Report all three; if any was already covered in
+   the retest, saying so counts as the evidence.
+2. On those three reports: close Phase 1 gate (all six probes answered), start
+   Phase 2 design (carry in: line-unwrap clean rule, resume-after-loadedmetadata
+   iOS rule, Reddit OAuth-vs-HTML decision, curation cost levers — $1.65/batch at
+   Opus needs trimming toward pennies, Media-Session scope per probe-5 findings).
 
 ## Open decisions
 

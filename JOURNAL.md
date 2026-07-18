@@ -131,3 +131,19 @@ Measurements invalidated by this change: none.
 - Phase 1 gate now rests solely on the probe 5 retest.
 
 Measurements invalidated by this change: none.
+
+## Entry 9 — 2026-07-18 — Probe 5 resume retest PASSED; gate narrowed to three sub-checks
+
+- Grace retested http://100.117.147.107:8765/ on the phone: kill+reopen now resumes at
+  the saved position and scrubbing works — the loadedmetadata-seek fix holds on the real
+  target. Server re-verified from the Mac this session (GET / -> 200; Range request on
+  probe1/horror_usher_af_heart_fixed.m4a -> 206, correct content-range).
+- Gate NOT closed: probe 5's scope (TASKS §1.5) also covers lock-screen/Media-Session
+  controls, backgrounded playback ≥5 min, and the R13 speed selector — no recorded
+  evidence for any of the three from either phone run, so per "done = artifact-verified"
+  they remain open. Phase 1 gate now rests solely on Grace reporting those three
+  (~5 min, server already live). No Phase 2 design work started past the open gate.
+- Docs updated: probe_results.txt probe-5 section + gate status, TASKS Phase 1 status
+  line, STATE next actions.
+
+Measurements invalidated by this change: none (verification + bookkeeping only).

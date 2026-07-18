@@ -25,8 +25,9 @@ recorded evidence is a bug. Keep this file pristine in structure; annotate statu
 - [x] JOURNAL Entry 1 written (and Entry 2 for the channels amendment).
 
 ## Phase 1 — Pre-design probes   · Owner: Claude Code
-**Status: [IN PROGRESS]** — probes 2+4 answered, 1 needs Grace's listen, 3/6 need .env
-keys, 5 blocked on Tailscale install; full detail in pre_design_probes/probe_results.txt.
+**Status: [IN PROGRESS]** — probes 1, 2, 3, 4, 6 answered; probe 5 resume retest passed
+(2026-07-18), gate open only on its lock-screen / ≥5-min backgrounding / speed-selector
+sub-checks (Grace, ~5 min on phone); full detail in pre_design_probes/probe_results.txt.
 **Goal:** Kill the assumptions the architecture rests on, with throwaway scripts in
 `pre_design_probes/`. **No design work until each is confirmed, corrected, or explicitly
 deferred with a risk note.**

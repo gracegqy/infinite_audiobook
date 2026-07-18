@@ -111,7 +111,8 @@ Script: probe4_fetch_clean.py · Outputs: data/interim/probe4/
 
 =====================================================================
 PROBE 5 — Phone playback reality (iOS Safari over Tailscale)
-Status: SERVER+PAGE READY, RANGE SUPPORT VERIFIED LOCALLY · BLOCKED on Tailscale install + Grace's phone
+Status: RESUME RETEST PASSED (Grace, 2026-07-18) · remaining sub-checks: lock-screen
+controls, ≥5-min backgrounded playback, speed selector honored — no recorded evidence yet
 Script: probe5_phone_server.py + probe5_static/index.html
 
 - 2026-07-18 earlier: Tailscale was not installed (contradicted brief assumption).
@@ -135,7 +136,20 @@ Script: probe5_phone_server.py + probe5_static/index.html
   clobbering by early timeupdate ticks at 0).
   PHASE 4 DESIGN LESSON: resume must be applied loadedmetadata-or-later on iOS —
   never at page init. (Real app stores position server-side, not localStorage.)
-  RETEST PENDING: Grace repeats the kill+reopen cycle.
+  RETEST (Grace, 2026-07-18): PASSED — kill Safari + reopen resumes at saved position
+  and scrubbing works ("the session-resume issue is fixed now"). The loadedmetadata
+  fix holds on the real target. Server re-verified same day from the Mac: GET / -> 200,
+  Range bytes=100000-100999 on probe1/horror_usher_af_heart_fixed.m4a -> 206 with
+  correct content-range (1,154,657 total).
+  STILL UNANSWERED (no recorded evidence from either phone run):
+    (a) lock-screen / Media Session controls (artwork+title show? play/pause/±15s
+        from lock screen work?)
+    (b) backgrounded playback ≥5 min (screen locked or Safari backgrounded — does
+        audio keep playing to the end?)
+    (c) speed selector: does iOS actually honor audio.playbackRate at 0.75/1.5/2x?
+        (R13; the on-page log records the effective rate)
+  These decide Phase 4's Media-Session/PWA scope; probe 5 closes when Grace reports
+  all three.
 - Test server: FastAPI StaticFiles (the exact mechanism Phase 4 will use) on port 8765.
   Range requests verified locally: GET with Range: bytes=100000-100999 returned
   206 Partial Content, accept-ranges: bytes, correct content-range. Serving policy per
@@ -159,8 +173,7 @@ Script: probe6_openai_tts.py · Output: data/interim/probe6/usher_openai_tts.mp3
   ≈ $0.32. Fallback is viable and cheap enough for per-story use.
 
 =====================================================================
-GATE STATUS: 3 of 6 fully machine-answered (2, 4, and 3's signal half).
-Remaining human/blocked items:
-  - Grace listens: probe1 wavs, probe2 butt-join seams   [listening test]
-  - .env with both keys -> run probe3_curation_api.py + probe6_openai_tts.py
-  - Tailscale install on Mac + iPhone -> run probe 5 on the phone
+GATE STATUS: probes 1, 2, 3, 4, 6 ANSWERED with recorded evidence. Probe 5: resume +
+range-seeking answered (retest passed 2026-07-18); gate open ONLY on the three
+remaining probe-5 sub-checks — lock-screen controls, ≥5-min backgrounding, speed
+selector. Server live on 100.117.147.107:8765 for Grace's 5-minute check.
