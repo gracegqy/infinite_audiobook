@@ -453,3 +453,47 @@ forward: $0 marginal per story from the pool; paid builds explicit only.
 Measurements invalidated by this change: none — the synthesis pipeline and offsets
 math are untouched; Phase 3 cost and drift figures stand. (db.connect init flag
 changes no persisted state.)
+
+## Entry 20 — 2026-07-18 — Phone-test feedback (10 items) implemented; AMENDMENT_05 drafted
+
+- **Grace ran the Phase 4 phone flow** — her verbatim report is preserved in
+  AMENDMENT_05. Gate evidence so far: scrub/±skip/lock-screen exercised; "killing
+  safari mid-play reopened with the audio progress saved" (kill+reopen resume ✓);
+  "no other issues spotted". Her live session left real state: 4 stories
+  in_progress with progress rows, Yellow Wallpaper skipped. **Still owed for the
+  gate: explicit ≥5-min backgrounding** (the probe-5 deferral this gate exists to
+  retire) — asked in chat; Phase 4 stays [IN PROGRESS] until she confirms.
+- **AMENDMENT_05 written** (docs/AMENDMENT_05_settings_sourceref_player_feedback.md):
+  part C (her ten player directives, verbatim) BINDING and implemented today;
+  parts A (settings table: curation model + per-language default voices) and
+  B (stored source_ref) PROPOSED — schema changes awaiting her explicit flip.
+  Her "2. approved" green-lit drafting; the flip is asked for in chat.
+- **Implemented (all of part C):** ±10 s everywhere (supersedes §6's ±15 — C1);
+  mid-play story switch autoplays + play-state icon reset (C2); remove menu
+  distinguishes "Not interested (skip)" vs "Already read" — new POST /read
+  sharing /ended semantics, so read ≠ dislike reaches Phase 6 untainted (C3);
+  POST /unskip restores status from artifacts (audio→ready, text→text_ready,
+  none→failed/retryable) with an undo button in the library — the AMENDMENT_02
+  carve-out is recorded in A05 C4; text view follows playback (offset binary
+  search → highlight + scrollIntoView — Phase 5 sync pulled forward, C5); voice
+  picker in the player for rendered stories behind a $0/~min confirmation popup,
+  and a text_ready voice pick now spawns the render — an in-flight render aborts
+  at the next paragraph via the extended should_abort (gallery-voice mismatch;
+  engine-fallback "onyx" can never self-abort a degrade render) and the fresh
+  render takes over (C6); last-played story auto-restores paused at its resume
+  position via progress_updated_at (C7); capitalized sticky tab header, ratings
+  editable only in the player, read-only stars in the library (C8/9).
+- **Verified** end-to-end in headless Chromium against a sandboxed `.backup` COPY
+  of the live DB (real library untouched): restore landed paused at exactly the
+  saved 213.2 s; mid-play switch autoplayed the next story from its own resume
+  point; para-28 highlighted + auto-scrolled at the seek position; "Already
+  read" flipped status and advanced; Grace's real Yellow Wallpaper skip undone →
+  'ready' (artifact-derived) in the sandbox; library stars disabled; voice
+  confirm dismiss left voice untouched. Tests 60 → 64, all green. One live-server
+  probe of /unskip mutated the real Yellow Wallpaper row; reverted immediately
+  (re-skipped — her phone-session state restored).
+- Server restarted on http://100.117.147.107:8123 with the new build.
+
+Measurements invalidated by this change: none (synthesis/offsets untouched).
+The ±15 s wording in DESIGN §6 rule 4 is superseded by AMENDMENT_05 C1 — DESIGN
+itself left unedited per the freeze.

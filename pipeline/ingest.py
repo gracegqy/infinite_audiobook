@@ -54,19 +54,30 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
     except Exception as e:
         print(f"[ingest] WARNING: tagging failed ({e}) — continuing untagged")
 
-    def skipped_meanwhile():
-        row = conn.execute("SELECT status FROM stories WHERE id=?", (sid,)).fetchone()
-        return row is not None and row["status"] in ("skipped", "read")
-
     if voice_override is None:
         # honor a queue-window voice pick (AMENDMENT_04 D1) made after this
         # row hit text_ready — re-read at the last moment before synthesis
         r = conn.execute("SELECT voice FROM stories WHERE id=?", (sid,)).fetchone()
         voice_override = stored_voice_override(r["voice"] if r else None, language)
+    # the gallery voice this render is committed to; language default when None
+    render_target = voice_override or config.TTS_BY_LANGUAGE.get(
+        language, config.FALLBACK_TTS)[1]
+
+    def abort_meanwhile():
+        row = conn.execute("SELECT status, voice FROM stories WHERE id=?",
+                           (sid,)).fetchone()
+        if row is None or row["status"] in ("skipped", "read"):
+            return True
+        # AMENDMENT_05 C6: a NEW gallery voice stored mid-render aborts this
+        # render; the picker spawns a fresh one with the chosen voice. Compares
+        # gallery voices only, so an engine fallback (voice "onyx") never
+        # self-aborts a legitimate degrade render.
+        picked = stored_voice_override(row["voice"], language)
+        return picked is not None and picked != render_target
 
     engine, voice, sr, durations = synthesize.synthesize_story(
         paragraphs, language, story_dir / "audio.m4a",
-        voice_override=voice_override, should_abort=skipped_meanwhile)
+        voice_override=voice_override, should_abort=abort_meanwhile)
     offsets = OffsetsManifest(
         engine=engine, voice=voice, sample_rate=sr,
         paragraphs=textproc.build_offsets(paragraphs, durations))

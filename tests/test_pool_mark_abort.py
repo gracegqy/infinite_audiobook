@@ -184,3 +184,43 @@ def test_finalize_rereads_queue_window_voice_pick(monkeypatch, tmp_path, conn):
     row = conn.execute("SELECT status, voice FROM stories WHERE id='sid-pick'").fetchone()
     assert row["status"] == "ready"
     assert row["voice"] == "bm_george"
+
+
+def test_voice_change_mid_render_aborts(monkeypatch, tmp_path, conn):
+    # AMENDMENT_05 C6: storing a different gallery voice mid-render aborts at
+    # the next paragraph; a stored FALLBACK voice (engine degrade) never does
+    calls = []
+
+    class FakeEngine:
+        name = "fake"
+
+        def __init__(self, language, voice):
+            self.voice = voice
+
+        def render(self, p):
+            calls.append(p)
+            # simulate Grace picking a new voice after paragraph one renders
+            if len(calls) == 1:
+                conn.execute("UPDATE stories SET voice='bm_george' "
+                             "WHERE id='sid-mid'")
+                conn.commit()
+            return np.zeros(2400, dtype=np.float32), 24000
+
+    from pipeline import config
+    monkeypatch.setattr(config, "INTERIM_DIR", tmp_path / "interim")
+    monkeypatch.setattr(config, "LIBRARY_DIR", tmp_path / "library")
+    monkeypatch.setitem(synthesize.ENGINES, "kokoro", FakeEngine)
+    monkeypatch.setattr(
+        ingest, "_fetch_clean",
+        lambda cand: (["One.", "Two.", "Three."], "One.\n\nTwo.\n\nThree.",
+                      "https://example.org/x"))
+    conn.execute(
+        "INSERT INTO stories(id, channel_id, dedup_key, title, source_class, "
+        "source_url, license_class, language, status) VALUES('sid-mid',1,"
+        "'k-mid','T mid','gutenberg','https://example.org/x','pd','en','failed')")
+    conn.commit()
+    with pytest.raises(synthesize.AbortRender):
+        ingest.retry_story(conn, "sid-mid")
+    assert calls == ["One."]  # second paragraph never rendered
+    assert conn.execute("SELECT voice FROM stories WHERE id='sid-mid'")\
+        .fetchone()["voice"] == "bm_george"  # the pick survives for the re-run

@@ -27,7 +27,7 @@ SELECT s.id, s.title, s.author, s.year, s.status, s.language, s.source_class,
        s.source_url, s.license_class, s.tts_engine, s.voice, s.duration_s,
        s.paragraph_count, s.created_at, s.ready_at, s.failure_note,
        s.curation_evidence_json,
-       p.position_s, r.score AS rating
+       p.position_s, p.updated_at AS progress_updated_at, r.score AS rating
 FROM stories s
 LEFT JOIN progress p ON p.story_id = s.id
 LEFT JOIN ratings  r ON r.story_id = s.id
@@ -155,16 +155,46 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         c.commit()
         return {"position_s": pos}
 
-    @app.post("/api/stories/{sid}/ended")
-    def story_ended(sid: str):
-        """iOS rule 2 (binding): on `ended`, clear the progress row + mark
-        read — end-of-file is never a resume point."""
+    def _mark_read(sid: str):
         c = conn()
         story_or_404(c, sid)
         c.execute("DELETE FROM progress WHERE story_id=?", (sid,))
         c.execute("UPDATE stories SET status='read' WHERE id=?", (sid,))
         c.commit()
         return {"status": "read"}
+
+    @app.post("/api/stories/{sid}/ended")
+    def story_ended(sid: str):
+        """iOS rule 2 (binding): on `ended`, clear the progress row + mark
+        read — end-of-file is never a resume point."""
+        return _mark_read(sid)
+
+    @app.post("/api/stories/{sid}/read")
+    def story_read(sid: str):
+        """AMENDMENT_05 C3: 'already read' from the skip menu — same semantics
+        as ended, distinct intent (read ≠ dislike for Phase 6 adaptation)."""
+        return _mark_read(sid)
+
+    @app.post("/api/stories/{sid}/unskip")
+    def story_unskip(sid: str):
+        """AMENDMENT_05 C4 (misclick recovery): Grace's explicit revoke.
+        Status is re-derived from artifacts, not remembered — the record on
+        disk is the truth."""
+        c = conn()
+        row = story_or_404(c, sid)
+        if row["status"] != "skipped":
+            raise HTTPException(409, f"story is {row['status']}, not skipped")
+        if (library_dir / sid / "audio.m4a").exists():
+            new = "ready"
+        elif (library_dir / sid / "story.txt").exists():
+            new = "text_ready"
+        else:
+            new = "failed"  # never fetched (provisional row) — retryable
+        c.execute("UPDATE stories SET status=?, failure_note=? WHERE id=?",
+                  (new, "unskipped, needs refetch" if new == "failed" else None,
+                   sid))
+        c.commit()
+        return {"status": new}
 
     @app.post("/api/stories/{sid}/skip")
     def story_skip(sid: str):
@@ -248,11 +278,15 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
                                 f"voice {voice} not offered for language "
                                 f"{row['language']}")
         if row["status"] == "text_ready":
-            # queue-window picker: chosen BEFORE synthesis; the render (worker
-            # or retry) honors the stored voice
+            # queue-window picker (AMENDMENT_05 C6): store the choice, then
+            # kick a render. If a render is already in flight it aborts at the
+            # next paragraph on the voice mismatch (pipeline should_abort) and
+            # this fresh one takes over with the chosen voice.
             c.execute("UPDATE stories SET voice=? WHERE id=?", (voice, sid))
             c.commit()
-            return {"voice": voice, "rerender": False}
+            if voice != row["voice"]:
+                rerender_runner(sid, voice)
+            return {"voice": voice, "rerender": voice != row["voice"]}
         if row["status"] in ("ready", "in_progress", "read"):
             if voice == row["voice"]:
                 return {"voice": voice, "rerender": False}

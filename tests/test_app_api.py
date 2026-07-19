@@ -190,12 +190,47 @@ def test_voice_sample_served_when_rendered(env):
     assert env.client.get("/api/voices/..%2Fescape/sample").status_code == 404
 
 
-def test_voice_pick_on_text_ready_stores_without_rerender(env):
+def test_voice_pick_on_text_ready_stores_and_spawns_render(env):
+    # AMENDMENT_05 C6: the pick kicks a render; an in-flight one aborts on the
+    # voice mismatch pipeline-side and this fresh one takes over
     r = env.client.post("/api/stories/s2-text/voice", json={"voice": "am_michael"})
-    assert r.json() == {"voice": "am_michael", "rerender": False}
+    assert r.json() == {"voice": "am_michael", "rerender": True}
     row = env.conn.execute("SELECT voice FROM stories WHERE id='s2-text'").fetchone()
     assert row["voice"] == "am_michael"
-    assert env.rerenders == []
+    assert env.rerenders == [("s2-text", "am_michael")]
+
+
+def test_read_endpoint_marks_read_and_clears_progress(env):
+    env.client.put("/api/progress/s1-ready", json={"position_s": 10})
+    r = env.client.post("/api/stories/s1-ready/read")
+    assert r.json()["status"] == "read"
+    assert status_of(env, "s1-ready") == "read"
+    assert env.client.get("/api/progress/s1-ready").json()["position_s"] is None
+
+
+def test_progress_save_noop_on_read_story(env):
+    # late keepalive save racing /ended must not resurrect a resume point
+    env.client.post("/api/stories/s1-ready/ended")
+    r = env.client.put("/api/progress/s1-ready", json={"position_s": 95})
+    assert r.json() == {"position_s": None, "stored": False}
+    assert env.client.get("/api/progress/s1-ready").json()["position_s"] is None
+
+
+def test_unskip_restores_status_from_artifacts(env):
+    # ready story (audio on disk) -> skipped -> unskip -> ready again
+    env.client.post("/api/stories/s1-ready/skip")
+    assert env.client.post("/api/stories/s1-ready/unskip").json()["status"] == "ready"
+    # text-only story -> text_ready
+    env.client.post("/api/stories/s2-text/skip")
+    assert env.client.post("/api/stories/s2-text/unskip").json()["status"] == "text_ready"
+    # provisional row with no artifacts -> failed (retryable), note set
+    env.add("s5-prov", "queued")
+    import shutil
+    shutil.rmtree(env.samples.parent / "library" / "s5-prov")
+    env.client.post("/api/stories/s5-prov/skip")
+    assert env.client.post("/api/stories/s5-prov/unskip").json()["status"] == "failed"
+    # unskip of a non-skipped story is a 409
+    assert env.client.post("/api/stories/s1-ready/unskip").status_code == 409
 
 
 def test_voice_change_on_ready_triggers_rerender(env):

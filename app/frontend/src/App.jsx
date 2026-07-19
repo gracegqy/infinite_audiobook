@@ -1,27 +1,47 @@
 // Views: Queue (default — AMENDMENT_02 semantics), Library (all-time history),
 // Voices (AMENDMENT_04 D audition gallery). Autoplay advances through READY
 // stories in acquisition order; text_ready rows are visible + skippable +
-// voice-pickable before any render cost.
-import { useCallback, useEffect, useState } from "react";
+// voice-pickable before any render cost. AMENDMENT_05 C: last-played story
+// auto-restores paused; skip distinguishes "not interested" from "already
+// read"; skips are revocable from the library.
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import * as api from "./api";
 import Player, { Stars } from "./Player";
 import Voices from "./Voices";
 
 const QUEUE_STATUSES = ["text_ready", "ready", "in_progress"];
+const TABS = { queue: "Queue", library: "Library", voices: "Voices" };
 
 export default function App() {
   const [stories, setStories] = useState(null);
+  const [voices, setVoices] = useState(null);
   const [error, setError] = useState(null);
   const [view, setView] = useState("queue");
   const [currentId, setCurrentId] = useState(null);
+  const [autoplay, setAutoplay] = useState(false);
   const [detail, setDetail] = useState(null);
+  const restoredRef = useRef(false);
 
   const reload = useCallback(() =>
     api.listStories()
       .then(({ stories }) => { setStories(stories); setError(null); })
       .catch((e) => setError(String(e))), []);
   useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    api.listVoices().then((v) => setVoices(v.languages)).catch(() => {});
+  }, []);
+
+  // auto-restore the last-played story, paused (AMENDMENT_05 C7)
+  useEffect(() => {
+    if (restoredRef.current || !stories) return;
+    restoredRef.current = true;
+    const last = stories
+      .filter((s) => s.status === "in_progress" && s.progress_updated_at)
+      .sort((a, b) => b.progress_updated_at.localeCompare(a.progress_updated_at))[0];
+    if (last && !currentId) { setAutoplay(false); setCurrentId(last.id); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stories]);
 
   useEffect(() => {
     if (!currentId) { setDetail(null); return; }
@@ -39,11 +59,13 @@ export default function App() {
   const playable = queue.filter((s) => s.status !== "text_ready");
   const current = stories.find((s) => s.id === currentId) || null;
 
+  const play = (id) => { setAutoplay(true); setCurrentId(id); };
+
   // autoplay order = acquisition order over playable stories
   const advance = (fromId) => {
     const i = playable.findIndex((s) => s.id === fromId);
     const next = playable[i + 1] || playable.find((s) => s.id !== fromId);
-    setCurrentId(next ? next.id : null);
+    if (next) play(next.id); else setCurrentId(null);
   };
 
   const patchStory = (id, patch) =>
@@ -54,26 +76,29 @@ export default function App() {
       <header>
         <h1>Readaloud</h1>
         <nav>
-          {["queue", "library", "voices"].map((v) => (
+          {Object.entries(TABS).map(([v, label]) => (
             <button key={v} className={view === v ? "tab on" : "tab"}
-                    onClick={() => setView(v)}>{v}</button>
+                    onClick={() => setView(v)}>{label}</button>
           ))}
         </nav>
       </header>
 
       {current && (
-        <Player story={current} detail={detail}
+        <Player story={current} detail={detail} voices={voices}
+          autoplay={autoplay}
           onFinished={(id) => { patchStory(id, { status: "read" }); advance(id); reload(); }}
           onSkipped={(id) => { patchStory(id, { status: "skipped" }); advance(id); reload(); }}
-          onRated={(id, score) => patchStory(id, { rating: score })} />
+          onReadMarked={(id) => { patchStory(id, { status: "read" }); advance(id); reload(); }}
+          onRated={(id, score) => patchStory(id, { rating: score })}
+          onVoiceChanged={(id, v) => { patchStory(id, { voice: v }); reload(); }} />
       )}
 
       {view === "queue" &&
-        <Queue queue={queue} currentId={currentId}
-               onPlay={setCurrentId} onChanged={reload} />}
+        <Queue queue={queue} currentId={currentId} voices={voices}
+               onPlay={play} onChanged={reload} />}
       {view === "library" &&
         <Library stories={stories} currentId={currentId}
-                 onPlay={setCurrentId} onChanged={reload} />}
+                 onPlay={play} onChanged={reload} />}
       {view === "voices" && <Voices />}
     </div>
   );
@@ -83,10 +108,7 @@ function evidenceLine(s) {
   return (s.evidence || []).slice(0, 2).join(" · ");
 }
 
-function Queue({ queue, currentId, onPlay, onChanged }) {
-  const [voices, setVoices] = useState(null);
-  useEffect(() => { api.listVoices().then((v) => setVoices(v.languages)).catch(() => {}); }, []);
-
+function Queue({ queue, currentId, voices, onPlay, onChanged }) {
   if (queue.length === 0)
     return <p className="empty">Queue is empty — run the pipeline to replenish
       (worker arrives in Phase 5).</p>;
@@ -103,16 +125,20 @@ function Queue({ queue, currentId, onPlay, onChanged }) {
               {s.status === "text_ready"
                 ? "rendering pending"
                 : `${Math.round((s.duration_s || 0) / 60)} min`}
+              {s.voice ? ` · ${s.voice}` : ""}
               {s.position_s != null && ` · at ${Math.floor(s.position_s / 60)}:${String(Math.floor(s.position_s % 60)).padStart(2, "0")}`}
             </div>
             {evidenceLine(s) && <div className="card-ev">{evidenceLine(s)}</div>}
           </div>
           <div className="card-actions">
-            {s.status === "text_ready" && voices && voices[s.language] && (
-              // queue-window voice picker (AMENDMENT_04 D1): choose BEFORE synthesis
+            {s.status === "text_ready" && voices?.[s.language] && (
+              // pre-render voice pick (AMENDMENT_05 C6): stores the choice and
+              // kicks the render with it; an in-flight render aborts on mismatch
               <select value={s.voice || voices[s.language].find((v) => v.default)?.voice}
-                      onChange={(e) =>
-                        api.setVoice(s.id, e.target.value).then(onChanged)}>
+                      onChange={(e) => {
+                        if (window.confirm(`Render "${s.title}" with ${e.target.value}?`))
+                          api.setVoice(s.id, e.target.value).then(onChanged);
+                      }}>
                 {voices[s.language].map((v) => (
                   <option key={v.voice} value={v.voice}>
                     {v.voice}{v.default ? " (default)" : ""}
@@ -121,7 +147,7 @@ function Queue({ queue, currentId, onPlay, onChanged }) {
               </select>
             )}
             <button className="danger" onClick={() => {
-              if (window.confirm(`Skip "${s.title}" permanently?`))
+              if (window.confirm(`Skip "${s.title}" (not interested)? Use the player's remove button for "already read".`))
                 api.skipStory(s.id).then(onChanged);
             }}>✕</button>
           </div>
@@ -157,9 +183,15 @@ function Library({ stories, currentId, onPlay, onChanged }) {
                     ? ` · ${s.failure_note.slice(0, 80)}` : ""}
                 </div>
               </div>
-              {(s.status === "read" || s.rating) && (
-                <Stars rating={s.rating}
-                       onRate={(score) => api.rate(s.id, score).then(onChanged)} />
+              {s.status === "skipped" && (
+                // misclick recovery (AMENDMENT_05 C4)
+                <button onClick={() => api.unskipStory(s.id).then(onChanged)}>
+                  undo
+                </button>
+              )}
+              {s.rating != null && s.id !== currentId && (
+                // display only — edits happen in the player (AMENDMENT_05 C8)
+                <Stars rating={s.rating} readOnly />
               )}
             </div>
           ))}

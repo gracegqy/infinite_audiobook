@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 19 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 20 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -11,7 +11,7 @@
 | 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
 | 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
-| 4 — Player MVP | [IN PROGRESS] | Full listen on phone over Tailscale | App built + browser-verified end-to-end on a sandboxed DB copy (Entry 19); 60 tests green; server running at http://100.117.147.107:8123; GATE (Grace's phone test) not yet run |
+| 4 — Player MVP | [IN PROGRESS] | Full listen on phone over Tailscale | Phone flow exercised by Grace; kill+reopen resume confirmed, 10 feedback items implemented same day (AMENDMENT_05 C, Entry 20); 64 tests green; gate lacks ONLY the explicit ≥5-min backgrounding confirmation (probe-5 deferral) |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
@@ -62,28 +62,33 @@
 
 ## Next actions
 
-1. **Grace: run the Phase 4 phone gate** (TASKS §4) — server already running at
-   http://100.117.147.107:8123 (restart anytime: `scripts/serve.sh`): start a
-   story, scrub, ±15 s, background ≥5 min, kill Safari + reopen → resumes within
-   2 s of the pause point. Evidence goes to JOURNAL.
-2. At Phase 4 close: run the 3 review angles still owed on the Phase 3 diff
-   (removed-behavior, reuse, efficiency — Entry 16; the Phase 4 diff got all 8
-   inline, Entry 19).
-3. Phase 5 (queue worker + sync + channels UI) per TASKS. Owed nearby: Entry-16
+1. **Grace: two confirmations close Phase 4** — (a) background the app ≥5 min
+   mid-play, then confirm playback state on return (the probe-5 deferral this
+   gate retires); (b) sanity-glance the reworked UI (±10 s, remove menu, undo,
+   text follow, voice picker, last-played restore). Server running at
+   http://100.117.147.107:8123 (`scripts/serve.sh` to restart).
+2. **Grace: flip or amend AMENDMENT_05 parts A/B** (settings table; stored
+   source_ref) — part C is binding + implemented. Settings screen (model
+   selector + default voices) ships once A is binding.
+3. At Phase 4 close: run the 3 review angles still owed on the Phase 3 diff
+   (removed-behavior, reuse, efficiency — Entry 16; Phase 4 diffs got all 8
+   inline, Entries 19–20).
+4. Phase 5 (queue worker + sync + channels UI) per TASKS. Owed nearby: Entry-16
    debts (source-class registry, edge-tts fallback granularity, stored
-   source_ref, vocab-genre coupling).
+   source_ref → A05 B, vocab-genre coupling).
 
 ## Library
 
-5 ready stories, all kokoro/af_heart (Entry 19): Yellow Wallpaper 32.2 ·
-Monkey's Paw 22.0 · Owl Creek Bridge 20.9 · Damned Thing 18.0 · Willows 107.1
-min. Voice gallery: 11 samples in data/voice_samples/.
+5 rendered stories, all kokoro/af_heart (Entries 18–19): Monkey's Paw 22.0 ·
+Owl Creek Bridge 20.9 · Damned Thing 18.0 · Willows 107.1 min (4 in_progress
+from Grace's phone session) · Yellow Wallpaper 32.2 (skipped by Grace during
+the phone test — undo button exists if unintended). Voice gallery: 11 samples
+in data/voice_samples/.
 
 ## Open decisions
 
-1. Settings screen (curation model selector, R14/DESIGN §6) needs a store for
-   the chosen model → small `settings` table = schema change on the frozen
-   design; amendment proposal awaiting Grace (could bundle Entry-16's "stored
-   source_ref" column). Until then Phase 4 ships without the settings screen.
+1. AMENDMENT_05 A (settings table) + B (stored source_ref): PROPOSED, awaiting
+   Grace's explicit flip. Part C (player directives) BINDING + implemented.
 
-DESIGN FROZEN v1.0; AMENDMENTS 01–04 all FULLY BINDING (Entry 18).
+DESIGN FROZEN v1.0; AMENDMENTS 01–04 FULLY BINDING (Entry 18); 05 part C
+BINDING, parts A/B PROPOSED (Entry 20).

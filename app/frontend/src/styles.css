@@ -11,7 +11,11 @@ body {
            env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 .shell { max-width: 640px; margin: 0 auto; padding: 12px 14px 40px; }
-header { display: flex; align-items: baseline; justify-content: space-between; }
+header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  position: sticky; top: 0; z-index: 20; background: var(--bg);
+  margin: -12px -14px 0; padding: 12px 14px 4px;
+}
 h1 { font-size: 1.3rem; margin: 8px 0; }
 nav { display: flex; gap: 6px; }
 .tab {
@@ -39,9 +43,22 @@ h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
 
 .player {
   background: var(--card); border-radius: 16px; padding: 16px;
-  margin: 10px 0 18px; position: sticky; top: 8px; z-index: 5;
+  margin: 10px 0 18px; position: sticky; top: 52px; z-index: 5;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
 }
+.skip-menu {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 10px;
+  background: var(--card-now); border-radius: 12px; padding: 12px;
+}
+.skip-menu button {
+  background: var(--card); color: var(--fg); border: 1px solid #333;
+  border-radius: 8px; padding: 8px;
+}
+.story-text p.para-now {
+  color: var(--accent);
+  border-left: 2px solid var(--accent); padding-left: 8px; margin-left: -10px;
+}
+.star:disabled { cursor: default; }
 .np-title { font-weight: 700; font-size: 1.05rem; }
 .np-sub { color: var(--dim); font-size: 0.85rem; margin-bottom: 6px; }
 .resume-note { color: var(--accent); font-size: 0.8rem; margin-bottom: 4px; }

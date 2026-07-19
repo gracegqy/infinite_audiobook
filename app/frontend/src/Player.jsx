@@ -4,12 +4,13 @@
 //   2. `ended` => server clears progress + marks read — never resume at EOF
 //   3. progress saved server-side on pause/visibility-change + every ~5 s
 //      while playing; saves suppressed until a pending resume has applied
-//   4. ±15 s via Media Session handlers (lock-screen icon may say "10s")
+//   4. skip via Media Session handlers — ±10 s per AMENDMENT_05 C1 (matches
+//      Apple's default lock-screen icons; supersedes the ±15 s of v1)
 import { useEffect, useRef, useState } from "react";
 
 import * as api from "./api";
 
-const SKIP_S = 15;
+const SKIP_S = 10;
 const SAVE_EVERY_MS = 5000;
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -21,7 +22,21 @@ function fmt(t) {
          `:${String(s).padStart(2, "0")}`;
 }
 
-export default function Player({ story, detail, onFinished, onSkipped, onRated }) {
+// paragraph playing at time t (offsets are sorted by t_start_s)
+function paragraphAt(offsets, t) {
+  if (!offsets?.paragraphs?.length) return -1;
+  let lo = 0, hi = offsets.paragraphs.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (offsets.paragraphs[mid].t_start_s <= t) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+export default function Player({ story, detail, voices, autoplay,
+                                 onFinished, onSkipped, onReadMarked, onRated,
+                                 onVoiceChanged }) {
   const audioRef = useRef(null);
   // pendingSeek doubles as the save-suppression flag (iOS rule 3): non-null
   // means the resume target hasn't been applied yet, so nothing saves
@@ -34,6 +49,7 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
   const [speed, setSpeed] = useState(
     () => Number(localStorage.getItem("speed")) || 1);
   const [showText, setShowText] = useState(false);
+  const [skipMenu, setSkipMenu] = useState(false);
   const [bookmarks, setBookmarks] = useState(detail?.bookmarks || []);
 
   useEffect(() => setBookmarks(detail?.bookmarks || []), [detail]);
@@ -44,7 +60,10 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
     endedRef.current = false;
     pendingSeekRef.current = null;
     setNow(0);
+    setDuration(story.duration_s || 0);
     setResumeNote("");
+    setSkipMenu(false);
+    setPlaying(false); // never claim playback that isn't happening (A05 C2)
     let cancelled = false;
     api.getProgress(story.id).then(({ position_s }) => {
       if (cancelled || position_s == null) return;
@@ -54,6 +73,9 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
     }).catch(() => {}); // no progress -> start at 0
     audio.src = `/api/stories/${story.id}/audio`;
     audio.load();
+    // switching stories mid-play keeps playing (AMENDMENT_05 C2); the
+    // element was blessed by the original gesture, so play() is allowed
+    if (autoplay) audio.play().catch(() => setPlaying(false));
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [story.id]);
@@ -111,7 +133,7 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
     localStorage.setItem("speed", String(speed));
   }, [speed, story.id]);
 
-  // -- Media Session (rule 4) --
+  // -- Media Session (rule 4, ±10 s) --
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     const audio = audioRef.current;
@@ -133,6 +155,14 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
     });
   }, [story.id, story.title, story.author]);
 
+  // -- text follows playback (AMENDMENT_05 C5) --
+  const currentPara = showText ? paragraphAt(detail?.offsets, now) : -1;
+  useEffect(() => {
+    if (currentPara < 0) return;
+    document.getElementById(`para-${currentPara}`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [currentPara]);
+
   // read the ref at call time — a first-render closure could capture null
   const toggle = () => {
     const audio = audioRef.current;
@@ -149,10 +179,15 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
     if (audio) audio.currentTime = t;
   };
 
-  async function onSkipClick() {
-    if (!window.confirm(`Skip "${story.title}" permanently?`)) return;
-    await api.skipStory(story.id);
-    onSkipped(story.id);
+  async function skipAs(kind) {
+    setSkipMenu(false);
+    if (kind === "skip") {
+      await api.skipStory(story.id);
+      onSkipped(story.id);
+    } else if (kind === "read") {
+      await api.markRead(story.id);
+      onReadMarked(story.id);
+    }
   }
 
   async function onBookmark() {
@@ -163,6 +198,18 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
         (x, y) => x.position_s - y.position_s));
   }
 
+  // voice re-render (AMENDMENT_05 C6), always behind a confirmation popup
+  const voiceOptions = voices?.[story.language] || [];
+  async function onVoicePick(v) {
+    if (v === story.voice) return;
+    const mins = Math.max(1, Math.round((story.duration_s || 300) / 60 / 7));
+    if (!window.confirm(
+      `Re-render "${story.title}" with ${v}? $0, ~${mins} min in the ` +
+      "background; current audio keeps playing until it's replaced.")) return;
+    await api.setVoice(story.id, v);
+    onVoiceChanged(story.id, v);
+  }
+
   return (
     <div className="player">
       <audio ref={audioRef} preload="metadata" />
@@ -170,7 +217,6 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
       <div className="np-sub">
         {story.author || "unknown"}
         {story.year ? ` · ${story.year}` : ""} · {fmt(duration)}
-        {story.voice ? ` · ${story.voice}` : ""}
       </div>
       {resumeNote && <div className="resume-note">{resumeNote}</div>}
 
@@ -180,21 +226,42 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
       <div className="times"><span>{fmt(now)}</span><span>-{fmt((duration || 0) - now)}</span></div>
 
       <div className="controls">
-        <button className="ctl" onClick={() => nudge(-SKIP_S)}>−15s</button>
+        <button className="ctl" onClick={() => nudge(-SKIP_S)}>−10s</button>
         <button className="ctl big" onClick={toggle}>{playing ? "⏸" : "▶"}</button>
-        <button className="ctl" onClick={() => nudge(SKIP_S)}>+15s</button>
+        <button className="ctl" onClick={() => nudge(SKIP_S)}>+10s</button>
       </div>
 
       <div className="row">
         <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
           {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
         </select>
-        <button onClick={onBookmark}>🔖 bookmark</button>
+        {voiceOptions.length > 1 && (
+          <select value={story.voice || ""} title="voice"
+                  onChange={(e) => onVoicePick(e.target.value)}>
+            {story.voice && !voiceOptions.some((v) => v.voice === story.voice) &&
+              <option value={story.voice}>{story.voice}</option>}
+            {voiceOptions.map((v) => (
+              <option key={v.voice} value={v.voice}>{v.voice}</option>
+            ))}
+          </select>
+        )}
+        <button onClick={onBookmark}>🔖</button>
         <button onClick={() => setShowText(!showText)}>
           {showText ? "hide text" : "text"}
         </button>
-        <button className="danger" onClick={onSkipClick}>skip ✕</button>
+        <button className="danger" onClick={() => setSkipMenu(true)}>remove ✕</button>
       </div>
+
+      {skipMenu && (
+        <div className="skip-menu">
+          <span>Remove “{story.title}”?</span>
+          <button className="danger" onClick={() => skipAs("skip")}>
+            Not interested (skip)
+          </button>
+          <button onClick={() => skipAs("read")}>Already read</button>
+          <button onClick={() => setSkipMenu(false)}>Cancel</button>
+        </div>
+      )}
 
       <Stars rating={story.rating} onRate={(s) =>
         api.rate(story.id, s).then(() => onRated(story.id, s))} />
@@ -219,19 +286,23 @@ export default function Player({ story, detail, onFinished, onSkipped, onRated }
 
       {showText && detail?.paragraphs && (
         <div className="story-text">
-          {detail.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+          {detail.paragraphs.map((p, i) => (
+            <p key={i} id={`para-${i}`}
+               className={i === currentPara ? "para-now" : undefined}>{p}</p>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-export function Stars({ rating, onRate }) {
+export function Stars({ rating, onRate, readOnly = false }) {
   return (
     <div className="stars">
       {[1, 2, 3, 4, 5].map((s) => (
         <button key={s} className={s <= (rating || 0) ? "star on" : "star"}
-                onClick={() => onRate(s)}>★</button>
+                disabled={readOnly}
+                onClick={() => !readOnly && onRate(s)}>★</button>
       ))}
     </div>
   );
