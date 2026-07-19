@@ -124,7 +124,8 @@ def _render_story(engine, paragraphs: list[str],
     parts, durations, sr = [], [], None
     for i, p in enumerate(paragraphs):
         if should_abort and should_abort():
-            raise AbortRender(f"story marked skipped/read at paragraph {i}")
+            raise AbortRender(
+                f"story skipped/read or voice changed at paragraph {i}")
         samples, this_sr = engine.render(p)
         if sr is None:
             sr = this_sr

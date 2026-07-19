@@ -1,11 +1,12 @@
 # AMENDMENT 05 — Settings table, stored source_ref, phone-gate player feedback (2026-07-18)
 
 > **Authority: HIGHEST**, applied on top of BRIEF_VERBATIM.md + AMENDMENTS 01–04 +
-> DESIGN v1.0. Status: **part C BINDING** (Grace's phone-test directives, verbatim
-> below, implemented same day); **parts A/B PROPOSED** — schema changes on the
-> frozen design, drafted under Grace's go-ahead ("2. approved", 2026-07-18) but
-> awaiting her explicit sign-off before any code writes to them. Never edited from
-> here; further changes are new amendment docs.
+> DESIGN v1.0. Status: **FULLY BINDING** — part C was Grace's phone-test
+> directives (verbatim below, implemented same day); parts A/B were PROPOSED and
+> flipped BINDING by Grace 2026-07-18: "flip A and B" (the flip is the sign-off
+> act; content untouched). Same message added: rating misclick recovery ("add a
+> button for 'clear rating'") — implemented with C. Never edited from here;
+> further changes are new amendment docs.
 
 ## Verbatim (Grace, 2026-07-18, after the Phase 4 phone test)
 

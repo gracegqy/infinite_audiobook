@@ -18,6 +18,10 @@ export const skipStory = (id) => req(`/api/stories/${id}/skip`, { method: "POST"
 export const unskipStory = (id) => req(`/api/stories/${id}/unskip`, { method: "POST" });
 export const rate = (id, score) =>
   req(`/api/ratings/${id}`, { method: "PUT", body: JSON.stringify({ score }) });
+export const clearRating = (id) => req(`/api/ratings/${id}`, { method: "DELETE" });
+export const getSettings = () => req("/api/settings");
+export const putSettings = (body) =>
+  req("/api/settings", { method: "PUT", body: JSON.stringify(body) });
 export const addBookmark = (id, position_s, note) =>
   req(`/api/stories/${id}/bookmarks`, {
     method: "POST", body: JSON.stringify({ position_s, note }),

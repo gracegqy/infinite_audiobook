@@ -25,8 +25,8 @@ def main(argv: list[str]) -> int:
         if not candidates:
             print("Pool is empty. Refill with:  python -m pipeline.run_story "
                   f"--build-pool  (PAID: ~{config.POOL_BATCH_SIZE} candidates on "
-                  f"{config.CURATION_MODEL}, expect a few dollars; recent "
-                  "batches ran $0.90-$2.13 for 8)")
+                  f"{db.effective_curation_model(conn)}, expect a few dollars; "
+                  "recent batches ran $0.90-$2.13 for 8)")
             return 1
         print(f"[pool] {len(candidates)} unconsumed candidate(s), $0 marginal")
 

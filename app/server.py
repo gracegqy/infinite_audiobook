@@ -225,6 +225,15 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         c.commit()
         return {"score": int(score)}
 
+    @app.delete("/api/ratings/{sid}")
+    def delete_rating(sid: str):
+        """Misclick recovery for ratings (Grace, 2026-07-18, item 3)."""
+        c = conn()
+        story_or_404(c, sid)
+        c.execute("DELETE FROM ratings WHERE story_id=?", (sid,))
+        c.commit()
+        return {"score": None}
+
     @app.post("/api/stories/{sid}/bookmarks")
     def add_bookmark(sid: str, position_s: float = Body(embed=True),
                      note: str | None = Body(default=None, embed=True)):
@@ -295,6 +304,45 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         raise HTTPException(409,
                             f"story is {row['status']} — voice applies at "
                             "text_ready or after")
+
+    # ---- settings (AMENDMENT_05 A, BINDING) ----
+
+    @app.get("/api/settings")
+    def get_settings():
+        c = conn()
+        # R14 quality notice: skip-rate over the most recent decided stories.
+        # Never auto-switches anything — it only prompts Grace toward the
+        # model setting (DESIGN §5 policy).
+        recent = [r["status"] for r in c.execute(
+            "SELECT status FROM stories "
+            "WHERE status IN ('read','skipped','ready','in_progress') "
+            "ORDER BY created_at DESC LIMIT 10")]
+        skip_rate = (recent.count("skipped") / len(recent)) if recent else 0.0
+        return {
+            "curation_model": db.effective_curation_model(c),
+            "curation_model_options": sorted(config.MODEL_PRICING),
+            "default_voices": {lang: db.effective_voice(c, lang)
+                               for lang in config.VOICE_OPTIONS},
+            "quality_notice": (
+                f"{int(skip_rate * 100)}% of the last {len(recent)} stories "
+                "were skipped — consider changing the curation model below."
+                if skip_rate >= 0.5 and len(recent) >= 5 else None),
+        }
+
+    @app.put("/api/settings")
+    def put_settings(curation_model: str | None = Body(default=None, embed=True),
+                     default_voices: dict[str, str] | None = Body(default=None,
+                                                                  embed=True)):
+        c = conn()
+        if curation_model is not None:
+            if curation_model not in config.MODEL_PRICING:
+                raise HTTPException(422, f"unknown model {curation_model}")
+            db.set_setting(c, "curation_model", curation_model)
+        for lang, v in (default_voices or {}).items():
+            if v not in config.VOICE_OPTIONS.get(lang, []):
+                raise HTTPException(422, f"voice {v} not offered for {lang}")
+            db.set_setting(c, f"default_voice.{lang}", v)
+        return get_settings()
 
     # ---- PWA static (mounted last so /api keeps precedence) ----
 

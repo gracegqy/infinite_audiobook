@@ -50,6 +50,7 @@ export default function Player({ story, detail, voices, autoplay,
     () => Number(localStorage.getItem("speed")) || 1);
   const [showText, setShowText] = useState(false);
   const [skipMenu, setSkipMenu] = useState(false);
+  const [rerenderNote, setRerenderNote] = useState("");
   const [bookmarks, setBookmarks] = useState(detail?.bookmarks || []);
 
   useEffect(() => setBookmarks(detail?.bookmarks || []), [detail]);
@@ -63,6 +64,7 @@ export default function Player({ story, detail, voices, autoplay,
     setDuration(story.duration_s || 0);
     setResumeNote("");
     setSkipMenu(false);
+    setRerenderNote("");
     setPlaying(false); // never claim playback that isn't happening (A05 C2)
     let cancelled = false;
     api.getProgress(story.id).then(({ position_s }) => {
@@ -207,6 +209,8 @@ export default function Player({ story, detail, voices, autoplay,
       `Re-render "${story.title}" with ${v}? $0, ~${mins} min in the ` +
       "background; current audio keeps playing until it's replaced.")) return;
     await api.setVoice(story.id, v);
+    setRerenderNote(`re-rendering with ${v} (~${mins} min) — this audio keeps ` +
+      "playing; the new voice appears when the story shows ready again");
     onVoiceChanged(story.id, v);
   }
 
@@ -263,8 +267,19 @@ export default function Player({ story, detail, voices, autoplay,
         </div>
       )}
 
-      <Stars rating={story.rating} onRate={(s) =>
-        api.rate(story.id, s).then(() => onRated(story.id, s))} />
+      {rerenderNote && <div className="resume-note">{rerenderNote}</div>}
+
+      <div className="rating-row">
+        <Stars rating={story.rating} onRate={(s) =>
+          api.rate(story.id, s).then(() => onRated(story.id, s))} />
+        {story.rating != null && (
+          // rating misclick recovery (Grace, 2026-07-18, item 3)
+          <button className="clear-rating" title="clear rating" onClick={() =>
+            api.clearRating(story.id).then(() => onRated(story.id, null))}>
+            clear
+          </button>
+        )}
+      </div>
 
       {bookmarks.length > 0 && (
         <div className="bookmarks">

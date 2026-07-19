@@ -497,3 +497,63 @@ changes no persisted state.)
 Measurements invalidated by this change: none (synthesis/offsets untouched).
 The ±15 s wording in DESIGN §6 rule 4 is superseded by AMENDMENT_05 C1 — DESIGN
 itself left unedited per the freeze.
+
+## Entry 21 — 2026-07-18 — Phase 4 GATE PASSED; re-render self-abort bug fixed; AMENDMENT_05 fully binding
+
+- **Phase 4 gate PASSED.** Grace: "1. >5min backgrounding worked properly." —
+  combined with Entry 20's kill+reopen resume report and her phone session's
+  scrub/±skip use, every TASKS §4 gate criterion has phone-over-Tailscale
+  evidence. Probe 5's deferred ≥5-min-backgrounding risk (Entry 11) is retired.
+  Phase 4 → DONE.
+- **Her re-render bug report root-caused (item 4):** two separate outcomes —
+  (a) Monkey's Paw re-render with am_adam actually SUCCEEDED (READY 20:15,
+  21.5 min) but gave zero UI feedback, and (b) Damned Thing's re-render
+  self-aborted at paragraph 0: my Entry-20 mid-render voice check compared the
+  render target against the row's stored voice, which is stale BY DESIGN during
+  an explicit --voice retry (it only updates at finalize). The Playwright
+  verification had dismissed the confirm dialog, so this exact path never ran —
+  the lesson is the ABOUT_ME one again: the probe must exercise the accept path,
+  not just the cancel path. Fix: abort only when the stored voice CHANGED since
+  render start (and still differs from the target); regression test added.
+  Also: retry now restores in_progress (not just read) after a re-render, and
+  a mid-render abort message no longer claims "skipped/read" for voice changes.
+- **Damned Thing repaired:** the aborted run stranded it text_ready while its
+  old audio + Grace's progress row survived on disk — restored to in_progress
+  (artifact-derived). Her voice pick wasn't recorded anywhere (by design the
+  --voice flag never landed), so she re-picks in the player.
+- **AMENDMENT_05 FULLY BINDING** — Grace: "flip A and B." Implemented same
+  session: `settings` table + one-time `stories.source_ref` ALTER/backfill
+  migration (legacy reverse-parse now lives only in the migration);
+  db.get/set_setting + effective_curation_model (curate.py + run_story now
+  honor the R14 selector) + effective_voice (render precedence: explicit
+  --voice > queue-window row pick > settings default > config default);
+  Settings tab (model selector, per-language default voices, R14 quality
+  notice at ≥50% skip-rate over the last ≥5 decided stories); DELETE
+  /api/ratings + "clear" button (her item 3); re-render progress note in the
+  player + 15 s visible-tab auto-refresh so background renders surface without
+  manual reload.
+- **Owed Phase-3 review angles run at close (removed-behavior, reuse,
+  efficiency — Entry 16 debt):** all Entry-16 gate-run guards verified still
+  present (MAX_STORY_CHARS, HTML-only paragraph floor, non-fatal tagging,
+  ledger-before-parse). One real find, fixed: run_story's pool-empty message
+  quoted config.CURATION_MODEL while curation now uses the settings model.
+  Noted, not fixed: mark.py (SQL LIKE) and pool.find_candidate (substring)
+  carry two fuzzy title-match semantics — centralize when a third user
+  appears; curation prompt exclusions list grows with all-time history —
+  future R11 cost lever for Phase 5/6 (pool flow makes it rare today).
+- **Verified:** 71 tests green (settings round-trip/validation, quality
+  notice, clear rating, stale-voice no-self-abort, in_progress restore,
+  settings-default-voice reaches render, source_ref stored+used); Settings
+  tab + clear-rating driven in Chromium against the sandbox copy; a REAL
+  Kokoro re-render of sandbox Owl Creek with --voice am_michael re-ran
+  Grace's exact failing scenario end-to-end: sandbox Owl Creek, row voice
+  af_heart, `retry_story(--voice am_michael)` → **status stayed 'ready',
+  voice='am_michael', 1365 s of real Kokoro audio** (pre-fix this died at
+  paragraph 0). source_ref migration confirmed on the real DB too: all rows
+  backfilled (tell-tale-heart→2148, yellow-wallpaper→1952, owl-creek→375),
+  0 NULLs.
+- Server restarted on http://100.117.147.107:8123.
+
+Measurements invalidated by this change: none (offsets math untouched; cost
+baselines stand — the model SETTING changes future pool-build cost only when
+Grace changes it).

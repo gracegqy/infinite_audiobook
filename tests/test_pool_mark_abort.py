@@ -224,3 +224,44 @@ def test_voice_change_mid_render_aborts(monkeypatch, tmp_path, conn):
     assert calls == ["One."]  # second paragraph never rendered
     assert conn.execute("SELECT voice FROM stories WHERE id='sid-mid'")\
         .fetchone()["voice"] == "bm_george"  # the pick survives for the re-run
+
+
+def test_explicit_voice_retry_does_not_self_abort(monkeypatch, tmp_path, conn):
+    # Entry-21 regression: retry --voice X must not abort against the row's
+    # stale OLD voice (it only updates at finalize)
+    _fake_render_env(monkeypatch, tmp_path)
+    _insert_story(conn, "sid-stale", "ready", voice="af_heart")
+    ingest.retry_story(conn, "sid-stale", voice_override="bf_emma")
+    row = conn.execute(
+        "SELECT status, voice FROM stories WHERE id='sid-stale'").fetchone()
+    assert row["status"] == "ready"
+    assert row["voice"] == "bf_emma"
+
+
+def test_rerender_of_in_progress_story_stays_in_progress(monkeypatch, tmp_path, conn):
+    _fake_render_env(monkeypatch, tmp_path)
+    _insert_story(conn, "sid-prog", "in_progress", voice="af_heart")
+    ingest.retry_story(conn, "sid-prog", voice_override="am_adam")
+    assert conn.execute("SELECT status FROM stories WHERE id='sid-prog'")\
+        .fetchone()["status"] == "in_progress"
+
+
+def test_settings_default_voice_reaches_render(monkeypatch, tmp_path, conn):
+    # AMENDMENT_05 A: per-language default voice applies when nothing else set
+    _fake_render_env(monkeypatch, tmp_path)
+    db.set_setting(conn, "default_voice.en", "bm_george")
+    _insert_story(conn, "sid-dflt", "failed")
+    ingest.retry_story(conn, "sid-dflt")
+    assert conn.execute("SELECT voice FROM stories WHERE id='sid-dflt'")\
+        .fetchone()["voice"] == "bm_george"
+
+
+def test_source_ref_stored_and_used(conn):
+    from pipeline import ingest as ing
+    sid = ing.record_provisional(
+        conn, {"title": "Ref Test", "source_class": "gutenberg",
+               "source_ref": "1234", "license_class": "pd"},
+        db.active_channel(conn), "skipped")
+    row = conn.execute("SELECT * FROM stories WHERE id=?", (sid,)).fetchone()
+    assert row["source_ref"] == "1234"
+    assert ing.candidate_from_row(row)["source_ref"] == "1234"

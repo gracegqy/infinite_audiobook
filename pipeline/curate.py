@@ -79,13 +79,14 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE) ->
     """One curation batch → candidates list + a curation_runs ledger row (R11)."""
     channel = channel or db.active_channel(conn)
     client = config.anthropic_client()
+    model = db.effective_curation_model(conn)  # R14: Grace's setting or config
 
     prompt = build_prompt(channel, db.known_titles(conn), batch)
     messages = [{"role": "user", "content": prompt}]
     searches = in_tok = out_tok = 0
     while True:
         with client.messages.stream(
-            model=config.CURATION_MODEL,
+            model=model,
             max_tokens=16000,
             tools=[{"type": "web_search_20260209", "name": "web_search",
                     "max_uses": config.CURATION_MAX_SEARCHES}],
@@ -109,14 +110,14 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE) ->
 
     # ledger row FIRST (R11): the spend is real even if the response is
     # unparseable — parse failures must not make cost invisible
-    price_in, price_out = config.MODEL_PRICING[config.CURATION_MODEL]
+    price_in, price_out = config.MODEL_PRICING[model]
     cost = (in_tok / 1e6 * price_in + out_tok / 1e6 * price_out
             + searches * config.WEB_SEARCH_COST)
     text = "\n".join(b.text for b in response.content if b.type == "text")
     run_id = conn.execute(
         "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, candidates_json) "
         "VALUES(?,?,?,?,?)",
-        (channel["id"], config.CURATION_MODEL, round(cost, 4), searches,
+        (channel["id"], model, round(cost, 4), searches,
          json.dumps({"unparsed": text[:20000]}, ensure_ascii=False))).lastrowid
     conn.commit()
 
@@ -125,5 +126,5 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE) ->
                  (json.dumps(candidates, ensure_ascii=False), run_id))
     conn.commit()
     print(f"[curate] {len(candidates)} candidates, {searches} searches, ${cost:.3f} "
-          f"({config.CURATION_MODEL})")
+          f"({model})")
     return candidates

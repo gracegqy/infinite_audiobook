@@ -252,3 +252,37 @@ def test_voice_rejected_for_wrong_language_or_status(env):
     env.add("s4-failed", "failed")
     assert env.client.post("/api/stories/s4-failed/voice",
                            json={"voice": "af_bella"}).status_code == 409
+
+
+# ---- AMENDMENT_05 A/B + rating clear ----
+
+def test_settings_roundtrip_and_validation(env):
+    s = env.client.get("/api/settings").json()
+    assert s["curation_model"] == "claude-sonnet-5"  # config default
+    assert s["default_voices"]["en"] == "af_heart"
+    assert s["quality_notice"] is None  # too few decided stories
+    s = env.client.put("/api/settings", json={
+        "curation_model": "claude-haiku-4-5-20251001",
+        "default_voices": {"en": "bf_emma"}}).json()
+    assert s["curation_model"] == "claude-haiku-4-5-20251001"
+    assert s["default_voices"]["en"] == "bf_emma"
+    assert env.client.put("/api/settings",
+                          json={"curation_model": "gpt-99"}).status_code == 422
+    assert env.client.put("/api/settings",
+                          json={"default_voices": {"en": "onyx"}}).status_code == 422
+
+
+def test_quality_notice_on_high_skip_rate(env):
+    for i in range(4):
+        env.add(f"s-skip{i}", "ready")
+        env.client.post(f"/api/stories/s-skip{i}/skip")
+    env.add("s-ok", "ready")
+    notice = env.client.get("/api/settings").json()["quality_notice"]
+    assert notice is not None and "skipped" in notice
+
+
+def test_clear_rating(env):
+    env.client.put("/api/ratings/s1-ready", json={"score": 5})
+    assert env.client.delete("/api/ratings/s1-ready").json()["score"] is None
+    assert env.conn.execute(
+        "SELECT 1 FROM ratings WHERE story_id='s1-ready'").fetchone() is None

@@ -89,14 +89,16 @@ text). `/verify` before the closing commit.
 > on one fresh story."*
 
 ## Phase 4 — Player MVP   · Owner: Claude Code
-**Status: [IN PROGRESS] (2026-07-18)** — app/server.py + app/frontend built per
-DESIGN §6 incl. AMENDMENT_04 D (voice gallery + queue picker); 60 tests green;
-browser-verified end-to-end against a sandboxed DB copy (resume/ended/autoplay/
-range-206, Entry 19); /code-review run on the Phase 4 diff (5 findings fixed).
-Remaining: the GATE itself (Grace's phone-over-Tailscale test — server running,
-see STATE next-action 1) + the 3 Phase-3 review angles owed at close (Entry 16).
-Settings screen deferred pending the settings-table amendment (STATE open
-decision 1).
+**Status: DONE (2026-07-18)** — GATE PASSED on the phone over Tailscale, Grace's
+words as evidence: scrub/±skip/lock-screen exercised in her test session;
+"killing safari mid-play reopened with the audio progress saved" (kill+reopen
+resume); "1. >5min backgrounding worked properly" — retiring probe 5's deferred
+≥5-min-backgrounding risk (Entries 20–21). Built: app/server.py + React PWA per
+DESIGN §6 + AMENDMENTS 04 D / 05 (voice gallery + pickers, settings screen,
+skip-vs-read, unskip, clear rating, synced text follow); 71 tests green;
+/code-review on Phase 4 diffs (5 findings fixed, Entry 19) + the 3 Phase-3
+angles owed from Entry 16 run at close (1 minor fix, Entry 21); her 10+1
+feedback items all implemented (AMENDMENT_05 C).
 **Goal:** Spotify-like player usable on phone + laptop.
 **Actions:** FastAPI serving library + audio (range requests) + progress API; React PWA:
 library list, play/pause, ±15 s, scrubbable timeline, story select, text view; resume

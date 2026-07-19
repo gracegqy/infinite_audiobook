@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 20 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 21 · 2026-07-18
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -11,7 +11,7 @@
 | 1 — Pre-design probes | DONE | All 6 probe questions answered in probe_results.txt | All six answered (probe_results.txt gate block; Entries 5–11); probe 5 closed on Grace's four phone reports; one deferral w/ risk note (≥5-min backgrounding → Phase 4 gate) |
 | 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
-| 4 — Player MVP | [IN PROGRESS] | Full listen on phone over Tailscale | Phone flow exercised by Grace; kill+reopen resume confirmed, 10 feedback items implemented same day (AMENDMENT_05 C, Entry 20); 64 tests green; gate lacks ONLY the explicit ≥5-min backgrounding confirmation (probe-5 deferral) |
+| 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |

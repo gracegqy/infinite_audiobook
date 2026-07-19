@@ -8,10 +8,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import * as api from "./api";
 import Player, { Stars } from "./Player";
+import Settings from "./Settings";
 import Voices from "./Voices";
 
 const QUEUE_STATUSES = ["text_ready", "ready", "in_progress"];
-const TABS = { queue: "Queue", library: "Library", voices: "Voices" };
+const TABS = { queue: "Queue", library: "Library", voices: "Voices",
+               settings: "Settings" };
+const POLL_MS = 15000; // background renders surface without manual refresh
 
 export default function App() {
   const [stories, setStories] = useState(null);
@@ -31,6 +34,12 @@ export default function App() {
   useEffect(() => {
     api.listVoices().then((v) => setVoices(v.languages)).catch(() => {});
   }, []);
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") reload();
+    }, POLL_MS);
+    return () => clearInterval(t);
+  }, [reload]);
 
   // auto-restore the last-played story, paused (AMENDMENT_05 C7)
   useEffect(() => {
@@ -100,6 +109,7 @@ export default function App() {
         <Library stories={stories} currentId={currentId}
                  onPlay={play} onChanged={reload} />}
       {view === "voices" && <Voices />}
+      {view === "settings" && <Settings />}
     </div>
   );
 }

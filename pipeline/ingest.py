@@ -54,24 +54,32 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
     except Exception as e:
         print(f"[ingest] WARNING: tagging failed ({e}) — continuing untagged")
 
+    r0 = conn.execute("SELECT voice FROM stories WHERE id=?", (sid,)).fetchone()
+    voice_at_start = r0["voice"] if r0 else None
     if voice_override is None:
-        # honor a queue-window voice pick (AMENDMENT_04 D1) made after this
-        # row hit text_ready — re-read at the last moment before synthesis
-        r = conn.execute("SELECT voice FROM stories WHERE id=?", (sid,)).fetchone()
-        voice_override = stored_voice_override(r["voice"] if r else None, language)
-    # the gallery voice this render is committed to; language default when None
-    render_target = voice_override or config.TTS_BY_LANGUAGE.get(
-        language, config.FALLBACK_TTS)[1]
+        # precedence: queue-window pick on the row (AMENDMENT_04 D1, re-read
+        # at the last moment) > Grace's per-language default from settings /
+        # config default (AMENDMENT_05 A; effective_voice folds both)
+        voice_override = (stored_voice_override(voice_at_start, language)
+                          or db.effective_voice(conn, language))
+    # the gallery voice this render is committed to (fallback engine's voice
+    # only for languages with no primary config)
+    render_target = voice_override or config.FALLBACK_TTS[1]
 
     def abort_meanwhile():
         row = conn.execute("SELECT status, voice FROM stories WHERE id=?",
                            (sid,)).fetchone()
         if row is None or row["status"] in ("skipped", "read"):
             return True
-        # AMENDMENT_05 C6: a NEW gallery voice stored mid-render aborts this
-        # render; the picker spawns a fresh one with the chosen voice. Compares
-        # gallery voices only, so an engine fallback (voice "onyx") never
-        # self-aborts a legitimate degrade render.
+        # AMENDMENT_05 C6: a gallery voice picked ANEW mid-render (changed
+        # since this render started) aborts it; the picker's fresh render takes
+        # over. The since-start comparison matters: an explicit --voice
+        # re-render leaves the row's OLD voice in place until finalize, and
+        # must not abort itself against it (Entry 21 incident — Grace's first
+        # re-render died at paragraph 0). Gallery voices only, so an engine
+        # fallback ("onyx") never self-aborts a degrade render.
+        if row["voice"] == voice_at_start:
+            return False
         picked = stored_voice_override(row["voice"], language)
         return picked is not None and picked != render_target
 
@@ -120,11 +128,12 @@ def ingest_candidate(conn, candidate: dict, channel) -> str:
         year = candidate.get("year")
         conn.execute(
             "INSERT INTO stories(id, channel_id, dedup_key, title, author, "
-            "author_present, year, year_present, source_class, source_url, "
-            "license_class, language, curation_evidence_json, status) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'fetching')",
+            "author_present, year, year_present, source_class, source_ref, "
+            "source_url, license_class, language, curation_evidence_json, "
+            "status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'fetching')",
             (sid, channel["id"], key, title, author, int(bool(author)),
-             year, int(year is not None), candidate["source_class"], source_url,
+             year, int(year is not None), candidate["source_class"],
+             str(candidate.get("source_ref", "")), source_url,
              candidate["license_class"], language,
              json.dumps(candidate.get("evidence", []), ensure_ascii=False)))
         conn.commit()
@@ -158,13 +167,14 @@ def record_provisional(conn, candidate: dict, channel, status: str,
     sid = textproc.story_id(key, title)
     conn.execute(
         "INSERT OR IGNORE INTO stories(id, channel_id, dedup_key, title, author, "
-        "author_present, year, year_present, source_class, source_url, "
-        "license_class, language, curation_evidence_json, status, failure_note) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "author_present, year, year_present, source_class, source_ref, "
+        "source_url, license_class, language, curation_evidence_json, status, "
+        "failure_note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (sid, channel["id"], key, title,
          candidate.get("author"), int(bool(candidate.get("author"))),
          candidate.get("year"), int(candidate.get("year") is not None),
          candidate.get("source_class") or "other",
+         str(candidate.get("source_ref", "")),
          f"{candidate.get('source_class', 'other')}:{candidate.get('source_ref', '')}",
          candidate.get("license_class") or "modern_private",
          candidate.get("language") or channel["language"],
@@ -174,20 +184,25 @@ def record_provisional(conn, candidate: dict, channel, status: str,
     return sid
 
 
-def candidate_from_row(row) -> dict:
-    """Reconstruct a curator candidate from a stories row (everything needed is
-    stored — provenance rule pays off). source_ref is derived from source_url."""
+def legacy_source_ref(row) -> str:
+    """Reverse-parse source_ref from source_url — kept ONLY for the one-time
+    AMENDMENT_05 B migration backfill of pre-amendment rows."""
     sc = row["source_class"]
     if sc == "gutenberg":
         m = re.search(r"\d+", row["source_url"])
-        ref = m.group() if m else ""
-    elif sc == "creepypasta":
-        ref = urllib.parse.unquote(
+        return m.group() if m else ""
+    if sc == "creepypasta":
+        return urllib.parse.unquote(
             row["source_url"].rsplit("/wiki/", 1)[-1]).replace("_", " ")
-    else:
-        ref = row["source_url"]
+    return row["source_url"]
+
+
+def candidate_from_row(row) -> dict:
+    """Reconstruct a curator candidate from a stories row (everything needed is
+    stored — provenance rule pays off; source_ref stored since AMENDMENT_05 B)."""
+    ref = row["source_ref"] if row["source_ref"] else legacy_source_ref(row)
     return {"title": row["title"], "author": row["author"], "year": row["year"],
-            "source_class": sc, "source_ref": ref,
+            "source_class": row["source_class"], "source_ref": ref,
             "license_class": row["license_class"], "language": row["language"],
             "evidence": json.loads(row["curation_evidence_json"] or "[]")}
 
@@ -226,10 +241,11 @@ def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
         conn.commit()
         _finalize(conn, sid, key, candidate, row["language"], paragraphs, text,
                   source_url, voice_override=voice_override)
-        if row["status"] == "read":
-            # a voice re-render of a finished story must NOT resurrect it as
-            # unread — _finalize's walk ends at 'ready', so restore history
-            db.set_status(conn, sid, "read")
+        if row["status"] in ("read", "in_progress"):
+            # a voice re-render must NOT rewrite listening history —
+            # _finalize's walk ends at 'ready', so restore read/in_progress
+            # (the progress row was never touched)
+            db.set_status(conn, sid, row["status"])
         return sid
     except synthesize.AbortRender:
         raise

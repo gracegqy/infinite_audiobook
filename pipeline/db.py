@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS stories(
   year INTEGER,
   year_present INTEGER NOT NULL DEFAULT 0,
   source_class TEXT NOT NULL,
+  source_ref TEXT,
   source_url TEXT NOT NULL,
   license_class TEXT NOT NULL,
   language TEXT NOT NULL DEFAULT 'en',
@@ -82,6 +83,15 @@ CREATE TABLE IF NOT EXISTS curation_runs(
   taste_profile_text TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- AMENDMENT_05 A (BINDING 2026-07-18): one key-value row per setting.
+-- Keys: curation_model (R14) · default_voice.<language> (voice half of
+-- TTS_BY_LANGUAGE; the engine never changes via settings).
+CREATE TABLE IF NOT EXISTS settings(
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 # Default row = the horror brief. Nothing outside this row says "horror"
@@ -117,7 +127,53 @@ def connect(db_path=None, init=True) -> sqlite3.Connection:
         conn.execute(f"INSERT INTO channels({cols}) VALUES({qs})",
                      tuple(DEFAULT_CHANNEL.values()))
         conn.commit()
+    _migrate_source_ref(conn)
     return conn
+
+
+def _migrate_source_ref(conn):
+    """AMENDMENT_05 B (BINDING 2026-07-18): stories.source_ref stored
+    explicitly. One-time ALTER + backfill from source_url on pre-amendment
+    rows (the reverse parse lives on only here, for that backfill)."""
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(stories)")]
+    if "source_ref" in cols:
+        return
+    conn.execute("ALTER TABLE stories ADD COLUMN source_ref TEXT")
+    from . import ingest  # deferred: ingest imports db
+    for row in conn.execute(
+            "SELECT id, source_class, source_url, title FROM stories").fetchall():
+        conn.execute("UPDATE stories SET source_ref=? WHERE id=?",
+                     (ingest.legacy_source_ref(row), row["id"]))
+    conn.commit()
+
+
+def get_setting(conn, key: str, default: str | None = None) -> str | None:
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(conn, key: str, value: str):
+    conn.execute(
+        "INSERT INTO settings(key, value, updated_at) "
+        "VALUES(?,?,datetime('now')) ON CONFLICT(key) DO UPDATE "
+        "SET value=excluded.value, updated_at=excluded.updated_at", (key, value))
+    conn.commit()
+
+
+def effective_curation_model(conn) -> str:
+    """R14: Grace-selected model or the config constant — the single copy of
+    this precedence (curate stage + settings UI both read it)."""
+    return get_setting(conn, "curation_model", config.CURATION_MODEL)
+
+
+def effective_voice(conn, language: str) -> str | None:
+    """AMENDMENT_05 A: per-language default voice override (gallery voices
+    only), else the TTS_BY_LANGUAGE default. None for unknown languages."""
+    v = get_setting(conn, f"default_voice.{language}")
+    if v and v in config.VOICE_OPTIONS.get(language, []):
+        return v
+    engine_voice = config.TTS_BY_LANGUAGE.get(language)
+    return engine_voice[1] if engine_voice else None
 
 
 def active_channel(conn) -> sqlite3.Row:

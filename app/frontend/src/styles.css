@@ -59,6 +59,13 @@ h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
   border-left: 2px solid var(--accent); padding-left: 8px; margin-left: -10px;
 }
 .star:disabled { cursor: default; }
+.rating-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.clear-rating { background: none; border: 1px solid #333; border-radius: 6px;
+  color: var(--dim); font-size: 0.75rem; padding: 2px 8px; }
+.notice { background: #3a2f14; color: #ffcf5c; border-radius: 10px;
+  padding: 10px 12px; margin: 10px 0; font-size: 0.9rem; }
+.settings select { background: var(--card-now); color: var(--fg);
+  border: 1px solid #333; border-radius: 8px; padding: 6px 10px; }
 .np-title { font-weight: 700; font-size: 1.05rem; }
 .np-sub { color: var(--dim); font-size: 0.85rem; margin-bottom: 6px; }
 .resume-note { color: var(--accent); font-size: 0.8rem; margin-bottom: 4px; }
