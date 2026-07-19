@@ -89,6 +89,14 @@ text). `/verify` before the closing commit.
 > on one fresh story."*
 
 ## Phase 4 — Player MVP   · Owner: Claude Code
+**Status: [IN PROGRESS] (2026-07-18)** — app/server.py + app/frontend built per
+DESIGN §6 incl. AMENDMENT_04 D (voice gallery + queue picker); 60 tests green;
+browser-verified end-to-end against a sandboxed DB copy (resume/ended/autoplay/
+range-206, Entry 19); /code-review run on the Phase 4 diff (5 findings fixed).
+Remaining: the GATE itself (Grace's phone-over-Tailscale test — server running,
+see STATE next-action 1) + the 3 Phase-3 review angles owed at close (Entry 16).
+Settings screen deferred pending the settings-table amendment (STATE open
+decision 1).
 **Goal:** Spotify-like player usable on phone + laptop.
 **Actions:** FastAPI serving library + audio (range requests) + progress API; React PWA:
 library list, play/pause, ±15 s, scrubbable timeline, story select, text view; resume

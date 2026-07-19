@@ -41,6 +41,23 @@ KOKORO_LANG_CODES = {"en": "a", "fr": "f"}
 FALLBACK_TTS = ("openai", "onyx")
 OPENAI_TTS_MODEL = "gpt-4o-mini-tts"
 
+# Voice audition gallery (AMENDMENT_04 D): selectable voices per language,
+# each pre-rendered ONCE into VOICE_SAMPLES_DIR by scripts/render_voice_samples.py.
+# Defaults (first entry) match TTS_BY_LANGUAGE.
+VOICE_OPTIONS = {
+    "en": ["af_heart", "af_bella", "af_nicole", "af_sarah", "am_adam",
+           "am_michael", "bf_emma", "bm_george"],
+    "fr": ["ff_siwis"],
+    "zh": ["zh-CN-YunxiNeural", "zh-CN-XiaoxiaoNeural"],
+}
+VOICE_SAMPLES_DIR = DATA_DIR / "voice_samples"
+
+# App server (DESIGN §1): binds the Mac's Tailscale interface ONLY — never
+# 0.0.0.0. scripts/serve.sh resolves the live IP via `tailscale ip -4` and
+# falls back to this last-known value.
+APP_PORT = 8123
+TAILSCALE_IP_FALLBACK = "100.117.147.107"
+
 # clean-stage sanity bounds. Floor: deleted/empty wiki pages must be rejected
 # (probe 4). Ceiling: a Gutenberg ref can turn out to be a collection volume or
 # novel — reject fast instead of rendering hours of audio (gate-run lesson,

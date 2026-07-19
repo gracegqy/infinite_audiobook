@@ -5,4 +5,7 @@ numpy
 edge-tts
 anthropic
 openai
+fastapi
+uvicorn
+httpx
 pytest

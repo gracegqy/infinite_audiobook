@@ -404,3 +404,52 @@ entry; curation cost baseline will change once pool flow lands).
 
 Measurements invalidated by this change: none. Curation cost baseline going
 forward: $0 marginal per story from the pool; paid builds explicit only.
+
+## Entry 19 — 2026-07-18 — Phase 4 player MVP built + browser-verified; queue at 5 ready
+
+- **Queue build finished, $0 marginal:** Owl Creek Bridge (20.9 min) and The Damned
+  Thing (18.0 min) retried READY by this session. The Willows (107.1 min) went READY
+  via a `pipeline.retry` process from a PARALLEL session (`-u` invocation, PID 38936,
+  started 09:40 local) that was already running it; this session's own willows retry
+  was detected as a duplicate and killed at spawn (guard log, "DUPLICATE KILLED").
+  Library: 5 ready stories, all kokoro/af_heart. ⚠️ Two sessions worked STATE
+  next-action 1 concurrently — coordination hazard worth avoiding next time.
+- **Phase 4 app built** per DESIGN §6 + AMENDMENT_04 D: `app/server.py` (FastAPI —
+  stories list/detail, range-capable audio, progress GET/PUT, /ended, /skip, ratings,
+  bookmarks CRUD, /voices + samples + per-story voice) and `app/frontend/` (React+Vite
+  PWA: queue with text_ready voice picker + skip, library, player with play/pause,
+  ±15 s, scrubber, 0.75–2× speed, Media Session, text view, bookmarks, 1–5 stars,
+  voice audition gallery). Player implements the four binding iOS rules (§6).
+  `scripts/serve.sh` = the one runbook command; binds Tailscale IP only.
+- **Voice gallery assets:** scripts/render_voice_samples.py rendered 11 samples
+  (8 en Kokoro, fr ff_siwis, 2 zh edge-tts) to data/voice_samples/, 0 failures.
+- **retry_story honors a stored gallery voice** (new `stored_voice_override`):
+  queue-window picks survive to the render; stored fallback voice "onyx" is excluded
+  so a $0 retry can never silently re-route onto paid OpenAI.
+- **Browser-verified end-to-end** (Playwright chromium against a sandboxed COPY of
+  the DB + library — real library state untouched): queue → play (audio advances) →
+  +15 s → pause (server progress row written) → reload → resume applied at saved
+  16.15 s on loadedmetadata → seek to end → `ended` ⇒ status read + progress row
+  cleared ⇒ autoplay advanced to next ready story; text view (269 paras), bookmark
+  add/delete, 4-star rating, voices/library tabs. Range request on real audio → 206.
+- **/code-review (high; angles run inline): 5 findings, all fixed + regression-tested**
+  — worst: a voice re-render of a READ story ended the retry walk at 'ready',
+  resurrecting finished history as unread in the queue (fix: retry_story restores
+  'read'); late keepalive save racing /ended could re-create a resume row on a read
+  story (server now no-ops saves on read/skipped — the Entry-10 symptom via a race);
+  queue-window voice pick was ignored by _finalize (now re-read before synthesis);
+  full schema re-executed per request (db.connect gained init=False; schema once at
+  app startup); Player handlers captured a possibly-null first-render audio ref.
+  Tests 39 → 60, all green.
+- **Server RUNNING:** http://100.117.147.107:8123 (scripts/serve.sh, Tailscale only).
+  Phase 4 gate = Grace's phone test per TASKS §4; instructions given in chat.
+- **Deferred, needs Grace (batched in chat):** the §6 settings screen (curation model
+  selector, R14) needs a store for the choice — a small `settings` table = schema
+  change on the frozen design ⇒ amendment proposal awaiting her go-ahead (could bundle
+  the Entry-16 "stored source_ref" debt). Entry-16 debts (source-class registry,
+  edge-tts async granularity, stored source_ref, vocab-genre coupling) and the 3
+  Phase-3 review angles remain owed at Phase 4 close / Phase 5.
+
+Measurements invalidated by this change: none — the synthesis pipeline and offsets
+math are untouched; Phase 3 cost and drift figures stand. (db.connect init flag
+changes no persisted state.)

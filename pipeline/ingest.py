@@ -58,6 +58,12 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
         row = conn.execute("SELECT status FROM stories WHERE id=?", (sid,)).fetchone()
         return row is not None and row["status"] in ("skipped", "read")
 
+    if voice_override is None:
+        # honor a queue-window voice pick (AMENDMENT_04 D1) made after this
+        # row hit text_ready — re-read at the last moment before synthesis
+        r = conn.execute("SELECT voice FROM stories WHERE id=?", (sid,)).fetchone()
+        voice_override = stored_voice_override(r["voice"] if r else None, language)
+
     engine, voice, sr, durations = synthesize.synthesize_story(
         paragraphs, language, story_dir / "audio.m4a",
         voice_override=voice_override, should_abort=skipped_meanwhile)
@@ -175,6 +181,14 @@ def candidate_from_row(row) -> dict:
             "evidence": json.loads(row["curation_evidence_json"] or "[]")}
 
 
+def stored_voice_override(voice: str | None, language: str) -> str | None:
+    """A voice already chosen on the row (queue-window picker on a text_ready
+    story, AMENDMENT_04 D, or a prior render's voice) is honored on retry —
+    but only gallery (primary-engine) voices qualify: a stored fallback voice
+    like "onyx" must not silently re-route a $0 retry onto paid OpenAI."""
+    return voice if voice in config.VOICE_OPTIONS.get(language, []) else None
+
+
 def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
     """Re-run fetch→clean→tag→synthesize for an existing (typically failed)
     story row, updating it in place — no new curation spend. Also the voice
@@ -184,6 +198,8 @@ def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
     row = conn.execute("SELECT * FROM stories WHERE id=?", (sid,)).fetchone()
     if row is None:
         raise ValueError(f"no story {sid}")
+    voice_override = voice_override or stored_voice_override(
+        row["voice"], row["language"])
     candidate = candidate_from_row(row)
     try:
         db.set_status(conn, sid, "fetching")
@@ -199,6 +215,10 @@ def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
         conn.commit()
         _finalize(conn, sid, key, candidate, row["language"], paragraphs, text,
                   source_url, voice_override=voice_override)
+        if row["status"] == "read":
+            # a voice re-render of a finished story must NOT resurrect it as
+            # unread — _finalize's walk ends at 'ready', so restore history
+            db.set_status(conn, sid, "read")
         return sid
     except synthesize.AbortRender:
         raise

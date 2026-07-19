@@ -1,0 +1,75 @@
+/* Dark, mobile-first; safe-area aware for the iOS standalone PWA. */
+* { box-sizing: border-box; }
+:root {
+  --bg: #12121a; --card: #1c1c28; --card-now: #262638;
+  --fg: #e8e6f0; --dim: #9a97ad; --accent: #b48eff; --danger: #ff6b6b;
+}
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.shell { max-width: 640px; margin: 0 auto; padding: 12px 14px 40px; }
+header { display: flex; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 1.3rem; margin: 8px 0; }
+nav { display: flex; gap: 6px; }
+.tab {
+  background: none; border: none; color: var(--dim); font-size: 0.95rem;
+  padding: 6px 8px; border-radius: 8px; cursor: pointer;
+}
+.tab.on { color: var(--accent); background: var(--card); }
+h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
+  letter-spacing: 0.06em; margin: 18px 0 6px; }
+
+.card {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.card.now { background: var(--card-now); outline: 1px solid var(--accent); }
+.card-main { flex: 1; min-width: 0; cursor: pointer; }
+.card-title { font-weight: 600; }
+.card-sub { color: var(--dim); font-size: 0.85rem; }
+.card-ev { color: var(--dim); font-size: 0.75rem; margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-actions { display: flex; flex-direction: column; gap: 6px; align-items: end; }
+.empty, .error { color: var(--dim); text-align: center; margin-top: 30px; }
+.error { color: var(--danger); }
+
+.player {
+  background: var(--card); border-radius: 16px; padding: 16px;
+  margin: 10px 0 18px; position: sticky; top: 8px; z-index: 5;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+.np-title { font-weight: 700; font-size: 1.05rem; }
+.np-sub { color: var(--dim); font-size: 0.85rem; margin-bottom: 6px; }
+.resume-note { color: var(--accent); font-size: 0.8rem; margin-bottom: 4px; }
+.scrubber { width: 100%; accent-color: var(--accent); }
+.times { display: flex; justify-content: space-between; color: var(--dim);
+  font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.controls { display: flex; justify-content: center; gap: 18px; margin: 10px 0; }
+.ctl {
+  background: var(--card-now); color: var(--fg); border: none;
+  border-radius: 999px; padding: 10px 16px; font-size: 1rem; cursor: pointer;
+}
+.ctl.big { font-size: 1.5rem; padding: 12px 22px; background: var(--accent);
+  color: #14101f; }
+.row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.row button, .row select, .card-actions select, .card-actions button {
+  background: var(--card-now); color: var(--fg); border: 1px solid #333;
+  border-radius: 8px; padding: 6px 10px; font-size: 0.85rem;
+}
+button.danger { color: var(--danger); }
+.stars { display: flex; justify-content: center; gap: 2px; margin-top: 8px; }
+.star { background: none; border: none; color: #3a3a4c; font-size: 1.3rem;
+  cursor: pointer; padding: 2px; }
+.star.on { color: #ffcf5c; }
+.bookmarks { margin-top: 10px; border-top: 1px solid #2c2c3c; padding-top: 8px; }
+.bookmark { display: flex; gap: 8px; align-items: center; font-size: 0.85rem;
+  color: var(--dim); margin-bottom: 4px; }
+.bookmark button { background: var(--card-now); color: var(--fg);
+  border: none; border-radius: 6px; padding: 3px 8px; }
+.story-text { margin-top: 12px; max-height: 45vh; overflow-y: auto;
+  border-top: 1px solid #2c2c3c; padding-top: 8px; }
+.story-text p { margin: 0 0 0.9em; }

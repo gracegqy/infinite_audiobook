@@ -23,9 +23,18 @@ prompt in TASKS.md.
   appearing in frontend code or a URL is a bug, full stop.
 
 ## Run (filled in as phases land)
-- Phase 4+: one command starts FastAPI (serving API + built frontend + audio). TBD here.
-- Phone access: Tailscale app on phone → `http://<mac-tailnet-name>:<port>`. The server
-  binds to the Tailscale interface, never 0.0.0.0. TBD exact bind config.
+- **App server (Phase 4):** `scripts/serve.sh` — resolves the Mac's Tailscale IP
+  (fallback: `TAILSCALE_IP_FALLBACK` in pipeline/config.py), builds the frontend once
+  if `app/frontend/dist/` is missing, then runs uvicorn on
+  `http://<tailscale-ip>:8123` bound to that interface only, never 0.0.0.0.
+- Phone access: Tailscale app on phone connected → open `http://100.117.147.107:8123`
+  in Safari (or the saved home-screen PWA). The IP is printed by serve.sh at start.
+- Voice audition samples (one-time, $0 for en/fr; zh calls edge-tts):
+  `.venv/bin/python scripts/render_voice_samples.py` → data/voice_samples/.
+- Pipeline (Phase 3): `.venv/bin/python -m pipeline.run_story` (announce → ingest next
+  pool candidate) · `--build-pool` = paid curation, Grace-initiated only ·
+  `-m pipeline.retry <id> [--voice v]` = $0 re-run · `-m pipeline.mark read|skip
+  "<title>"` = pre-marking.
 
 ## Backup
 - What matters: `data/library/` (regenerable but expensive in time) and the SQLite DB

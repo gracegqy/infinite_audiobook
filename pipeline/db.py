@@ -98,13 +98,18 @@ DEFAULT_CHANNEL = dict(
 )
 
 
-def connect(db_path=None) -> sqlite3.Connection:
+def connect(db_path=None, init=True) -> sqlite3.Connection:
+    """init=False skips schema creation + default-channel seeding — for
+    callers opening many short-lived connections (the app server does one
+    init=True at startup, then init=False per request)."""
     path = db_path or config.DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    if not init:
+        return conn
     conn.executescript(SCHEMA)
     if not conn.execute("SELECT 1 FROM channels LIMIT 1").fetchone():
         cols = ", ".join(DEFAULT_CHANNEL)
