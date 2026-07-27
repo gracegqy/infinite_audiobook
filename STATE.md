@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 24 · 2026-07-27
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 25 · 2026-07-27
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -62,13 +62,13 @@
 
 ## Next actions
 
-1. **Grace: decide on a paid pool refill.** The pool is empty and the queue sits
-   at 1/3, so the worker has nothing left to acquire. `python -m
-   pipeline.run_story --build-pool` is the only way forward and it costs money
-   (last two batches: $0.90 and $2.13). Recommend first tightening the curation
-   prompt — 5 of 6 candidates from those batches were unusable (stub wiki pages,
-   collection ebook ids), so a refill on the current prompt would waste much of
-   the spend.
+1. **Grace: run the paid pool refill** — `python -m pipeline.run_story
+   --build-pool` (~$1–2; last two batches were $0.90 and $2.13). The prompt is
+   hardened and every candidate is now HTTP-verified before it enters the pool
+   (Entry 25), so the run prints its true yield ("N/M usable") before you rely
+   on it. Read that line: if yield is still poor the model is still proposing
+   collection ids, and the next lever is the curation model setting (R14), not
+   another batch. Then `python -m pipeline.worker` fills the queue at $0.
 2. **Grace: phone gate for Phase 5** — highlight visibly tracking audio over
    Tailscale (the code ships; only the phone check is owed). Server at
    http://100.117.147.107:8123 (`scripts/serve.sh` to restart). The Russian
@@ -93,7 +93,8 @@ in_progress are unrated because Grace hasn't finished them (Entry 22), so
 they carry no Phase-6 signal. Tell-Tale Heart is `failed` (the 550 KB Poe
 collection fetch, Entry 16) — now re-proposable (Entry 24). Russian Sleep
 Experiment 12.2 min kokoro/am_adam **ready, unplayed** (worker-acquired).
-**1 unread against a depth of 3; candidate pool empty.** Voice gallery:
+**1 unread against a depth of 3; candidate pool empty** (refill = Entry 25
+next action). Voice gallery:
 11 samples in data/voice_samples/. Settings: `default_voice.en` = am_adam.
 
 ## Open decisions

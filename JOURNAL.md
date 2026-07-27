@@ -726,3 +726,47 @@ Sonnet still got it wrong 2 of 2 times.
 Measurements invalidated by this change: none. Offsets, cost baselines, iOS
 rules untouched. Acquisition order changed from arbitrary-within-a-second to
 strictly monotonic — no prior measurement depended on the old behavior.
+
+## Entry 25 — 2026-07-27 — Curation hardened before spending again (Grace's call)
+
+Grace chose "tighten the prompt, then refill" over refilling on the current
+prompt. Two changes, one persuasive and one mechanical:
+
+- **Prompt (persuasive).** SOURCING rewritten to state the consequence the model
+  was not accounting for: the pipeline fetches `source_ref` literally and rejects
+  it mechanically, so an unchecked reference wastes the candidate. It now says
+  explicitly that most famous short stories exist on Gutenberg ONLY inside
+  collections and the correct move is to DROP the candidate, never substitute the
+  collection id; that creepypasta pages are frequently stubs (deleted, copyright-
+  removed, link-only) and must be opened to confirm prose is present; that
+  `source_ref` must never be "unknown"; and that returning fewer verified
+  candidates beats a full batch of unusable ones.
+- **Verification (mechanical, `pipeline/verify.py`).** The model's self-report is
+  no longer what the pipeline trusts. Every candidate is re-checked over HTTP at
+  pool-build time — free, no API spend — through `ingest._fetch_clean`, the SAME
+  code the worker runs at acquisition, so the pool cannot promise a story ingest
+  would then reject. Verdicts are stamped onto the candidate (`verified`,
+  `verify_note`); the full batch stays in the ledger, `pool.pool_candidates`
+  does the filtering.
+- **Three outcomes, and the middle one is the point:** ok / definitely-unusable /
+  **uncheckable**. A network failure returns `None` and the candidate is KEPT —
+  a flaky moment must never permanently discard a good story. FetchError wraps
+  URLError, so the cause is unwrapped and re-classified rather than trusting the
+  exception type (tested).
+
+**Verified against reality, not fixtures:** run over the exact 6 candidates from
+the two paid batches plus 2 known-good controls → 5/5 bad ones rejected with
+accurate reasons (3 stub wiki pages, 1 collection volume at 398,549 chars, 1
+`unknown` ref caught without a fetch), 3/3 good ones passed. No false positives,
+no false negatives.
+
+Expected effect: the next `--build-pool` reports its true yield before Grace
+relies on it, and the pool serves only references that actually resolve. It does
+NOT fix low yield at the source — if the model still proposes collection ids, the
+batch is still mostly wasted money; it just becomes visible immediately instead
+of a week later. Worth re-reading the yield line after the next run.
+
+124 tests green (9 new).
+
+Measurements invalidated by this change: none. Curation cost per batch is
+unchanged (verification is HTTP only); the yield number is new, not a revision.

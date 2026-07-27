@@ -4,7 +4,7 @@ auto-escalated (R14)."""
 import json
 import re
 
-from . import config, db
+from . import config, db, verify
 
 PROMPT_TEMPLATE = """You are the curator for a private read-aloud fiction library \
 (single listener, personal use).
@@ -24,11 +24,27 @@ a NAMED list, essay, award, ranking, or ratings page that vouches for it (e.g. "
 Use web search to verify evidence rather than relying on memory. If you could not
 verify a claim, flag it honestly in "unverified".
 
-SOURCING: prefer texts available as {source_hint}. For Gutenberg candidates the
-ebook id MUST be a standalone edition containing ONLY that story — collection
-volumes ("The Works of...", "Complete Tales...") are rejected by the pipeline;
-verify the ebook is the single story, and skip candidates that only exist in
-collections. Do NOT propose any of these already-known titles:
+SOURCING — the pipeline fetches your `source_ref` literally and rejects it
+mechanically, so an unchecked reference wastes the whole candidate:
+
+- **Gutenberg:** `source_ref` is the ebook id of a STANDALONE edition containing
+  ONLY that story. Collection volumes ("The Works of...", "Complete Tales...",
+  "The King in Yellow") are rejected on length. Open the ebook page and confirm
+  it is the single story before proposing the id. Most famous short stories exist
+  ONLY inside collections on Gutenberg — if you cannot find a standalone edition,
+  DROP the candidate. Do not substitute the collection id.
+- **Creepypasta:** `source_ref` is a wiki page that actually CONTAINS the story
+  text. Many pages are stubs: deleted-for-quality notices, copyright-removal
+  notices pointing at the author's own site, or link-only navigation pages. Open
+  the page and confirm the prose is there. If it is a stub, DROP the candidate.
+- **Never guess.** `source_ref` must never be "unknown", empty, a title, or a
+  URL you did not open. A candidate without a verified reference is worthless —
+  drop it and propose a different story instead.
+
+Fewer, verified candidates beat a full batch of unusable ones. It is correct to
+return fewer than {batch} if that is what survives verification.
+
+Do NOT propose any of these already-known titles:
 {exclusions}
 
 Return ONLY a JSON array (no prose around it), each element:
@@ -98,7 +114,8 @@ def parse_candidates(text: str) -> list[dict]:
     return candidates
 
 
-def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE) -> list[dict]:
+def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
+                 verify_refs: bool = True) -> list[dict]:
     """One curation batch → candidates list + a curation_runs ledger row (R11)."""
     channel = channel or db.active_channel(conn)
     client = config.anthropic_client()
@@ -145,9 +162,16 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE) ->
     conn.commit()
 
     candidates = parse_candidates(text)
+    # Verify references mechanically before they reach the pool (Entry 25).
+    # Free — HTTP only — and it runs the same fetch/clean gates the worker
+    # will, so the pool never promises a story ingest would reject.
+    if verify_refs:
+        print(f"[curate] verifying {len(candidates)} references (no API cost)…")
+        candidates = verify.annotate(candidates)
     conn.execute("UPDATE curation_runs SET candidates_json=? WHERE id=?",
                  (json.dumps(candidates, ensure_ascii=False), run_id))
     conn.commit()
-    print(f"[curate] {len(candidates)} candidates, {searches} searches, ${cost:.3f} "
-          f"({model})")
+    usable = sum(1 for c in candidates if c.get("verified") is not False)
+    print(f"[curate] {len(candidates)} candidates ({usable} usable), "
+          f"{searches} searches, ${cost:.3f} ({model})")
     return candidates

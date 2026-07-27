@@ -56,6 +56,8 @@ def pool_candidates(conn, channel_id: int | None = None) -> list[dict]:
                 continue
             if ref_key(c.get("source_class"), c.get("source_ref")) in dead_refs:
                 continue  # that source already proved it cannot yield the story
+            if c.get("verified") is False:
+                continue  # pre-verified as unusable at pool-build time (Entry 25)
             seen_titles.add(t)  # dedup across runs too
             out.append(c)
     return out
