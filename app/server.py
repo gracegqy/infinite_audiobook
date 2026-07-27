@@ -17,7 +17,7 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import config, db
+from pipeline import config, db, renderjob
 from pipeline.models import OffsetsManifest, StoryMeta
 
 FRONTEND_DIST = config.ROOT / "app" / "frontend" / "dist"
@@ -199,7 +199,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     @app.post("/api/stories/{sid}/skip")
     def story_skip(sid: str):
         """AMENDMENT_02: skip is permanent history (never re-proposed). Mid-
-        render skips abort synthesis via the pipeline's should_abort poll.
+        render skips abort synthesis via the pipeline's checkpoint poll.
         Replenishment trigger arrives with the Phase 5 worker."""
         c = conn()
         row = story_or_404(c, sid)
@@ -289,7 +289,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         if row["status"] == "text_ready":
             # queue-window picker (AMENDMENT_05 C6): store the choice, then
             # kick a render. If a render is already in flight it aborts at the
-            # next paragraph on the voice mismatch (pipeline should_abort) and
+            # next paragraph on the voice mismatch (pipeline checkpoint) and
             # this fresh one takes over with the chosen voice.
             c.execute("UPDATE stories SET voice=? WHERE id=?", (voice, sid))
             c.commit()
@@ -304,6 +304,46 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         raise HTTPException(409,
                             f"story is {row['status']} — voice applies at "
                             "text_ready or after")
+
+    # ---- render jobs (AMENDMENT_06: progress bar + pause/cancel) ----
+
+    @app.get("/api/renders")
+    def list_renders():
+        """Active renders, newest walk state. Dead-process rows are reaped by
+        renderjob.active(), so a bar on screen always means a live render."""
+        c = conn()
+        return {"renders": [j.as_dict() for j in renderjob.active(c)],
+                "poll_ms": 2000}
+
+    def _control(sid: str, control: str, expect_active: bool = True):
+        c = conn()
+        story_or_404(c, sid)
+        job = renderjob.get(c, sid)
+        if job is None or not renderjob.pid_alive(job.pid) or \
+                job.state not in ("running", "paused"):
+            raise HTTPException(409, f"no render in flight for {sid}")
+        if expect_active:
+            renderjob.set_control(c, sid, control)
+        return renderjob.get(c, sid).as_dict()
+
+    @app.post("/api/renders/{sid}/pause")
+    def pause_render(sid: str):
+        """Holds the render at the next paragraph boundary — the process stays
+        alive with the TTS model loaded, so resume is immediate. Work already
+        rendered is kept in memory; nothing is written until the last
+        paragraph, so a pause costs nothing but time."""
+        return _control(sid, "pause")
+
+    @app.post("/api/renders/{sid}/resume")
+    def resume_render(sid: str):
+        return _control(sid, "run")
+
+    @app.post("/api/renders/{sid}/cancel")
+    def cancel_render(sid: str):
+        """Stops the render and puts the story back exactly as it was — the
+        existing audio is untouched (the m4a is written only after the final
+        paragraph) and the pre-render status is restored by the pipeline."""
+        return _control(sid, "cancel")
 
     # ---- settings (AMENDMENT_05 A, BINDING) ----
 

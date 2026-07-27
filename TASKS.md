@@ -112,13 +112,14 @@ app ≥5 min, kill and reopen → resumes within 2 s of pause point. Evidence in
 
 ## Phase 5 — Queue automation, sync, channels UI   · Owner: Claude Code
 **Goal:** The self-sustaining part of the brief.
-**Actions:** replenishment worker (unread < 5 → curate/fetch/synthesize; dedup against
+**Actions:** replenishment worker (unread < 3 → curate/fetch/synthesize; dedup against
 full history so nothing repeats); paragraph-level text highlight synced to playback via
 offsets; bookmarks; channel criteria editor UI (create/edit channels; switching channels
 re-targets the queue); read/in-progress/unread status tracking.
 **Output:** worker + UI features; unit tests for replenishment + dedup logic (clock/queue
 state injected).
-**Gate:** mark 2 stories read → within one worker cycle library returns to 5 unread, no
+**Gate:** mark 2 stories read → within one worker cycle library returns to 3 unread
+(AMENDMENT_02 supersedes the brief's 5 — `config.QUEUE_DEPTH`), no
 title repeats all-time (checked against history table); highlight visibly tracks audio on
 phone; a channel edit demonstrably changes the next curation batch.
 > Prompt: *"Read STATE, JOURNAL, DESIGN.md. Build Phase 5 per TASKS; run the queue gate

@@ -94,6 +94,27 @@ button.danger { color: var(--danger); }
   color: var(--dim); margin-bottom: 4px; }
 .bookmark button { background: var(--card-now); color: var(--fg);
   border: none; border-radius: 6px; padding: 3px 8px; }
+/* render progress + controls (AMENDMENT_06) */
+.render { margin-top: 8px; border-top: 1px solid #2c2c3c; padding-top: 8px;
+  flex-basis: 100%; }
+.render-track { height: 6px; border-radius: 999px; background: #2c2c3c;
+  overflow: hidden; }
+.render-fill { height: 100%; background: var(--accent); border-radius: 999px;
+  transition: width 0.4s linear; }
+/* no measurable total (fetch/tag/encode) — a sweep, never a fake percentage */
+.render-track.indet .render-fill { width: 35%; animation: sweep 1.4s ease-in-out infinite; }
+@keyframes sweep {
+  0% { transform: translateX(-100%); } 100% { transform: translateX(300%); }
+}
+.render-row { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.render-label { color: var(--dim); font-size: 0.78rem;
+  font-variant-numeric: tabular-nums; }
+.render-actions { display: flex; gap: 6px; }
+.render-actions button { background: var(--card-now); color: var(--fg);
+  border: 1px solid #333; border-radius: 8px; padding: 4px 10px;
+  font-size: 0.78rem; }
+.render-actions button:disabled { opacity: 0.5; }
 .story-text { margin-top: 12px; max-height: 45vh; overflow-y: auto;
   border-top: 1px solid #2c2c3c; padding-top: 8px; }
 .story-text p { margin: 0 0 0.9em; }

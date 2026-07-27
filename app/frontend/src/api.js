@@ -29,6 +29,11 @@ export const addBookmark = (id, position_s, note) =>
 export const deleteBookmark = (bid) =>
   req(`/api/bookmarks/${bid}`, { method: "DELETE" });
 export const listVoices = () => req("/api/voices");
+// render control (AMENDMENT_06)
+export const listRenders = () => req("/api/renders");
+export const pauseRender = (id) => req(`/api/renders/${id}/pause`, { method: "POST" });
+export const resumeRender = (id) => req(`/api/renders/${id}/resume`, { method: "POST" });
+export const cancelRender = (id) => req(`/api/renders/${id}/cancel`, { method: "POST" });
 export const setVoice = (id, voice) =>
   req(`/api/stories/${id}/voice`, { method: "POST", body: JSON.stringify({ voice }) });
 

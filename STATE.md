@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 21 · 2026-07-18
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 23 · 2026-07-27
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -12,7 +12,7 @@
 | 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
-| 5 — Queue + sync + channels | not started | Queue self-heals to 5; sync visible on phone | — |
+| 5 — Queue + sync + channels | not started | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | — |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
 
@@ -62,33 +62,36 @@
 
 ## Next actions
 
-1. **Grace: two confirmations close Phase 4** — (a) background the app ≥5 min
-   mid-play, then confirm playback state on return (the probe-5 deferral this
-   gate retires); (b) sanity-glance the reworked UI (±10 s, remove menu, undo,
-   text follow, voice picker, last-played restore). Server running at
-   http://100.117.147.107:8123 (`scripts/serve.sh` to restart).
-2. **Grace: flip or amend AMENDMENT_05 parts A/B** (settings table; stored
-   source_ref) — part C is binding + implemented. Settings screen (model
-   selector + default voices) ships once A is binding.
-3. At Phase 4 close: run the 3 review angles still owed on the Phase 3 diff
-   (removed-behavior, reuse, efficiency — Entry 16; Phase 4 diffs got all 8
-   inline, Entries 19–20).
-4. Phase 5 (queue worker + sync + channels UI) per TASKS. Owed nearby: Entry-16
-   debts (source-class registry, edge-tts fallback granularity, stored
-   source_ref → A05 B, vocab-genre coupling).
+1. **Phase 5 — the binding constraint.** Queue is at 0 unread against a
+   required 3, so nothing new arrives until the replenishment worker exists
+   (unread < 3 → curate from pool → dedup all-time → fetch/clean/tag →
+   synthesize in queue order). Then paragraph highlight sync, bookmarks,
+   channel editor UI per TASKS §5.
+2. **Grace: phone gate for Phase 5** when the worker lands — highlight visibly
+   tracking audio over Tailscale. Server at http://100.117.147.107:8123
+   (`scripts/serve.sh` to restart).
+3. Owed near Phase 5: Entry-16 debts (source-class registry, edge-tts fallback
+   granularity, vocab-genre coupling) + Entry-21 notes (two fuzzy title-match
+   semantics in mark.py/pool.find_candidate — centralize on the third user;
+   curation-prompt exclusion list grows with all-time history, an R11 cost
+   lever).
+4. `/code-review` on the AMENDMENT_06 diff at the next phase close.
 
 ## Library
 
-5 rendered stories, all kokoro/af_heart (Entries 18–19): Monkey's Paw 22.0 ·
-Owl Creek Bridge 20.9 · Damned Thing 18.0 · Willows 107.1 min (4 in_progress
-from Grace's phone session) · Yellow Wallpaper 32.2 (skipped by Grace during
-the phone test — undo button exists if unintended). Voice gallery: 11 samples
-in data/voice_samples/.
+6 story rows; 5 rendered (Entries 18–19, listening state as of 2026-07-19,
+Entry 22): Monkey's Paw 22.0 min kokoro/am_adam **read, rated 5** · Yellow
+Wallpaper 32.2 kokoro/af_heart **read, rated 5** · Owl Creek Bridge 20.9
+af_heart in_progress 13.9 min · Damned Thing 18.0 af_heart in_progress 4.9 ·
+Willows 107.1 af_heart in_progress 1.4. Unfinished ≠ disliked — the three
+in_progress are unrated because Grace hasn't finished them (Entry 22), so
+they carry no Phase-6 signal. Tell-Tale Heart is `failed` (the 550 KB Poe
+collection fetch, Entry 16). **0 unread/ready — queue empty.** Voice gallery:
+11 samples in data/voice_samples/. Settings: `default_voice.en` = am_adam.
 
 ## Open decisions
 
-1. AMENDMENT_05 A (settings table) + B (stored source_ref): PROPOSED, awaiting
-   Grace's explicit flip. Part C (player directives) BINDING + implemented.
+None. (AMENDMENT_05 A/B were flipped BINDING and implemented in Entry 21.)
 
-DESIGN FROZEN v1.0; AMENDMENTS 01–04 FULLY BINDING (Entry 18); 05 part C
-BINDING, parts A/B PROPOSED (Entry 20).
+DESIGN FROZEN v1.0; AMENDMENTS 01–05 FULLY BINDING (Entries 18, 21);
+06 BINDING + implemented (Entry 22).

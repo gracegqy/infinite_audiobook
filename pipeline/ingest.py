@@ -8,9 +8,10 @@ untagged (re-taggable later via tag.run_tagging)."""
 import datetime
 import json
 import re
+import time
 import urllib.parse
 
-from . import config, db, fetch, synthesize, tag, textproc
+from . import config, db, fetch, renderjob, synthesize, tag, textproc
 from .models import OffsetsManifest, StoryMeta
 
 
@@ -49,6 +50,7 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
     db.set_status(conn, sid, "text_ready")
     print(f"[ingest] {sid}: text_ready ({len(paragraphs)} paras, {len(text)} chars)")
 
+    renderjob.set_phase(conn, sid, "tagging", paragraphs_total=len(paragraphs))
     try:
         tag.run_tagging(conn, sid, title, author, language, text)
     except Exception as e:
@@ -83,9 +85,23 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
         picked = stored_voice_override(row["voice"], language)
         return picked is not None and picked != render_target
 
+    def checkpoint(done: int, total: int):
+        """Every paragraph boundary (AMENDMENT_06): publish progress, then obey
+        the two abort sources — the automatic one (skip/read/voice change) and
+        Grace's explicit pause/cancel. Pause blocks here; cancel raises."""
+        renderjob.set_progress(conn, sid, done, total)
+        if abort_meanwhile():
+            raise synthesize.AbortRender(
+                f"story skipped/read or voice changed at paragraph {done}")
+        if renderjob.await_control(conn, sid, sleep=time.sleep) == "cancel":
+            renderjob.finish(conn, sid, "cancelled")
+            raise synthesize.AbortRender(f"cancelled at paragraph {done}")
+
+    renderjob.set_phase(conn, sid, "synthesizing", paragraphs_total=len(paragraphs))
     engine, voice, sr, durations = synthesize.synthesize_story(
         paragraphs, language, story_dir / "audio.m4a",
-        voice_override=voice_override, should_abort=abort_meanwhile)
+        voice_override=voice_override, checkpoint=checkpoint,
+        on_encode=lambda: renderjob.set_phase(conn, sid, "encoding"))
     offsets = OffsetsManifest(
         engine=engine, voice=voice, sample_rate=sr,
         paragraphs=textproc.build_offsets(paragraphs, durations))
@@ -138,19 +154,40 @@ def ingest_candidate(conn, candidate: dict, channel) -> str:
              json.dumps(candidate.get("evidence", []), ensure_ascii=False)))
         conn.commit()
 
+        # The job row can only exist once the story row does (FK), so a fresh
+        # story's fetch is not cancellable — it is one HTTP GET, seconds long.
+        # Every UI-triggered render (re-render, queue-window render) goes
+        # through retry_story, where the row already exists.
+        renderjob.open_job(conn, sid, phase="tagging", restore_status="text_ready")
         _finalize(conn, sid, key, candidate, language, paragraphs, text, source_url)
+        renderjob.finish(conn, sid, "done")
         return sid
     except DuplicateStory:
         raise
     except synthesize.AbortRender as e:
         print(f"[ingest] {sid}: render aborted ({e}) — status stays as marked")
+        if sid:
+            _close_aborted_job(conn, sid)
         raise
     except Exception as e:
         if sid:
             db.set_status(conn, sid, "failed", failure_note=str(e)[:500])
+            renderjob.finish(conn, sid, "failed")
         else:
             record_provisional(conn, candidate, channel, "failed", str(e)[:500])
         raise
+
+
+def _close_aborted_job(conn, sid: str) -> bool:
+    """Close the job row for an aborted render. Returns True when the abort was
+    Grace's explicit cancel (AMENDMENT_06) rather than the automatic
+    skip/read/voice-change abort — the caller uses that to decide whether to
+    restore the pre-render status."""
+    job = renderjob.get(conn, sid)
+    cancelled = job is not None and job.state == "cancelled"
+    if not cancelled:
+        renderjob.finish(conn, sid, "cancelled")
+    return cancelled
 
 
 def record_provisional(conn, candidate: dict, channel, status: str,
@@ -227,6 +264,9 @@ def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
     voice_override = voice_override or stored_voice_override(
         row["voice"], row["language"])
     candidate = candidate_from_row(row)
+    prior_status = row["status"]
+    renderjob.open_job(conn, sid, phase="fetching",
+                       voice=voice_override, restore_status=prior_status)
     try:
         db.set_status(conn, sid, "fetching")
         paragraphs, text, source_url = _fetch_clean(candidate)
@@ -241,14 +281,22 @@ def retry_story(conn, sid: str, voice_override: str | None = None) -> str:
         conn.commit()
         _finalize(conn, sid, key, candidate, row["language"], paragraphs, text,
                   source_url, voice_override=voice_override)
-        if row["status"] in ("read", "in_progress"):
+        if prior_status in ("read", "in_progress"):
             # a voice re-render must NOT rewrite listening history —
             # _finalize's walk ends at 'ready', so restore read/in_progress
             # (the progress row was never touched)
-            db.set_status(conn, sid, row["status"])
+            db.set_status(conn, sid, prior_status)
+        renderjob.finish(conn, sid, "done")
         return sid
     except synthesize.AbortRender:
+        # AMENDMENT_06: a cancel must leave the story exactly as it was — the
+        # old audio survives (the m4a is only written after the LAST paragraph)
+        # and the status goes back. Without this the row strands mid-walk at
+        # 'fetching', which is the Entry-21 hand-repair all over again.
+        if _close_aborted_job(conn, sid) and prior_status:
+            db.set_status(conn, sid, prior_status)
         raise
     except Exception as e:
         db.set_status(conn, sid, "failed", failure_note=str(e)[:500])
+        renderjob.finish(conn, sid, "failed")
         raise

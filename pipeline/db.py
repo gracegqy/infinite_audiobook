@@ -92,6 +92,28 @@ CREATE TABLE IF NOT EXISTS settings(
   value TEXT NOT NULL,
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- AMENDMENT_06 (BINDING 2026-07-27): render progress + pause/cancel control.
+-- One row per story, rewritten on each new render. The pipeline writes
+-- phase/progress and reads `control`; the server writes `control` and reads
+-- progress (WAL makes the cross-process traffic safe). `restore_status` is the
+-- status a cancel must put back — without it a cancelled re-render strands the
+-- row mid-walk (the Entry-21 Damned Thing symptom, hand-repaired then).
+CREATE TABLE IF NOT EXISTS render_jobs(
+  story_id TEXT PRIMARY KEY REFERENCES stories(id),
+  pid INTEGER,
+  phase TEXT NOT NULL CHECK(phase IN
+    ('fetching','tagging','synthesizing','encoding')),
+  paragraphs_done INTEGER NOT NULL DEFAULT 0,
+  paragraphs_total INTEGER,
+  control TEXT NOT NULL DEFAULT 'run' CHECK(control IN ('run','pause','cancel')),
+  state TEXT NOT NULL DEFAULT 'running' CHECK(state IN
+    ('running','paused','done','cancelled','failed')),
+  voice TEXT,
+  restore_status TEXT,
+  started_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 # Default row = the horror brief. Nothing outside this row says "horror"

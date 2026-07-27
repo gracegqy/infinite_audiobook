@@ -120,12 +120,15 @@ ENGINES = {"kokoro": KokoroEngine, "edge_tts": EdgeTTSEngine, "openai": OpenAIEn
 
 
 def _render_story(engine, paragraphs: list[str],
-                  should_abort=None) -> tuple[np.ndarray, int, list[float]]:
+                  checkpoint=None) -> tuple[np.ndarray, int, list[float]]:
+    """checkpoint(done, total) runs at every paragraph boundary: it reports
+    progress, may BLOCK (AMENDMENT_06 pause), and may raise AbortRender (skip,
+    voice change, or Grace's cancel). One paragraph is the control granularity
+    — a paragraph render is not interruptible."""
     parts, durations, sr = [], [], None
     for i, p in enumerate(paragraphs):
-        if should_abort and should_abort():
-            raise AbortRender(
-                f"story skipped/read or voice changed at paragraph {i}")
+        if checkpoint:
+            checkpoint(i, len(paragraphs))
         samples, this_sr = engine.render(p)
         if sr is None:
             sr = this_sr
@@ -134,17 +137,22 @@ def _render_story(engine, paragraphs: list[str],
         parts.append(samples)
         durations.append(len(samples) / sr)
         print(f"  [synth] para {i + 1}/{len(paragraphs)}: {durations[-1]:.1f}s")
+    if checkpoint:
+        checkpoint(len(paragraphs), len(paragraphs))
     return np.concatenate(parts), sr, durations
 
 
 def synthesize_story(paragraphs: list[str], language: str, out_m4a: pathlib.Path,
-                     voice_override: str | None = None, should_abort=None):
+                     voice_override: str | None = None, checkpoint=None,
+                     on_encode=None):
     """Render all paragraphs with the language's primary engine; on failure,
     restart the story on OpenAI TTS (per-story fallback). Writes out_m4a and
     returns (engine_name, voice, sample_rate, durations_s).
 
     voice_override (AMENDMENT_04 D) swaps the voice within the language's
-    configured engine; should_abort() is polled between paragraphs."""
+    configured engine; checkpoint() runs between paragraphs (progress +
+    pause/cancel, AMENDMENT_06); on_encode() fires once when the per-paragraph
+    work is done and the m4a encode starts."""
     config.INTERIM_DIR.mkdir(parents=True, exist_ok=True)
     engine_name, voice = config.TTS_BY_LANGUAGE.get(language, config.FALLBACK_TTS)
     if voice_override:
@@ -161,7 +169,9 @@ def synthesize_story(paragraphs: list[str], language: str, out_m4a: pathlib.Path
         # the one deliberate exception — a skip must not start a paid render.
         try:
             engine = ENGINES[name](language, v)
-            audio, sr, durations = _render_story(engine, paragraphs, should_abort)
+            audio, sr, durations = _render_story(engine, paragraphs, checkpoint)
+            if on_encode:
+                on_encode()
             _write_m4a(audio, sr, out_m4a)
             return name, v, sr, durations
         except AbortRender:

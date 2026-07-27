@@ -557,3 +557,86 @@ itself left unedited per the freeze.
 Measurements invalidated by this change: none (offsets math untouched; cost
 baselines stand — the model SETTING changes future pool-build cost only when
 Grace changes it).
+
+## Entry 22 — 2026-07-27 — Session audit; AMENDMENT_06 render progress + pause/cancel
+
+- **Session-open audit (first work since 7/18).** Re-derived from artifacts, not
+  prose: tree clean and pushed at `d140875`, 71 tests green, app server still
+  up on the Tailscale IP, 5 stories in the library. Phases 0–4 DONE, Phase 5
+  not started. Three drift items found:
+  1. **STATE's next-actions were stale** despite the "reconciled through Entry
+     21" stamp — it still asked Grace for the two Phase-4 confirmations and the
+     AMENDMENT_05 A/B flip, all of which Entry 21 records as resolved. The
+     phase table was right; the action list below it was pre-Entry-21. Fixed in
+     this session's reconcile. Lesson for the close ritual: reconciling STATE
+     means the WHOLE file, not the table that changed.
+  2. **Queue depth contradiction in the governing prose.** AMENDMENT_02
+     (binding) and `config.QUEUE_DEPTH` say 3; CLAUDE.md's summary line, its
+     centralization example, and — worst — the TASKS Phase 5 GATE text all
+     still said 5, a gate I would have executed literally. Amendment wins;
+     the three prose copies corrected to 3. No code was wrong.
+  3. **Un-journaled listening session (2026-07-19).** DB shows Grace played
+     after Entry 21 was written: Monkey's Paw + Yellow Wallpaper → read, both
+     rated 5; Owl Creek 13.9/20.9 min, Damned Thing 4.9/18.0, Willows
+     1.4/107.1 still in_progress; `default_voice.en` set to am_adam. Recorded
+     here so the ratings have provenance. Grace's note: the three are simply
+     unfinished, so their absent ratings are not signal.
+- **Queue is at 0 unread** (2 read, 3 in_progress, 1 failed) against a required
+  3 — the Phase 5 worker is now the binding constraint on using the app at all.
+- **AMENDMENT_06 BINDING + implemented** (Grace's direct instruction, verbatim
+  in docs/AMENDMENT_06): progress bar on every render (new + re-render), with
+  pause/resume/cancel from the queue card, library card, and player.
+  - New `render_jobs` table = the cross-process control channel between the
+    detached render subprocess and the server (WAL already made this safe).
+    Pipeline writes phase/progress + reads control; server writes control +
+    reads progress. Liveness derived from the pid, never trusted from the row.
+  - `synthesize._render_story`'s `should_abort` boolean poll generalized to a
+    `checkpoint(done, total)` hook at the same seam — it reports progress, may
+    BLOCK (pause), and may raise AbortRender (skip / voice change / cancel).
+    One hook, three callers' concerns; the AMENDMENT_04 C skip-abort and
+    AMENDMENT_05 C6 voice-abort semantics are unchanged.
+  - **Latent bug fixed en route:** a cancelled/aborted re-render left the row
+    stranded at `fetching` — exactly the Entry-21 Damned Thing hand-repair.
+    Cancel now restores the pre-render status, and because the m4a is written
+    only after the LAST paragraph, existing audio is safe by construction.
+  - Two limits accepted rather than faked: control granularity is one paragraph
+    (a paragraph render is not interruptible), and fetch/tag/encode show an
+    indeterminate sweep because there is no honest denominator.
+- **Verified:** 87 tests green (16 new: pure progress/control/staleness logic,
+  job round-trip, pause loop with sleep injected, stale-cancel clearing, dead-pid
+  reaping, cancel-restores-status through the real ingest path, API 200/409/404).
+  Beyond the suite, a REAL Kokoro re-render on a sandbox copy of Damned Thing
+  drove the ACCEPT paths (the Entry-21 lesson — the cancel dialog is not the
+  test): job registered → progress advanced to 2/78 → **pause held it at 3/78
+  for 8 s with the process alive** → resume advanced to 5/78 → cancel stopped it
+  at 6/78 → status `in_progress`, voice `af_heart`, audio 8897293 B all
+  unchanged. Frontend rebuilt (vite, 32 modules); server restarted; `render_jobs`
+  confirmed created on the real DB and `/api/renders` answering.
+
+Measurements invalidated by this change: none. Offsets math, chunking, cost
+baselines and the iOS rules are all untouched — the checkpoint hook only
+observes the paragraph loop it already ran inside. Render wall-clock gains a
+sub-second-per-paragraph SQLite write, immaterial against ~4.5 min/story.
+
+## Entry 23 — 2026-07-27 — REQUIREMENTS.md statuses re-derived (4th drift item)
+
+- **Every R-row still read "❌ not built"** — frozen at Phase-1 authoring while
+  Phases 0–4 shipped. The traceability spine claimed nothing existed. Statuses
+  re-derived from artifacts this session (files/tests/DB/gate evidence, never
+  from prose), per the file's own "STATUS change requires a JOURNAL entry" rule:
+  - ✅ R1 R2 R3 R5 R6 R7 R9 R11 R13 R14 (+ new R16 for AMENDMENT_06)
+  - ◐ R4 (autoplay/skip ship, worker doesn't), R8 (text follow + current-para
+    class ship; phone-verified highlight is the Phase 5 gate), R10 (rating UI
+    ships, weighted curation is Phase 6), R12 (channel schema ships, editor UI
+    doesn't), R15 (per-language TTS decided, no non-English channel run)
+  - Legend gained ◐ **partial**, because half these rows were neither "covered"
+    nor "not built" and a binary marker was hiding exactly the gaps that matter.
+  - R7's text also corrected to ±10 s (AMENDMENT_05 C1 superseded the ±15 s).
+  - G2's "queue of 5" corrected to 3 — the same stale number fixed in CLAUDE.md
+    and the TASKS Phase 5 gate this session (Entry 22).
+- Pattern across all four drift items: the phase table and the code stayed
+  honest; the *narrative* files around them went stale, each in a place nobody
+  re-read. Cheapest fix is the one already in the close ritual — reconcile the
+  whole file, not the line that changed.
+
+Measurements invalidated by this change: none (documentation only).

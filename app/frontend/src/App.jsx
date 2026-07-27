@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import * as api from "./api";
 import Player, { Stars } from "./Player";
+import RenderBar from "./RenderBar";
 import Settings from "./Settings";
 import Voices from "./Voices";
 
@@ -15,6 +16,7 @@ const QUEUE_STATUSES = ["text_ready", "ready", "in_progress"];
 const TABS = { queue: "Queue", library: "Library", voices: "Voices",
                settings: "Settings" };
 const POLL_MS = 15000; // background renders surface without manual refresh
+const RENDER_POLL_MS = 2000; // AMENDMENT_06: a progress bar needs to move
 
 export default function App() {
   const [stories, setStories] = useState(null);
@@ -24,7 +26,9 @@ export default function App() {
   const [currentId, setCurrentId] = useState(null);
   const [autoplay, setAutoplay] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [renders, setRenders] = useState([]);
   const restoredRef = useRef(false);
+  const hadRendersRef = useRef(false);
 
   const reload = useCallback(() =>
     api.listStories()
@@ -40,6 +44,27 @@ export default function App() {
     }, POLL_MS);
     return () => clearInterval(t);
   }, [reload]);
+
+  // Render jobs poll fast only while something is rendering (AMENDMENT_06);
+  // idle, it rides the slow tick so a backgrounded phone isn't polling at 2 s.
+  const pollRenders = useCallback(() =>
+    api.listRenders()
+      .then(({ renders }) => {
+        setRenders(renders);
+        // a render that just finished changed the library — pull it in once
+        if (hadRendersRef.current && renders.length === 0) reload();
+        hadRendersRef.current = renders.length > 0;
+      })
+      .catch(() => {}), [reload]);
+  useEffect(() => { pollRenders(); }, [pollRenders]);
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") pollRenders();
+    }, renders.length ? RENDER_POLL_MS : POLL_MS);
+    return () => clearInterval(t);
+  }, [pollRenders, renders.length]);
+
+  const jobFor = (id) => renders.find((j) => j.story_id === id) || null;
 
   // auto-restore the last-played story, paused (AMENDMENT_05 C7)
   useEffect(() => {
@@ -94,7 +119,8 @@ export default function App() {
 
       {current && (
         <Player story={current} detail={detail} voices={voices}
-          autoplay={autoplay}
+          autoplay={autoplay} job={jobFor(currentId)}
+          onRenderChanged={() => { reload(); pollRenders(); }}
           onFinished={(id) => { patchStory(id, { status: "read" }); advance(id); reload(); }}
           onSkipped={(id) => { patchStory(id, { status: "skipped" }); advance(id); reload(); }}
           onReadMarked={(id) => { patchStory(id, { status: "read" }); advance(id); reload(); }}
@@ -104,10 +130,12 @@ export default function App() {
 
       {view === "queue" &&
         <Queue queue={queue} currentId={currentId} voices={voices}
-               onPlay={play} onChanged={reload} />}
+               jobFor={jobFor} onPlay={play}
+               onChanged={() => { reload(); pollRenders(); }} />}
       {view === "library" &&
-        <Library stories={stories} currentId={currentId}
-                 onPlay={play} onChanged={reload} />}
+        <Library stories={stories} currentId={currentId} jobFor={jobFor}
+                 onPlay={play}
+                 onChanged={() => { reload(); pollRenders(); }} />}
       {view === "voices" && <Voices />}
       {view === "settings" && <Settings />}
     </div>
@@ -118,7 +146,7 @@ function evidenceLine(s) {
   return (s.evidence || []).slice(0, 2).join(" · ");
 }
 
-function Queue({ queue, currentId, voices, onPlay, onChanged }) {
+function Queue({ queue, currentId, voices, jobFor, onPlay, onChanged }) {
   if (queue.length === 0)
     return <p className="empty">Queue is empty — run the pipeline to replenish
       (worker arrives in Phase 5).</p>;
@@ -161,6 +189,7 @@ function Queue({ queue, currentId, voices, onPlay, onChanged }) {
                 api.skipStory(s.id).then(onChanged);
             }}>✕</button>
           </div>
+          <RenderBar job={jobFor(s.id)} story={s} onChanged={onChanged} />
         </div>
       ))}
     </div>
@@ -170,7 +199,7 @@ function Queue({ queue, currentId, voices, onPlay, onChanged }) {
 const LIB_ORDER = ["in_progress", "ready", "text_ready", "read", "skipped",
                    "queued", "fetching", "failed"];
 
-function Library({ stories, currentId, onPlay, onChanged }) {
+function Library({ stories, currentId, jobFor, onPlay, onChanged }) {
   const groups = LIB_ORDER.map((st) =>
     [st, stories.filter((s) => s.status === st)]).filter(([, g]) => g.length);
   if (!groups.length) return <p className="empty">Library is empty.</p>;
@@ -203,6 +232,7 @@ function Library({ stories, currentId, onPlay, onChanged }) {
                 // display only — edits happen in the player (AMENDMENT_05 C8)
                 <Stars rating={s.rating} readOnly />
               )}
+              <RenderBar job={jobFor(s.id)} story={s} onChanged={onChanged} />
             </div>
           ))}
         </div>

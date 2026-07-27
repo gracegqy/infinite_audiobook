@@ -9,7 +9,8 @@ A self-hosted "personal audiobook Spotify" for Grace (sole user): a criteria-dri
 pipeline finds highly-reputed short fiction (default channel: classic + modern horror),
 stores clean text, narrates it with local TTS, and serves it through a web app — resume
 positions, text synced to audio, bookmarks, 1–5 ratings that steer future curation, a
-standing queue of 5 unread stories. Runs on Grace's Mac, reached from laptop/phone via
+standing queue of 3 unread stories (AMENDMENT_02 supersedes the brief's 5 — the single
+copy is `config.QUEUE_DEPTH`). Runs on Grace's Mac, reached from laptop/phone via
 Tailscale. Private, personal-use only.
 
 ## Stack & domain facts (keep current — stale entries here have caused real damage)
@@ -59,7 +60,7 @@ scripts/             # one-off tools
   parameter. Every serialized shape (story meta, progress records, offsets manifest) gets
   a `decode(encode(x)) == x` round-trip test.
 - Centralize on the second copy of any logic or constant (model IDs, chunk sizes,
-  queue-depth 5), not the third.
+  queue depth), not the third.
 - Standing checkpoints: `/verify` before nontrivial commits · `/code-review` before a
   phase closes · `/security-review` before the server listens beyond Tailscale (or any
   auth/proxy change) · one fresh-session audit mid-project.

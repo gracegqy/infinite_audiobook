@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import * as api from "./api";
+import RenderBar from "./RenderBar";
 
 const SKIP_S = 10;
 const SAVE_EVERY_MS = 5000;
@@ -34,9 +35,9 @@ function paragraphAt(offsets, t) {
   return lo;
 }
 
-export default function Player({ story, detail, voices, autoplay,
+export default function Player({ story, detail, voices, autoplay, job,
                                  onFinished, onSkipped, onReadMarked, onRated,
-                                 onVoiceChanged }) {
+                                 onVoiceChanged, onRenderChanged }) {
   const audioRef = useRef(null);
   // pendingSeek doubles as the save-suppression flag (iOS rule 3): non-null
   // means the resume target hasn't been applied yet, so nothing saves
@@ -267,7 +268,11 @@ export default function Player({ story, detail, voices, autoplay,
         </div>
       )}
 
-      {rerenderNote && <div className="resume-note">{rerenderNote}</div>}
+      {/* AMENDMENT_06: the live bar replaces the text note as soon as the
+          spawned render registers its job (a second or two after the pick) */}
+      {job
+        ? <RenderBar job={job} story={story} onChanged={onRenderChanged} />
+        : rerenderNote && <div className="resume-note">{rerenderNote}</div>}
 
       <div className="rating-row">
         <Stars rating={story.rating} onRate={(s) =>

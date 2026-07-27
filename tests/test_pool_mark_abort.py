@@ -88,11 +88,13 @@ def test_abort_render_between_paragraphs_no_fallback(monkeypatch, tmp_path):
     monkeypatch.setitem(synthesize.ENGINES, "kokoro", FakeEngine)
     monkeypatch.setitem(synthesize.ENGINES, "openai", FakeEngine)
 
-    aborted = iter([False, True])  # abort before the second paragraph
+    def checkpoint(done, total):
+        if done == 1:  # abort before the second paragraph
+            raise synthesize.AbortRender("skipped")
+
     with pytest.raises(synthesize.AbortRender):
         synthesize.synthesize_story(["one", "two", "three"], "en",
-                                    tmp_path / "out.m4a",
-                                    should_abort=lambda: next(aborted))
+                                    tmp_path / "out.m4a", checkpoint=checkpoint)
     assert calls == ["one"]  # second render never started, no fallback restart
 
 
