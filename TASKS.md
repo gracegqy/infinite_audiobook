@@ -111,6 +111,14 @@ app ≥5 min, kill and reopen → resumes within 2 s of pause point. Evidence in
 > tell me when you need me to test."*
 
 ## Phase 5 — Queue automation, sync, channels UI   · Owner: Claude Code
+**Status: [IN PROGRESS] (2026-07-27)** — worker + channels editor built and
+proven end-to-end on the real library (Entry 24); 115 tests green. Gate NOT
+closed: the candidate pool is empty, so "queue returns to 3" needs a paid
+`run_story --build-pool` (Grace's call, AMENDMENT_04 A). Also owed: Grace's
+phone check of highlight tracking, and a live before/after curation diff for
+the channel-edit gate. Two bugs found by the gate run and fixed: arbitrary
+acquisition order (now `rowid`), and failed references blacklisting real
+story titles (now refs and titles are excluded separately).
 **Goal:** The self-sustaining part of the brief.
 **Actions:** replenishment worker (unread < 3 → curate/fetch/synthesize; dedup against
 full history so nothing repeats); paragraph-level text highlight synced to playback via

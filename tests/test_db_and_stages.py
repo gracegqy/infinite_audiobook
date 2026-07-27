@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from pipeline import curate, db, tag
+from pipeline import curate, db, pool, tag
 
 
 @pytest.fixture
@@ -142,11 +142,16 @@ def test_rejected_candidate_enters_history(conn, monkeypatch):
     ch = db.active_channel(conn)
     with pytest.raises(fetch.FetchError):
         ingest.ingest_candidate(conn, cand, ch)
-    # the doomed pick is now history: excluded from future curation batches
-    assert "The Complete Works" in db.known_titles(conn)
     row = conn.execute("SELECT * FROM stories WHERE title='The Complete Works'"
                        ).fetchone()
     assert row["status"] == "failed" and "too long" in row["failure_note"]
+    # The doomed SOURCE is history — ebook 2148 is never fetched again
+    # (Entry-16 lesson: the 550 KB collection must not be re-proposed forever).
+    assert pool.ref_key("gutenberg", "2148") in pool.failed_refs(conn)
+    # The TITLE is not (Entry 24): a failed fetch means the reference did not
+    # yield a story, not that the story is unwanted. Blacklisting titles here
+    # loses real stories to a curator metadata gap.
+    assert "The Complete Works" not in db.known_titles(conn)
 
 
 # ---- tag normalization (pure half) ----

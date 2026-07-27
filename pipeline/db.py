@@ -41,7 +41,11 @@ CREATE TABLE IF NOT EXISTS stories(
   duration_s REAL,
   paragraph_count INTEGER,
   failure_note TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
+  -- millisecond precision, not datetime('now'): acquisition order IS the queue
+  -- and the autoplay order (DESIGN §7), and the worker acquires several
+  -- stories inside one second. Writers pass this explicitly (NOW_MS) so
+  -- existing DBs get the precision too — a DEFAULT would only reach new ones.
+  created_at TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
   ready_at TEXT
 );
 
@@ -169,6 +173,21 @@ def _migrate_source_ref(conn):
     conn.commit()
 
 
+# Millisecond `now` on every stories INSERT — timestamps that can tell two
+# acquisitions apart. Ordering does NOT depend on it (see ACQUISITION_ORDER).
+NOW_MS = "strftime('%Y-%m-%d %H:%M:%f','now')"
+
+# Acquisition order — the queue order, the autoplay order, and the worker's
+# render order (DESIGN §7). The single copy of this ORDER BY.
+#
+# rowid, not created_at: the queue is a SEQUENCE, and a wall clock at any
+# resolution ties when the worker acquires several stories quickly (it did, at
+# both second and millisecond precision). SQLite's rowid is monotonic per
+# insert, and `stories` is append-only all-time history (R6 — rows are never
+# deleted), so no rowid is ever reused.
+ACQUISITION_ORDER = "rowid"
+
+
 def get_setting(conn, key: str, default: str | None = None) -> str | None:
     row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     return row["value"] if row else default
@@ -209,9 +228,21 @@ def known_dedup_keys(conn) -> set[str]:
     return {r["dedup_key"] for r in conn.execute("SELECT dedup_key FROM stories")}
 
 
+# A title is "known" once we HAVE the story or Grace has DECIDED on it. A
+# `failed` row means neither: it means the reference we were given did not
+# yield the story (deleted wiki page, a collection ebook id, a missing id).
+# Excluding those titles forever loses real stories to a metadata gap — the
+# curator's bad ref for "The Music of Erich Zann" would have blacklisted a
+# Lovecraft classic permanently (Entry 24). Failed REFS are still excluded
+# (see pool.failed_refs), so nothing is ever retried against the same bad ref.
+KNOWN_STATUSES = ("text_ready", "ready", "in_progress", "read", "skipped")
+
+
 def known_titles(conn) -> list[str]:
-    return [r["title"] for r in
-            conn.execute("SELECT title FROM stories ORDER BY created_at")]
+    qs = ",".join("?" * len(KNOWN_STATUSES))
+    return [r["title"] for r in conn.execute(
+        f"SELECT title FROM stories WHERE status IN ({qs}) "
+        f"ORDER BY {ACQUISITION_ORDER}", KNOWN_STATUSES)]
 
 
 def set_status(conn, story_id: str, status: str, failure_note: str | None = None):

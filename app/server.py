@@ -10,6 +10,7 @@ row AND marks the story read, so end-of-file is never stored as a resume point;
 progress saves are the client's job every ~5 s / on pause / visibility-change.
 """
 import json
+import sqlite3
 import subprocess
 import sys
 
@@ -17,7 +18,7 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import config, db, renderjob
+from pipeline import config, curate, db, renderjob, worker
 from pipeline.models import OffsetsManifest, StoryMeta
 
 FRONTEND_DIST = config.ROOT / "app" / "frontend" / "dist"
@@ -31,8 +32,8 @@ SELECT s.id, s.title, s.author, s.year, s.status, s.language, s.source_class,
 FROM stories s
 LEFT JOIN progress p ON p.story_id = s.id
 LEFT JOIN ratings  r ON r.story_id = s.id
-ORDER BY s.created_at, s.id
-"""
+ORDER BY s.rowid
+"""  # acquisition order = queue + autoplay order (db.ACQUISITION_ORDER)
 
 
 def default_rerender_runner(story_id: str, voice: str) -> None:
@@ -305,6 +306,98 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
                             f"story is {row['status']} — voice applies at "
                             "text_ready or after")
 
+    # ---- channels (R12 / AMENDMENT_01: criteria editable in the UI) ----
+
+    CHANNEL_FIELDS = ("name", "genre", "language", "era", "extra_criteria")
+    CHANNEL_LIST_FIELDS = ("topics", "exclusions")  # stored as *_json
+
+    def _channel_dict(c, row) -> dict:
+        d = {k: row[k] for k in ("id", "name", "genre", "language", "era",
+                                 "extra_criteria")}
+        d["is_active"] = bool(row["is_active"])
+        for f in CHANNEL_LIST_FIELDS:
+            d[f] = curate.channel_list_field(row, f"{f}_json")
+        d["unread"] = worker.unread_count(c, row["id"])
+        return d
+
+    @app.get("/api/channels")
+    def list_channels():
+        c = conn()
+        return {"channels": [_channel_dict(c, r) for r in c.execute(
+            "SELECT * FROM channels ORDER BY id")],
+            "queue_depth": config.QUEUE_DEPTH,
+            "languages": sorted(config.VOICE_OPTIONS)}
+
+    def _validate(language: str | None, name: str | None):
+        if language is not None and language not in config.VOICE_OPTIONS:
+            raise HTTPException(
+                422, f"language {language} has no TTS config "
+                     f"(available: {sorted(config.VOICE_OPTIONS)})")
+        if name is not None and not name.strip():
+            raise HTTPException(422, "channel name cannot be empty")
+
+    @app.post("/api/channels")
+    def create_channel(body: dict = Body(...)):
+        c = conn()
+        _validate(body.get("language", "en"), body.get("name"))
+        cols = {"name": body["name"].strip(),
+                "genre": body.get("genre"),
+                "language": body.get("language", "en"),
+                "era": body.get("era"),
+                "extra_criteria": body.get("extra_criteria"),
+                "topics_json": json.dumps(body.get("topics") or []),
+                "exclusions_json": json.dumps(body.get("exclusions") or [])}
+        try:
+            cur = c.execute(
+                f"INSERT INTO channels({','.join(cols)}) "
+                f"VALUES({','.join('?' * len(cols))})", tuple(cols.values()))
+        except sqlite3.IntegrityError:
+            raise HTTPException(409, f"channel {body['name']!r} already exists")
+        c.commit()
+        row = c.execute("SELECT * FROM channels WHERE id=?",
+                        (cur.lastrowid,)).fetchone()
+        return _channel_dict(c, row)
+
+    @app.put("/api/channels/{cid}")
+    def update_channel(cid: int, body: dict = Body(...)):
+        c = conn()
+        row = c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone()
+        if row is None:
+            raise HTTPException(404, f"no channel {cid}")
+        _validate(body.get("language"), body.get("name"))
+        sets, args = [], []
+        for f in CHANNEL_FIELDS:
+            if f in body:
+                sets.append(f"{f}=?")
+                args.append(body[f].strip() if f == "name" else body[f])
+        for f in CHANNEL_LIST_FIELDS:
+            if f in body:
+                sets.append(f"{f}_json=?")
+                args.append(json.dumps(body[f] or []))
+        if sets:
+            sets.append("updated_at=datetime('now')")
+            try:
+                c.execute(f"UPDATE channels SET {','.join(sets)} WHERE id=?",
+                          (*args, cid))
+            except sqlite3.IntegrityError:
+                raise HTTPException(409, "another channel already has that name")
+            c.commit()
+        return _channel_dict(
+            c, c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone())
+
+    @app.post("/api/channels/{cid}/activate")
+    def activate_channel(cid: int):
+        """Switching channels re-targets replenishment (DESIGN §7). Other
+        channels' unread stories stay in the library but stop counting toward
+        the queue — nothing is deleted."""
+        c = conn()
+        if c.execute("SELECT 1 FROM channels WHERE id=?", (cid,)).fetchone() is None:
+            raise HTTPException(404, f"no channel {cid}")
+        c.execute("UPDATE channels SET is_active=(id=?)", (cid,))
+        c.commit()
+        return _channel_dict(
+            c, c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone())
+
     # ---- render jobs (AMENDMENT_06: progress bar + pause/cancel) ----
 
     @app.get("/api/renders")
@@ -356,7 +449,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         recent = [r["status"] for r in c.execute(
             "SELECT status FROM stories "
             "WHERE status IN ('read','skipped','ready','in_progress') "
-            "ORDER BY created_at DESC LIMIT 10")]
+            "ORDER BY rowid DESC LIMIT 10")]  # most recent decisions
         skip_rate = (recent.count("skipped") / len(recent)) if recent else 0.0
         return {
             "curation_model": db.effective_curation_model(c),

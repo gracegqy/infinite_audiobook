@@ -10,6 +10,9 @@ INTERIM_DIR = DATA_DIR / "interim"
 ENV_PATH = ROOT / ".env"
 
 QUEUE_DEPTH = 3  # AMENDMENT_02
+# Replenishment worker (Phase 5): how often --loop re-checks the queue. Long,
+# because the only thing that shortens the queue is Grace finishing a story.
+WORKER_INTERVAL_S = 900
 
 # Curation (DESIGN §5): Sonnet, capped searches, ≤$0.40/batch target. Never
 # auto-escalate the model (R14) — changes are Grace-initiated only.

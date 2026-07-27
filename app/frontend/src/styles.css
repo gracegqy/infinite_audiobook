@@ -118,3 +118,17 @@ button.danger { color: var(--danger); }
 .story-text { margin-top: 12px; max-height: 45vh; overflow-y: auto;
   border-top: 1px solid #2c2c3c; padding-top: 8px; }
 .story-text p { margin: 0 0 0.9em; }
+
+/* channel editor (R12) */
+.hint { color: var(--dim); font-size: 0.82rem; margin: 0 0 10px; }
+.chan-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.chan-form label { display: flex; flex-direction: column; gap: 3px;
+  color: var(--dim); font-size: 0.78rem; }
+.chan-form input, .chan-form textarea, .chan-form select {
+  background: var(--card-now); color: var(--fg); border: 1px solid #333;
+  border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 0.9rem;
+}
+.chan-form textarea { resize: vertical; }
+.chan-form button { background: var(--card-now); color: var(--fg);
+  border: 1px solid #333; border-radius: 8px; padding: 6px 14px; }
+.chan-form button:disabled { opacity: 0.5; }

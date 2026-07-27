@@ -640,3 +640,89 @@ sub-second-per-paragraph SQLite write, immaterial against ~4.5 min/story.
   whole file, not the line that changed.
 
 Measurements invalidated by this change: none (documentation only).
+
+## Entry 24 — 2026-07-27 — Phase 5 worker + channels editor built; two real bugs found by the gate run
+
+- **Replenishment worker built** (`pipeline/worker.py`, DESIGN §7). Two stages,
+  deliberately split: ACQUIRE (fetch/clean/tag → `text_ready`, one HTTP GET per
+  story) then RENDER (synthesize in acquisition order). That ordering is the
+  design's point — a story is queue-visible and skippable before it costs a
+  ~4.5-min render. Required splitting `ingest._finalize` into
+  `_write_text_and_tag` + `_render`, with `acquire_candidate` /
+  `render_ready_story` as the worker's two entry points; `ingest_candidate` and
+  `retry_story` still drive both halves, so nothing else changed behavior
+  (87 tests stayed green across the refactor).
+- Never spends money: an empty pool ends the cycle with a printed message.
+  Paid refill stays Grace's explicit `run_story --build-pool` (AMENDMENT_04 A).
+- **Channels editor built** (R12): `/api/channels` CRUD + activate, `Channels`
+  tab. Every editable field (genre, language, topics, era, exclusions, extra
+  criteria) now reaches the curation prompt — `build_prompt` previously ignored
+  topics/era/exclusions entirely, so an editor over those fields would have
+  been decorative.
+
+### Bug 1 (found by the gate run): acquisition order was arbitrary
+
+`created_at` is second-granularity, and the worker acquires several stories
+inside one second — so "acquisition order", which IS the queue order, the
+autoplay order and the render order (DESIGN §7), was effectively random within
+a second. Raising precision to milliseconds did not fix it either (the fake-fast
+test still tied). Ordering now uses SQLite's `rowid`, which is monotonic per
+insert and safe because `stories` is append-only (R6, rows are never deleted);
+`db.ACQUISITION_ORDER` is the single copy, used by the worker, the story list,
+retry and known_titles. Timestamps keep the new ms precision for debugging but
+nothing orders by them.
+
+### Bug 2 (found by the gate run): a bad REFERENCE blacklisted a real STORY
+
+The live cycle acquired 1 of 6 pool candidates. Failure notes, all legitimate:
+3 creepypasta pages are stubs (Candle Cove removed for copyright, Ted the Caver
+a nav stub, Jeff the Killer deleted by the wiki's quality control — verified by
+fetching them by hand; probe 4 predicted exactly this and the validation caught
+it), 2 Gutenberg ids were collection volumes (8492 = the King in Yellow
+collection), 1 had `source_ref: "unknown"`.
+
+The pipeline handled each correctly — and then did something wrong: every
+failure wrote a `failed` row, and `known_titles` excluded ALL rows from future
+curation. So "The Music of Erich Zann" and "The Yellow Sign" — real stories that
+simply came with a bad reference — were blacklisted permanently. A curator
+metadata gap was silently costing Grace stories.
+
+Fixed by separating two questions that had been conflated:
+- **Titles** are excluded when we HAVE the story or Grace DECIDED on it
+  (`db.KNOWN_STATUSES` — text_ready/ready/in_progress/read/skipped).
+- **Refs** are excluded when that source failed (`pool.failed_refs`), so the
+  same dead reference is never retried. The Entry-16 lesson is fully preserved:
+  ebook 2148 stays blocked forever.
+- `fetch.usable_ref` + `worker.eligible` now skip un-fetchable candidates
+  BEFORE ingest, so a missing id no longer creates a history row at all.
+
+Effect on the real DB, verified: 6 stories recovered as re-proposable (incl.
+The Tell-Tale Heart, the Entry-16 casualty) while all 6 dead refs stay blocked.
+No rows deleted — the append-only rule held; the fix was in what we *read*, not
+what we erase. This deliberately changes the Entry-16 test's assertion, which
+now documents both halves rather than the title-blacklist alone.
+
+### Gate status
+
+Worker mechanism PROVEN end-to-end on the real library: `python -m
+pipeline.worker` acquired The Russian Sleep Experiment, rendered it with real
+Kokoro to **12.2 min / 30 paragraphs / am_adam** (Grace's settings default
+voice reaching the worker path — AMENDMENT_05 A), status ready, unread 0 → 1.
+The AMENDMENT_06 progress bar tracked it live at 13/30 — confirming the bar
+covers worker-driven NEW renders, not only re-renders.
+
+The gate ("queue returns to 3") CANNOT close on the current pool: it is now
+empty, and refilling costs a paid curation batch, which is Grace's decision
+alone (AMENDMENT_04 A). Phase 5 stays [IN PROGRESS]. Also owed: her phone check
+of highlight tracking, and a live before/after curation diff for the channel-edit
+gate (tests prove it at the prompt level).
+
+**Pool quality is the real finding**: 5 of 6 candidates from the paid batches
+were unusable. Before spending again, the curation prompt should require
+verifying that a Gutenberg id is a STANDALONE edition and that a creepypasta
+page actually contains the story — the current prompt asks for the former and
+Sonnet still got it wrong 2 of 2 times.
+
+Measurements invalidated by this change: none. Offsets, cost baselines, iOS
+rules untouched. Acquisition order changed from arbitrary-within-a-second to
+strictly monotonic — no prior measurement depended on the old behavior.

@@ -29,6 +29,15 @@ export const addBookmark = (id, position_s, note) =>
 export const deleteBookmark = (bid) =>
   req(`/api/bookmarks/${bid}`, { method: "DELETE" });
 export const listVoices = () => req("/api/voices");
+// channels (R12)
+export const listChannels = () => req("/api/channels");
+export const createChannel = (body) =>
+  req("/api/channels", { method: "POST", body: JSON.stringify(body) });
+export const updateChannel = (id, body) =>
+  req(`/api/channels/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const activateChannel = (id) =>
+  req(`/api/channels/${id}/activate`, { method: "POST" });
+
 // render control (AMENDMENT_06)
 export const listRenders = () => req("/api/renders");
 export const pauseRender = (id) => req(`/api/renders/${id}/pause`, { method: "POST" });

@@ -13,6 +13,9 @@ Find {batch} highly-reputed SHORT stories (standalone works under ~15,000 words 
 not novels, not multi-story collections) matching ALL channel criteria:
 - Genre: {genre}
 - Language: {language}
+- Topics/themes: {topics}
+- Era: {era}
+- Avoid: {avoid}
 - Extra criteria: {extra}
 
 REPUTATION BAR (channel-independent): every candidate must carry checkable evidence —
@@ -42,13 +45,33 @@ SOURCE_HINTS = {
 }
 
 
+def channel_list_field(channel, key: str) -> list[str]:
+    """topics_json / exclusions_json → list. Stored as JSON so the editor can
+    round-trip them; tolerant of nulls and of a plain string typed by hand."""
+    raw = channel[key] if key in channel.keys() else None
+    if not raw:
+        return []
+    try:
+        val = json.loads(raw)
+    except (TypeError, ValueError):
+        return [s.strip() for s in str(raw).split(",") if s.strip()]
+    if isinstance(val, list):
+        return [str(v).strip() for v in val if str(v).strip()]
+    return [str(val).strip()] if str(val).strip() else []
+
+
 def build_prompt(channel, known_titles: list[str],
                  batch: int = config.CURATION_BATCH_SIZE,
                  taste_profile: str | None = None) -> str:
+    # every editable channel field reaches the prompt — an editor whose fields
+    # changed nothing would be a lie (R12, TASKS Phase 5 gate)
     prompt = PROMPT_TEMPLATE.format(
         batch=batch,
         genre=channel["genre"] or "any",
         language=channel["language"],
+        topics=", ".join(channel_list_field(channel, "topics_json")) or "any",
+        era=channel["era"] or "any",
+        avoid=", ".join(channel_list_field(channel, "exclusions_json")) or "nothing",
         extra=channel["extra_criteria"] or "none",
         source_hint=SOURCE_HINTS.get(channel["language"], SOURCE_HINTS["en"]),
         exclusions="\n".join(f"- {t}" for t in known_titles) or "(none yet)",

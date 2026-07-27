@@ -37,13 +37,11 @@ def _fetch_clean(candidate: dict) -> tuple[list[str], str, str]:
     return paragraphs, text, source_url
 
 
-def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
-              paragraphs: list[str], text: str, source_url: str,
-              voice_override: str | None = None) -> None:
-    """Everything after the stories row exists: files, tags, audio, ready."""
-    title = candidate["title"]
-    author = candidate.get("author")
-
+def _write_text_and_tag(conn, sid: str, candidate: dict, language: str,
+                        paragraphs: list[str], text: str) -> None:
+    """Row exists → text on disk, tagged, status text_ready. This is where the
+    story becomes queue-visible and skippable (DESIGN §7): everything up to
+    here costs one fetch, while synthesis costs ~4.5 min."""
     story_dir = config.LIBRARY_DIR / sid
     story_dir.mkdir(parents=True, exist_ok=True)
     (story_dir / "story.txt").write_text(text)
@@ -52,9 +50,19 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
 
     renderjob.set_phase(conn, sid, "tagging", paragraphs_total=len(paragraphs))
     try:
-        tag.run_tagging(conn, sid, title, author, language, text)
+        tag.run_tagging(conn, sid, candidate["title"], candidate.get("author"),
+                        language, text)
     except Exception as e:
         print(f"[ingest] WARNING: tagging failed ({e}) — continuing untagged")
+
+
+def _render(conn, sid: str, key: str, candidate: dict, language: str,
+            paragraphs: list[str], source_url: str,
+            voice_override: str | None = None) -> None:
+    """text_ready → audio + offsets + meta → ready. The expensive half."""
+    title = candidate["title"]
+    author = candidate.get("author")
+    story_dir = config.LIBRARY_DIR / sid
 
     r0 = conn.execute("SELECT voice FROM stories WHERE id=?", (sid,)).fetchone()
     voice_at_start = r0["voice"] if r0 else None
@@ -126,14 +134,65 @@ def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
     print(f"[ingest] {sid}: READY — {meta.duration_s / 60:.1f} min, {engine}/{voice}")
 
 
+def _finalize(conn, sid: str, key: str, candidate: dict, language: str,
+              paragraphs: list[str], text: str, source_url: str,
+              voice_override: str | None = None) -> None:
+    """Everything after the stories row exists: files, tags, audio, ready.
+    The worker (Phase 5) drives the two halves separately so stories reach the
+    queue before any render cost; the one-shot callers still want both."""
+    _write_text_and_tag(conn, sid, candidate, language, paragraphs, text)
+    _render(conn, sid, key, candidate, language, paragraphs, source_url,
+            voice_override=voice_override)
+
+
+def render_ready_story(conn, sid: str, voice_override: str | None = None) -> str:
+    """Render an already-acquired (text_ready) story: the worker's second stage
+    and the queue-order synthesis of DESIGN §7. Paragraphs come off disk — the
+    same story.txt the queue card and the player read, so a skip between
+    acquisition and render costs nothing but the fetch."""
+    row = conn.execute("SELECT * FROM stories WHERE id=?", (sid,)).fetchone()
+    if row is None:
+        raise ValueError(f"no story {sid}")
+    story_txt = config.LIBRARY_DIR / sid / "story.txt"
+    if not story_txt.exists():
+        raise FileNotFoundError(f"{sid}: no story.txt — re-acquire with retry")
+    paragraphs = story_txt.read_text().split("\n\n")
+    candidate = candidate_from_row(row)
+    renderjob.open_job(conn, sid, phase="synthesizing",
+                       voice=voice_override, restore_status=row["status"])
+    try:
+        _render(conn, sid, row["dedup_key"], candidate, row["language"],
+                paragraphs, row["source_url"], voice_override=voice_override)
+        renderjob.finish(conn, sid, "done")
+        return sid
+    except synthesize.AbortRender:
+        if _close_aborted_job(conn, sid):
+            db.set_status(conn, sid, row["status"])
+        raise
+    except Exception as e:
+        db.set_status(conn, sid, "failed", failure_note=str(e)[:500])
+        renderjob.finish(conn, sid, "failed")
+        raise
+
+
+def acquire_candidate(conn, candidate: dict, channel) -> str:
+    """Fresh candidate → text_ready row (fetch, clean, dedup, tag). No
+    synthesis — the worker's cheap first stage. Returns story_id."""
+    return _ingest(conn, candidate, channel, render=False)
+
+
 def ingest_candidate(conn, candidate: dict, channel) -> str:
-    """Fresh candidate → library entry. Returns story_id.
-    Raises DuplicateStory if the dedup key is already history."""
+    """Fresh candidate → library entry, acquisition through render. Returns
+    story_id. Raises DuplicateStory if the dedup key is already history."""
+    return _ingest(conn, candidate, channel, render=True)
+
+
+def _ingest(conn, candidate: dict, channel, render: bool) -> str:
     language = candidate.get("language") or channel["language"]
-    title = candidate["title"]
 
     sid = None
     try:
+        title = candidate["title"]
         paragraphs, text, source_url = _fetch_clean(candidate)
         key = textproc.dedup_key(title, text)
         if key in db.known_dedup_keys(conn):
@@ -146,7 +205,8 @@ def ingest_candidate(conn, candidate: dict, channel) -> str:
             "INSERT INTO stories(id, channel_id, dedup_key, title, author, "
             "author_present, year, year_present, source_class, source_ref, "
             "source_url, license_class, language, curation_evidence_json, "
-            "status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'fetching')",
+            f"status, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,"
+            f"'fetching',{db.NOW_MS})",
             (sid, channel["id"], key, title, author, int(bool(author)),
              year, int(year is not None), candidate["source_class"],
              str(candidate.get("source_ref", "")), source_url,
@@ -157,9 +217,13 @@ def ingest_candidate(conn, candidate: dict, channel) -> str:
         # The job row can only exist once the story row does (FK), so a fresh
         # story's fetch is not cancellable — it is one HTTP GET, seconds long.
         # Every UI-triggered render (re-render, queue-window render) goes
-        # through retry_story, where the row already exists.
+        # through retry_story/render_ready_story, where the row already exists.
         renderjob.open_job(conn, sid, phase="tagging", restore_status="text_ready")
-        _finalize(conn, sid, key, candidate, language, paragraphs, text, source_url)
+        _write_text_and_tag(conn, sid, candidate, language, paragraphs, text)
+        if not render:
+            renderjob.finish(conn, sid, "done")
+            return sid
+        _render(conn, sid, key, candidate, language, paragraphs, source_url)
         renderjob.finish(conn, sid, "done")
         return sid
     except DuplicateStory:
@@ -206,7 +270,8 @@ def record_provisional(conn, candidate: dict, channel, status: str,
         "INSERT OR IGNORE INTO stories(id, channel_id, dedup_key, title, author, "
         "author_present, year, year_present, source_class, source_ref, "
         "source_url, license_class, language, curation_evidence_json, status, "
-        "failure_note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        f"failure_note, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,"
+        f"{db.NOW_MS})",
         (sid, channel["id"], key, title,
          candidate.get("author"), int(bool(candidate.get("author"))),
          candidate.get("year"), int(candidate.get("year") is not None),

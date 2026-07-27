@@ -18,7 +18,7 @@ def main(argv: list[str]) -> int:
         for r in conn.execute(
                 "SELECT id, status, failure_note FROM stories "
                 "WHERE status IN ('failed','queued','fetching','text_ready') "
-                "ORDER BY created_at"):
+                "ORDER BY rowid"):  # acquisition order
             print(f"{r['id']}  [{r['status']}]  {r['failure_note'] or ''}")
         return 0
     voice = None

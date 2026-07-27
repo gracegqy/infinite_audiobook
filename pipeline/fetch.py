@@ -82,6 +82,20 @@ def fetch_creepypasta(page_title: str) -> tuple[str, str]:
     return text, url
 
 
+def usable_ref(candidate: dict) -> bool:
+    """Can this candidate even be fetched? A Gutenberg candidate needs a
+    numeric ebook id, a creepypasta candidate a page title. Checked BEFORE
+    ingest so a curator metadata gap ("source_ref": "unknown") is skipped like
+    a disabled source class — never turned into a permanent failed row that
+    blacklists a real story (Entry 24)."""
+    sc, ref = candidate.get("source_class"), str(candidate.get("source_ref") or "")
+    if sc == "gutenberg":
+        return bool(re.search(r"\d", ref))
+    if sc == "creepypasta":
+        return bool(ref.strip())
+    return False
+
+
 def fetch_candidate(candidate: dict) -> tuple[str, str]:
     """Dispatch on the curator candidate's source_class → (raw_text, source_url)."""
     sc = candidate["source_class"]

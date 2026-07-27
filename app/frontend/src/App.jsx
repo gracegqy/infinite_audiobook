@@ -1,5 +1,5 @@
 // Views: Queue (default — AMENDMENT_02 semantics), Library (all-time history),
-// Voices (AMENDMENT_04 D audition gallery). Autoplay advances through READY
+// Channels (R12 criteria editor), Voices (AMENDMENT_04 D audition gallery). Autoplay advances through READY
 // stories in acquisition order; text_ready rows are visible + skippable +
 // voice-pickable before any render cost. AMENDMENT_05 C: last-played story
 // auto-restores paused; skip distinguishes "not interested" from "already
@@ -7,14 +7,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import * as api from "./api";
+import Channels from "./Channels";
 import Player, { Stars } from "./Player";
 import RenderBar from "./RenderBar";
 import Settings from "./Settings";
 import Voices from "./Voices";
 
 const QUEUE_STATUSES = ["text_ready", "ready", "in_progress"];
-const TABS = { queue: "Queue", library: "Library", voices: "Voices",
-               settings: "Settings" };
+const TABS = { queue: "Queue", library: "Library", channels: "Channels",
+               voices: "Voices", settings: "Settings" };
 const POLL_MS = 15000; // background renders surface without manual refresh
 const RENDER_POLL_MS = 2000; // AMENDMENT_06: a progress bar needs to move
 
@@ -136,6 +137,7 @@ export default function App() {
         <Library stories={stories} currentId={currentId} jobFor={jobFor}
                  onPlay={play}
                  onChanged={() => { reload(); pollRenders(); }} />}
+      {view === "channels" && <Channels onChanged={reload} />}
       {view === "voices" && <Voices />}
       {view === "settings" && <Settings />}
     </div>
@@ -149,7 +151,7 @@ function evidenceLine(s) {
 function Queue({ queue, currentId, voices, jobFor, onPlay, onChanged }) {
   if (queue.length === 0)
     return <p className="empty">Queue is empty — run the pipeline to replenish
-      (worker arrives in Phase 5).</p>;
+      (`python -m pipeline.worker`).</p>;
 
   return (
     <div className="list">
