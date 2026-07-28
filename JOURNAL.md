@@ -1046,3 +1046,39 @@ verified; the paid path's rebalance is not.
 Measurements invalidated: my "cost is fixed per batch" claim (Entry 28's lever 1)
 is corrected above — search fees and output scale with batch size. No prior
 recorded measurement changes.
+
+## Entry 30 — 2026-07-28 — Session close / handoff
+
+Verified from artifacts, not prose, at close:
+
+- **git** clean, `## main...origin/main`, HEAD `364e0da`, everything pushed.
+- **151 tests green.**
+- **Queue 3/3** (Ben Drowned 54.4 min · Smile Dog 11.3 · Squidward's Suicide
+  9.9, all `ready`, all am_adam). Pool holds 3 more verified candidates, so one
+  further worker cycle costs $0.
+- **Grace listened during the session** — Willows 1:22 → 3:12, Damned Thing
+  4:52 → 7:36; Owl Creek and Russian Sleep Experiment both finished to `read`.
+  STATE's Library section re-read from the DB rather than carried forward.
+- **Server restarted** on the current build. This mattered: the running process
+  predated the Entry-29 changes, so `/api/settings` was returning no
+  `curation_mode` while the new frontend already shipped the selector — the
+  Settings dropdown would have rendered empty. Checked `progress.updated_at`
+  first (last write 80 min earlier, positions static over 14 s) per the Entry-26
+  rule, so no playback was interrupted. Now returns
+  `curation_mode: llm, options: [catalog, llm]`.
+- STATE's next-actions had collided numbering from incremental edits (two #2s,
+  two #3s) — rewritten as three labelled groups: blocking-on-Grace, owed to
+  close Phase 5, standing debts.
+
+**Honest state of the phase:** Phase 5 is [IN PROGRESS] with two of three gate
+criteria passed. What is genuinely unproven is the paid curation path's *output
+quality* — the rebalanced prompt has never produced a batch. Catalog mode is
+verified end-to-end; the LLM mode's classics/modern balance is not, and both
+remaining Phase-5 items need the same single authorized batch to settle.
+
+**One unrecorded cost:** the killed 70-minute run left no ledger row. Estimated
+under $0.50, unverifiable, and deliberately not counted in STATE's spend total
+rather than guessed into it.
+
+Measurements invalidated by this change: none (verification and reconciliation
+only).

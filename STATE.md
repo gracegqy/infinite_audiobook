@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 29 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 30 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -62,47 +62,68 @@
 
 ## Next actions
 
-1. **Grace: confirm the scrubber still drags on the phone.** The view lock
-   (no zoom/pan, Entry 26) is the one change that could plausibly have hurt it.
-   Everything else in her two UI reports is fixed and measured.
-2. **Grace: pick a curation mode in Settings.** Both now exist (Entry 29).
+**Needs Grace (blocking):**
+
+1. **Confirm the scrubber still drags on the phone.** The view lock (no
+   zoom/pan, Entry 26) is the one change that could plausibly have hurt it;
+   everything else in her two UI reports is fixed and measured.
+2. **Pick a curation mode in Settings** — both exist now (Entry 29).
    `catalog` = $0, no API call, ebook ids always correct, classics only, thin
-   reputation signal (expect obscure pulp beside the canon). `llm` = ~$0.2-0.5
+   reputation signal (expect obscure pulp beside the canon). `llm` = ~$0.2–0.5
    per batch, verified named lists, covers creepypasta, can still get an ebook
-   id wrong. Defaults to `llm` — nothing changed without your say.
-3. **Owed: the Entry-28 prompt rebalance is still unverified end-to-end.** The
-   run that would have proven it is the one that exposed the unbounded-loop bug
-   and was killed at 70 minutes. Re-run `run_story --build-pool` in llm mode to
-   confirm the classics/modern mix actually comes back balanced.
-2. **Grace: phone gate for Phase 5** — highlight visibly tracking audio over
-   Tailscale (the code ships; only the phone check is owed). Server at
-   http://100.117.147.107:8123 (`scripts/serve.sh` to restart). The Russian
-   Sleep Experiment (12.2 min) is queued and unplayed.
-3. Owed to close Phase 5: live before/after curation diff for the channel-edit
-   gate (needs a batch — pair it with the rebalanced prompt above);
-   `/code-review` on the Phase 5 diff.
-4. Owed near Phase 5: Entry-16 debts (source-class registry, edge-tts fallback
-   granularity, vocab-genre coupling) + Entry-21 notes (two fuzzy title-match
-   semantics in mark.py/pool.find_candidate — centralize on the third user;
-   curation-prompt exclusion list grows with all-time history, an R11 cost
-   lever).
-5. `/code-review` on the AMENDMENT_06 + Phase 5 diffs at phase close.
+   id wrong. Currently `llm`; nothing changed without her say.
+
+**Owed to close Phase 5 (Claude, needs a batch — so needs her spend approval):**
+
+3. **Verify the Entry-28 prompt rebalance end-to-end.** Never proven: the run
+   that would have shown a balanced classics/modern mix is the one that exposed
+   the unbounded-loop bug and was killed at 70 min. Re-run
+   `run_story --build-pool` in `llm` mode (now capped at 12 turns).
+4. **Channel-edit curation diff** — the last Phase 5 gate criterion. Tests prove
+   the edit reaches the prompt; a live before/after batch would close it. Pair
+   with #3 to spend once.
+5. `/code-review` on the AMENDMENT_06 + Phase 5 + Entry 28–29 diffs at phase close.
+
+**Standing debts (no deadline):**
+
+6. Entry-16: source-class registry, edge-tts fallback granularity, vocab-genre
+   coupling. Entry-21: two fuzzy title-match semantics (mark.py vs
+   pool.find_candidate) — centralize on the third user; curation-prompt
+   exclusion list grows with all-time history (an R11 cost lever).
+7. Catalog mode residual (Entry 29): a collection with an innocent title
+   ("The Parenticide Club") still passes both filters. Cheap next step if it
+   recurs — a paragraph-count or per-story heuristic on the fetched text.
 
 ## Library
 
-15 story rows; 8 rendered (Entries 18–19, listening state as of 2026-07-19,
-Entry 22): Monkey's Paw 22.0 min kokoro/am_adam **read, rated 5** · Yellow
-Wallpaper 32.2 kokoro/af_heart **read, rated 5** · Owl Creek Bridge 20.9
-af_heart **read** · Damned Thing 18.0 af_heart in_progress 4:52 ·
-Willows 107.1 af_heart in_progress 1:22. Unfinished ≠ disliked — the two
-in_progress are unrated because Grace hasn't finished them (Entry 22), so
-they carry no Phase-6 signal. Tell-Tale Heart is `failed` (the 550 KB Poe
-collection fetch, Entry 16) — now re-proposable (Entry 24). Worker-acquired,
-all kokoro/am_adam: Russian Sleep Experiment 12.2 min **read** · Ben Drowned
-54.4 · Smile Dog 11.3 · Squidward's Suicide 9.9 (the last three **ready**).
-**Queue at 3/3.** Pool: 3 verified candidates left (The Backrooms, The Rake,
-NoEnd House). Voice gallery:
-11 samples in data/voice_samples/. Settings: `default_voice.en` = am_adam.
+15 story rows; 9 rendered. Listening state re-read from the DB 2026-07-28
+03:43 UTC (Entry 30), not from prose:
+
+- **read:** Monkey's Paw 22.0 min am_adam (rated 5) · Yellow Wallpaper 32.2
+  af_heart (rated 5) · Owl Creek Bridge 20.9 af_heart · Russian Sleep
+  Experiment 12.2 am_adam
+- **in_progress:** Damned Thing 18.0 af_heart at 7:36 · Willows 107.1 af_heart
+  at 3:12
+- **ready (the queue, 3/3):** Ben Drowned 54.4 am_adam · Smile Dog 11.3 am_adam
+  · Squidward's Suicide 9.9 am_adam
+- **failed:** Tell-Tale Heart (550 KB Poe collection, Entry 16) + 5 others —
+  all now re-proposable by title (Entry 24)
+
+Unfinished ≠ disliked: the two in_progress are unrated because Grace hasn't
+finished them, so they carry no Phase-6 signal (Entry 22).
+
+Pool: 3 verified candidates left (The Backrooms, The Rake, NoEnd House) — enough
+for one more worker cycle at $0. Voice gallery: 11 samples in
+data/voice_samples/. Settings: `default_voice.en` = am_adam · `curation_mode` =
+llm · `curation_model` = claude-sonnet-5.
+
+## Spend to date (R11)
+
+Ledger total $4.81 across 4 curation runs, but the first three used list price —
+**actually billed ≈ $3.3** (Sonnet 5 intro pricing to 2026-08-31, Entry 28).
+Run 4 was the first with caching: $0.2259. One run's cost is **unrecorded** — the
+70-minute run killed in Entry 29 never wrote a ledger row (that was the bug);
+estimated under $0.50 but not verifiable, so it is not counted above.
 
 ## Open decisions
 

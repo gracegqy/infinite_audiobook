@@ -111,16 +111,25 @@ app ≥5 min, kill and reopen → resumes within 2 s of pause point. Evidence in
 > tell me when you need me to test."*
 
 ## Phase 5 — Queue automation, sync, channels UI   · Owner: Claude Code
-**Status: [IN PROGRESS] (2026-07-28)** — worker + channels editor built; 124
+**Status: [IN PROGRESS] (2026-07-28)** — worker + channels editor built; 151
 tests green. **Two of three gate criteria PASSED:** queue self-healed 1→3/3 in
-one cycle after Grace finished 2 stories, artifact-verified with no all-time
-title repeats (Entry 27); phone highlight tracking confirmed by Grace (Entry
-26). Owed to close: the channel-edit curation diff (needs a batch — pair it
-with the prompt rebalance, Entry 27) and Grace's scrubber re-check after the
-view lock. Three bugs found and fixed along the way: arbitrary acquisition
-order (now `rowid`), failed references blacklisting real story titles (refs and
-titles now excluded separately), and the sticky player's hardcoded 52 px offset
-against a 63 px header.
+one cycle, artifact-verified with no all-time title repeats (Entry 27); phone
+highlight tracking confirmed by Grace (Entry 26). **Owed to close:** the
+channel-edit curation diff (needs one authorized batch), Grace's scrubber
+re-check after the view lock, and `/code-review`. Also owed: the Entry-28 prompt
+rebalance was never verified end-to-end — its verification run is the one that
+exposed the unbounded pause-turn loop and was killed at 70 min (Entry 29).
+Bugs found and fixed across this phase: arbitrary acquisition order (now
+`rowid`), failed references blacklisting real story titles (refs and titles now
+excluded separately), the sticky player's hardcoded 52 px offset against a 63 px
+header, and — the serious one — `run_curation`'s `while True:` pause-turn loop
+with the cost ledger written only after it exited, i.e. unbounded AND invisible
+spend (now capped at 12 turns and always ledgered).
+Curation economics reworked (Entries 28-29): prompt caching serves ~93% of input
+from cache ($1.05 → $0.23 per batch), search budget scales with batch size, and
+a free `catalog` curation mode is selectable in Settings beside the paid `llm`
+one.
+
 **Goal:** The self-sustaining part of the brief.
 **Actions:** replenishment worker (unread < 3 → curate/fetch/synthesize; dedup against
 full history so nothing repeats); paragraph-level text highlight synced to playback via
