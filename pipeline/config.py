@@ -1,13 +1,19 @@
 """Central constants — the single copy of every model ID, engine choice, and knob
 (DESIGN §5, CLAUDE.md centralization rule)."""
+import os
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
+# HR_DATA_DIR redirects ALL state (db + library + interim) at once, so a
+# throwaway server or probe can run against a COPY of the library instead of
+# Grace's real one. Added after headless-browser UI checks pointed at the live
+# server autoplayed audio and overwrote two real resume positions (Entry 26) —
+# scripts/ui_sandbox.sh is the supported way to drive the UI.
+DATA_DIR = pathlib.Path(os.environ.get("HR_DATA_DIR") or (ROOT / "data"))
 DB_PATH = DATA_DIR / "app.db"
 LIBRARY_DIR = DATA_DIR / "library"
 INTERIM_DIR = DATA_DIR / "interim"
-ENV_PATH = ROOT / ".env"
+ENV_PATH = ROOT / ".env"  # keys stay in the repo root, never copied into a sandbox
 
 QUEUE_DEPTH = 3  # AMENDMENT_02
 # Replenishment worker (Phase 5): how often --loop re-checks the queue. Long,

@@ -3,26 +3,56 @@
 :root {
   --bg: #12121a; --card: #1c1c28; --card-now: #262638;
   --fg: #e8e6f0; --dim: #9a97ad; --accent: #b48eff; --danger: #ff6b6b;
+  /* the sticky player parks directly under the sticky header, so its offset is
+     derived from one value instead of a magic number that drifts when the
+     header changes (it did, when the 5th tab arrived) */
+  --header-h: 63px;  /* measured, not guessed: 12 top + h1 (31 + 8/8 margins) + 4 */
+}
+html, body {
+  /* locked view (Grace, 2026-07-27): kills double-tap zoom and the rubber-band
+     drag. Pinch-zoom is cancelled in main.jsx — CSS pan-y would have been the
+     other route, but it risks stealing drags from the scrubber, and that
+     control already passed a phone gate. */
+  touch-action: manipulation;
+  overscroll-behavior: none;
 }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
   font: 16px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif;
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
            env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-text-size-adjust: 100%;  /* no reflow on orientation change */
 }
 .shell { max-width: 640px; margin: 0 auto; padding: 12px 14px 40px; }
 header {
   display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; min-height: var(--header-h);
   position: sticky; top: 0; z-index: 20; background: var(--bg);
   margin: -12px -14px 0; padding: 12px 14px 4px;
 }
-h1 { font-size: 1.3rem; margin: 8px 0; }
+h1 { font-size: 1.3rem; margin: 8px 0; white-space: nowrap; }
 nav { display: flex; gap: 6px; }
 .tab {
   background: none; border: none; color: var(--dim); font-size: 0.95rem;
   padding: 6px 8px; border-radius: 8px; cursor: pointer;
+  white-space: nowrap;  /* a tab label never breaks mid-word */
 }
 .tab.on { color: var(--accent); background: var(--card); }
+
+/* Phone: five tab labels plus the wordmark cannot share one line (Grace,
+   2026-07-27 — it wrapped and broke the header). The wordmark goes, since the
+   PWA already shows its name on the home screen and the player shows the story
+   title; the tabs then spread across the full width and stay on one line. */
+@media (max-width: 460px) {
+  :root { --header-h: 42px; }
+  header { padding-top: 8px; }
+  h1 { display: none; }
+  nav { flex: 1; gap: 2px; justify-content: space-between; }
+  .tab { font-size: 0.82rem; padding: 5px 6px; }
+}
+@media (max-width: 360px) {
+  .tab { font-size: 0.76rem; padding: 5px 4px; }
+}
 h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
   letter-spacing: 0.06em; margin: 18px 0 6px; }
 
@@ -43,7 +73,7 @@ h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
 
 .player {
   background: var(--card); border-radius: 16px; padding: 16px;
-  margin: 10px 0 18px; position: sticky; top: 52px; z-index: 5;
+  margin: 10px 0 18px; position: sticky; top: var(--header-h); z-index: 5;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
 }
 .skip-menu {

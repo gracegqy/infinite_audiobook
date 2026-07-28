@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 25 · 2026-07-27
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 27 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -12,7 +12,7 @@
 | 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
-| 5 — Queue + sync + channels | [IN PROGRESS] | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | worker + channels editor built, one real cycle proven (Russian Sleep Experiment acquired + rendered 12.2 min, unread 0→1, Entry 24); gate blocked on an empty pool (paid refill = Grace's call) + her phone highlight check |
+| 5 — Queue + sync + channels | [IN PROGRESS] | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **queue gate PASSED** — Grace finished 2 stories, one worker cycle returned unread 1→3/3 (Ben Drowned 54.4 · Smile Dog 11.3 · Squidward's 9.9, all files present, 15 rows/15 distinct titles, Entry 27); **phone highlight gate PASSED** (Grace, Entry 26). Owed: channel-edit curation diff (needs next authorized batch) + scrubber re-check after the view lock |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
 
@@ -62,19 +62,20 @@
 
 ## Next actions
 
-1. **Grace: run the paid pool refill** — `python -m pipeline.run_story
-   --build-pool` (~$1–2; last two batches were $0.90 and $2.13). The prompt is
-   hardened and every candidate is now HTTP-verified before it enters the pool
-   (Entry 25), so the run prints its true yield ("N/M usable") before you rely
-   on it. Read that line: if yield is still poor the model is still proposing
-   collection ids, and the next lever is the curation model setting (R14), not
-   another batch. Then `python -m pipeline.worker` fills the queue at $0.
+1. **Grace: confirm the scrubber still drags on the phone.** The view lock
+   (no zoom/pan, Entry 26) is the one change that could plausibly have hurt it.
+   Everything else in her two UI reports is fixed and measured.
+2. **Before the next paid batch: rebalance the curation prompt.** The $1.55 run
+   returned 15 candidates, 6 usable — but ALL creepypasta, zero Gutenberg,
+   because the Entry-25 hardening made "drop it" the easy default for classics
+   (Entry 27). Fix the wording first, then spend.
 2. **Grace: phone gate for Phase 5** — highlight visibly tracking audio over
    Tailscale (the code ships; only the phone check is owed). Server at
    http://100.117.147.107:8123 (`scripts/serve.sh` to restart). The Russian
    Sleep Experiment (12.2 min) is queued and unplayed.
 3. Owed to close Phase 5: live before/after curation diff for the channel-edit
-   gate (tests prove it at the prompt level); `/code-review` on the Phase 5 diff.
+   gate (needs a batch — pair it with the rebalanced prompt above);
+   `/code-review` on the Phase 5 diff.
 4. Owed near Phase 5: Entry-16 debts (source-class registry, edge-tts fallback
    granularity, vocab-genre coupling) + Entry-21 notes (two fuzzy title-match
    semantics in mark.py/pool.find_candidate — centralize on the third user;
@@ -84,17 +85,18 @@
 
 ## Library
 
-6 story rows; 5 rendered (Entries 18–19, listening state as of 2026-07-19,
+15 story rows; 8 rendered (Entries 18–19, listening state as of 2026-07-19,
 Entry 22): Monkey's Paw 22.0 min kokoro/am_adam **read, rated 5** · Yellow
 Wallpaper 32.2 kokoro/af_heart **read, rated 5** · Owl Creek Bridge 20.9
-af_heart in_progress 13.9 min · Damned Thing 18.0 af_heart in_progress 4.9 ·
-Willows 107.1 af_heart in_progress 1.4. Unfinished ≠ disliked — the three
+af_heart **read** · Damned Thing 18.0 af_heart in_progress 4:52 ·
+Willows 107.1 af_heart in_progress 1:22. Unfinished ≠ disliked — the two
 in_progress are unrated because Grace hasn't finished them (Entry 22), so
 they carry no Phase-6 signal. Tell-Tale Heart is `failed` (the 550 KB Poe
-collection fetch, Entry 16) — now re-proposable (Entry 24). Russian Sleep
-Experiment 12.2 min kokoro/am_adam **ready, unplayed** (worker-acquired).
-**1 unread against a depth of 3; candidate pool empty** (refill = Entry 25
-next action). Voice gallery:
+collection fetch, Entry 16) — now re-proposable (Entry 24). Worker-acquired,
+all kokoro/am_adam: Russian Sleep Experiment 12.2 min **read** · Ben Drowned
+54.4 · Smile Dog 11.3 · Squidward's Suicide 9.9 (the last three **ready**).
+**Queue at 3/3.** Pool: 3 verified candidates left (The Backrooms, The Rake,
+NoEnd House). Voice gallery:
 11 samples in data/voice_samples/. Settings: `default_voice.en` = am_adam.
 
 ## Open decisions

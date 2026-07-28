@@ -61,6 +61,14 @@ scripts/             # one-off tools
   a `decode(encode(x)) == x` round-trip test.
 - Centralize on the second copy of any logic or constant (model IDs, chunk sizes,
   queue depth), not the third.
+- **Never point browser automation, probes, or throwaway scripts at the live server or
+  `data/`.** Use `scripts/ui_sandbox.sh` (a DB snapshot on 127.0.0.1) or `HR_DATA_DIR`.
+  And before restarting the app server or writing to `data/app.db`, check whether Grace
+  is listening — `progress.updated_at` advancing means a live client (Entry 26).
+- **Never "repair" Grace's data on a hypothesis.** Her listening state is real user data:
+  establish the cause from artifacts first (is a client live? can the code even produce
+  this?), and prefer leaving a suspicious value alone over overwriting it. A wrong repair
+  destroys the evidence that would have corrected the diagnosis.
 - Standing checkpoints: `/verify` before nontrivial commits · `/code-review` before a
   phase closes · `/security-review` before the server listens beyond Tailscale (or any
   auth/proxy change) · one fresh-session audit mid-project.
