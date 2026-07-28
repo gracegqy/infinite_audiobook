@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 27 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 28 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -65,10 +65,12 @@
 1. **Grace: confirm the scrubber still drags on the phone.** The view lock
    (no zoom/pan, Entry 26) is the one change that could plausibly have hurt it.
    Everything else in her two UI reports is fixed and measured.
-2. **Before the next paid batch: rebalance the curation prompt.** The $1.55 run
-   returned 15 candidates, 6 usable — but ALL creepypasta, zero Gutenberg,
-   because the Entry-25 hardening made "drop it" the easy default for classics
-   (Entry 27). Fix the wording first, then spend.
+2. **Grace: decide on the zero-API classics path.** Gutenberg's own catalog
+   (free, no key) gives 514 English horror/ghost/gothic texts with correct ebook
+   ids; paired with the existing free verifier that makes classics curation $0
+   and removes the id-guessing failure mode entirely. Tradeoff: reputation
+   evidence becomes catalog metadata + download rankings instead of
+   LLM-verified named lists (Entry 28). Not built — your call.
 2. **Grace: phone gate for Phase 5** — highlight visibly tracking audio over
    Tailscale (the code ships; only the phone check is owed). Server at
    http://100.117.147.107:8123 (`scripts/serve.sh` to restart). The Russian
@@ -102,6 +104,11 @@ NoEnd House). Voice gallery:
 ## Open decisions
 
 None. (AMENDMENT_05 A/B were flipped BINDING and implemented in Entry 21.)
+
+Curation cost (Entry 28): prompt caching serves ~93% of input from cache, so a
+batch runs ~$0.23 instead of ~$1.05; searches raised 6→25 because cached
+re-reads made them nearly free. All cost figures before Entry 28 are list-price
+and ~32% high (Sonnet 5 intro pricing runs to 2026-08-31).
 
 Exclusion rule (Entry 24): a TITLE is excluded from future curation once we
 have the story or Grace decided on it; a failed REF is excluded forever but

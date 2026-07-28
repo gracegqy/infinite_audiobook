@@ -891,3 +891,80 @@ scrubber still drags after the view-lock change (Entry 26).
 
 Measurements invalidated by this change: none. New cost datum for the R11
 ledger: $1.55 for 15 candidates at 6 searches, 40% usable.
+
+## Entry 28 — 2026-07-28 — Curation prompt rebalanced; caching cut cost ~85% and inverted which knob to turn
+
+Grace asked me to rebalance the prompt so it stops dropping the classics half,
+and to assess how to make recurring curation effectively free. Loaded the
+claude-api reference rather than answering pricing from memory — which caught
+two things I would otherwise have gotten wrong.
+
+### The ledger was overstating every run by ~a third
+
+`MODEL_PRICING` carried Sonnet 5's list price ($3/$15 per M). Sonnet 5 is on
+**introductory pricing through 2026-08-31: $2/$10**. So the three batches Grace
+has paid for actually billed ~$3.11, not the $4.58 the ledger shows — run 3 was
+~$1.05, not $1.55. A cost ledger that overstates still misleads a spend
+decision, so pricing is now date-aware (`config.model_pricing`), and the
+ledger records the token breakdown (new `curation_runs` columns via migration)
+so the next cost question is answered from data instead of back-solved from a
+total. Pre-migration rows keep NULL — their totals are still true, the split
+just wasn't captured, and backfilling would be inventing numbers.
+
+### Input tokens were ~94% of the cost, and caching removed almost all of it
+
+Backing out run 3's split: **~466,000 input tokens vs ~6,000 output.** The
+pause-turn loop re-sends the whole accumulated transcript every turn, and
+web-search results are large — so each turn re-read every prior search result at
+full price. Effort/thinking depth was never the lever; input was.
+
+Fixed with top-level `cache_control` on the curation call (auto-places the
+breakpoint on the last cacheable block = the turn just appended, which is the
+documented multi-turn pattern). Measured on the next run:
+
+| | run 3 (no caching) | run 4 (caching) |
+|---|---|---|
+| cost | $1.55 ledger / ~$1.05 actual | **$0.23** |
+| input served from cache | 0% | **93%** (197,255 of 212,191 tokens) |
+| input cost | ~$0.92 | **$0.08** |
+
+Also set `output_config={"effort": "medium"}`: adaptive thinking is ON BY
+DEFAULT on Sonnet 5 at `high` effort, so leaving it unset was quietly buying
+deep reasoning for a search-and-list task. Real but minor next to caching —
+output is now the largest single line at $0.089.
+
+### Caching inverted the recommendation: the fix is MORE searches, not fewer
+
+Run 4 proved the caching lever and **failed to parse** — and the failure was the
+more useful result. Its response was prose explaining that it had exhausted its
+web-search budget and would rather flag that than hand over unverified ebook
+ids. That is exactly the behavior the Entry-25 prompt asks for, and it collided
+with my own rebalance: telling the model to work at finding standalone Gutenberg
+editions *costs searches*, and 6 was not enough to verify a batch of 8.
+
+Before caching, "cut searches to 3" would have been my top cost recommendation —
+search results drove the input bill. Cached, a search costs about its $0.01 fee,
+so `CURATION_MAX_SEARCHES` goes **6 → 25**. Cheaper *and* more verified, which
+is not a tradeoff I expected to find.
+
+Also fixed: `parse_candidates` raised a bare "no JSON array", which sent me
+looking at the regex instead of the search cap. It now names the likely cause
+and points at the stored explanation in the ledger row.
+
+### Structural option quantified, not built
+
+The zero-API path for the classics half is real: Gutenberg's own
+`pg_catalog.csv.gz` (5.3 MB, 78,999 records, free, no key) yields **514** English
+horror/ghost/gothic/supernatural texts, each row carrying the ebook id
+directly — the exact field the model keeps getting wrong. Pair it with the
+existing free verifier (whose length gate already rejects collections and
+novels) and classics curation costs $0 with no id-guessing failure mode. The
+tradeoff is reputation evidence: catalog subjects/bookshelves and Gutenberg's
+download rankings instead of LLM-verified named lists. Not built — that is
+Grace's call.
+
+Measurements invalidated by this change: **every prior cost figure in this
+journal is list-price and ~32% high** (Entries 17, 25, 27 included); actual
+billed spend to date is ~$3.11 + $0.23. The $/batch baseline is superseded
+outright — $1.55 uncached vs $0.23 cached is a different cost model, not a
+revision of the old one.

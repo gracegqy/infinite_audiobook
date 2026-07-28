@@ -1,5 +1,6 @@
 """Central constants — the single copy of every model ID, engine choice, and knob
 (DESIGN §5, CLAUDE.md centralization rule)."""
+import datetime
 import os
 import pathlib
 
@@ -23,18 +24,52 @@ WORKER_INTERVAL_S = 900
 # Curation (DESIGN §5): Sonnet, capped searches, ≤$0.40/batch target. Never
 # auto-escalate the model (R14) — changes are Grace-initiated only.
 CURATION_MODEL = "claude-sonnet-5"
-CURATION_MAX_SEARCHES = 6
+# Raised 6 → 25 (Entry 28). Prompt caching inverted the economics: search
+# RESULTS used to be re-read at full price on every pause turn, which made
+# searches the dominant cost; cached, they re-read at 0.1x, so a search now
+# costs about its $0.01 fee. Six was also too few to actually verify a batch —
+# the run that proved caching also ran out of searches mid-verification and
+# (correctly) refused to invent ebook ids rather than guess.
+CURATION_MAX_SEARCHES = 25
 CURATION_BATCH_SIZE = 8
+# Thinking depth for curation (Entry 28). Curation is search-and-list, not deep
+# reasoning, and adaptive thinking is ON BY DEFAULT on Sonnet 5 at `high` effort
+# — so leaving this unset was silently buying reasoning tokens this task doesn't
+# need. `medium` not `low`: effort also drives how willingly the model searches,
+# and the prompt now asks it to work at finding standalone Gutenberg editions.
+CURATION_EFFORT = "medium"
 # AMENDMENT_04 A: paid curation only refills the pool (explicit --build-pool);
 # replenishment consumes stored candidates at $0 marginal.
 POOL_BATCH_SIZE = 40
+
 # $/M tokens (in, out) + $/search, for the curation_runs cost ledger (R11).
+# Cache multipliers are Anthropic's published ratios: a cache READ costs 0.1x
+# base input, a 5-minute cache WRITE costs 1.25x. Those are what make the
+# pause-turn loop cheap (Entry 28) — without caching every accumulated web
+# search result is re-read at full price on every turn.
+CACHE_READ_MULTIPLIER = 0.1
+CACHE_WRITE_MULTIPLIER = 1.25
 MODEL_PRICING = {
     "claude-sonnet-5": (3.0, 15.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 WEB_SEARCH_COST = 0.01
+
+# Sonnet 5 introductory pricing runs through 2026-08-31: $2/$10 per M instead of
+# $3/$15. The ledger used list price, so it OVERSTATED every run by ~a third
+# (Entry 28) — a cost ledger that overstates still misleads a spend decision.
+INTRO_PRICING = {"claude-sonnet-5": ((2.0, 10.0), datetime.date(2026, 8, 31))}
+
+
+def model_pricing(model: str, on: datetime.date | None = None) -> tuple[float, float]:
+    """($/M input, $/M output) for `model` on a given date — the single copy of
+    this lookup, so the ledger and any estimate agree."""
+    intro = INTRO_PRICING.get(model)
+    if intro and (on or datetime.date.today()) <= intro[1]:
+        return intro[0]
+    return MODEL_PRICING[model]
+
 
 TAG_MODEL = "claude-haiku-4-5-20251001"
 

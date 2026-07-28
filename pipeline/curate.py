@@ -24,15 +24,25 @@ a NAMED list, essay, award, ranking, or ratings page that vouches for it (e.g. "
 Use web search to verify evidence rather than relying on memory. If you could not
 verify a claim, flag it honestly in "unverified".
 
+BALANCE — this channel wants BOTH halves, and a batch that is all one kind is a
+failed batch. Aim for roughly half public-domain classics and half modern web
+fiction (adjust if the criteria above clearly favor one). Report what you could
+not fill rather than silently substituting more of the easy kind.
+
 SOURCING — the pipeline fetches your `source_ref` literally and rejects it
 mechanically, so an unchecked reference wastes the whole candidate:
 
 - **Gutenberg:** `source_ref` is the ebook id of a STANDALONE edition containing
   ONLY that story. Collection volumes ("The Works of...", "Complete Tales...",
-  "The King in Yellow") are rejected on length. Open the ebook page and confirm
-  it is the single story before proposing the id. Most famous short stories exist
-  ONLY inside collections on Gutenberg — if you cannot find a standalone edition,
-  DROP the candidate. Do not substitute the collection id.
+  "The King in Yellow") are rejected on length.
+  Standalone editions of famous short stories DO exist on Gutenberg and are worth
+  searching for — this library already holds several found that way (ebook 1952 =
+  The Yellow Wallpaper, 375 = An Occurrence at Owl Creek Bridge, 11438 = The
+  Willows). Search Gutenberg for the individual title, check the ebook's own page,
+  and confirm from its length and table of contents that it is the single story.
+  Spend the search effort: finding the standalone id is the job, not an optional
+  extra. Only if a genuine search turns up nothing but collections should you drop
+  the candidate — and never substitute the collection id.
 - **Creepypasta:** `source_ref` is a wiki page that actually CONTAINS the story
   text. Many pages are stubs: deleted-for-quality notices, copyright-removal
   notices pointing at the author's own site, or link-only navigation pages. Open
@@ -41,8 +51,10 @@ mechanically, so an unchecked reference wastes the whole candidate:
   URL you did not open. A candidate without a verified reference is worthless —
   drop it and propose a different story instead.
 
-Fewer, verified candidates beat a full batch of unusable ones. It is correct to
-return fewer than {batch} if that is what survives verification.
+Verified candidates beat unusable ones, so dropping a genuinely unavailable story
+is correct. But dropping is the last resort, not the cheap way out of a search:
+an all-modern batch because classics "were all in collections" is the specific
+failure to avoid.
 
 Do NOT propose any of these already-known titles:
 {exclusions}
@@ -104,6 +116,20 @@ def parse_candidates(text: str) -> list[dict]:
     m = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", text, re.S) or \
         re.search(r"(\[\s*\{.*\}\s*\])", text, re.S)
     if not m:
+        # Name the likely cause instead of a bare "no JSON array" (Entry 28).
+        # The model returning prose is usually it declining to fabricate rather
+        # than a format slip — most often because it exhausted its search
+        # budget mid-verification, which is the behavior the prompt asks for.
+        # A generic error sent me looking at the parser instead of the cap.
+        low = text.lower()
+        if any(s in low for s in ("search", "limit", "cannot verify",
+                                 "without opening", "unverified")):
+            raise ValueError(
+                "curation returned prose, not JSON — the model appears to have "
+                "declined to guess rather than fabricate references (often the "
+                f"web-search cap, currently CURATION_MAX_SEARCHES="
+                f"{config.CURATION_MAX_SEARCHES}). Its own explanation is stored "
+                "in the curation_runs ledger row; read it before re-running.")
         raise ValueError("no JSON array in curation response")
     candidates = json.loads(m.group(1))
     required = {"title", "source_class", "source_ref", "license_class", "evidence"}
@@ -123,11 +149,24 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
 
     prompt = build_prompt(channel, db.known_titles(conn), batch)
     messages = [{"role": "user", "content": prompt}]
-    searches = in_tok = out_tok = 0
+    searches = in_tok = out_tok = cache_read = cache_write = 0
     while True:
         with client.messages.stream(
             model=model,
             max_tokens=16000,
+            # Cost lever (Entry 28). This loop re-sends the WHOLE accumulated
+            # transcript on every pause turn, and web-search results are large
+            # input. Uncached, a 6-search batch re-reads them at full price
+            # several times over — that was most of the $1.55. Top-level
+            # cache_control auto-places the breakpoint on the last cacheable
+            # block, i.e. the end of the turn just appended, which is exactly
+            # the multi-turn pattern: each turn re-reads the prior prefix at
+            # 0.1x instead of 1.0x.
+            cache_control={"type": "ephemeral"},
+            # Curation is search-and-list. Adaptive thinking is ON BY DEFAULT on
+            # Sonnet 5 and effort defaults to `high`, so not setting this was
+            # buying deep reasoning for a listing task.
+            output_config={"effort": config.CURATION_EFFORT},
             tools=[{"type": "web_search_20260209", "name": "web_search",
                     "max_uses": config.CURATION_MAX_SEARCHES}],
             messages=messages,
@@ -135,6 +174,8 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
             response = stream.get_final_message()
         in_tok += response.usage.input_tokens
         out_tok += response.usage.output_tokens
+        cache_read += response.usage.cache_read_input_tokens or 0
+        cache_write += response.usage.cache_creation_input_tokens or 0
         if response.usage.server_tool_use:
             searches += response.usage.server_tool_use.web_search_requests or 0
         if response.stop_reason == "pause_turn":
@@ -150,15 +191,20 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
 
     # ledger row FIRST (R11): the spend is real even if the response is
     # unparseable — parse failures must not make cost invisible
-    price_in, price_out = config.MODEL_PRICING[model]
-    cost = (in_tok / 1e6 * price_in + out_tok / 1e6 * price_out
+    price_in, price_out = config.model_pricing(model)  # honors intro pricing
+    cost = (in_tok / 1e6 * price_in
+            + cache_read / 1e6 * price_in * config.CACHE_READ_MULTIPLIER
+            + cache_write / 1e6 * price_in * config.CACHE_WRITE_MULTIPLIER
+            + out_tok / 1e6 * price_out
             + searches * config.WEB_SEARCH_COST)
     text = "\n".join(b.text for b in response.content if b.type == "text")
     run_id = conn.execute(
-        "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, candidates_json) "
-        "VALUES(?,?,?,?,?)",
+        "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, "
+        "candidates_json, input_tokens, output_tokens, cache_read_tokens, "
+        "cache_write_tokens) VALUES(?,?,?,?,?,?,?,?,?)",
         (channel["id"], model, round(cost, 4), searches,
-         json.dumps({"unparsed": text[:20000]}, ensure_ascii=False))).lastrowid
+         json.dumps({"unparsed": text[:20000]}, ensure_ascii=False),
+         in_tok, out_tok, cache_read, cache_write)).lastrowid
     conn.commit()
 
     candidates = parse_candidates(text)
@@ -172,6 +218,11 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
                  (json.dumps(candidates, ensure_ascii=False), run_id))
     conn.commit()
     usable = sum(1 for c in candidates if c.get("verified") is not False)
+    cached_pct = (100 * cache_read / (in_tok + cache_read + cache_write)
+                  if (in_tok + cache_read + cache_write) else 0)
     print(f"[curate] {len(candidates)} candidates ({usable} usable), "
           f"{searches} searches, ${cost:.3f} ({model})")
+    print(f"[curate] tokens: {in_tok:,} in · {out_tok:,} out · "
+          f"{cache_read:,} cache-read ({cached_pct:.0f}% of input served from "
+          f"cache) · {cache_write:,} cache-write")
     return candidates

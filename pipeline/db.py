@@ -85,7 +85,15 @@ CREATE TABLE IF NOT EXISTS curation_runs(
   searches INTEGER,
   candidates_json TEXT,
   taste_profile_text TEXT,
-  created_at TEXT DEFAULT (datetime('now'))
+  created_at TEXT DEFAULT (datetime('now')),
+  -- Token breakdown (Entry 28). Without these, "why did that batch cost $1.55?"
+  -- can only be back-solved from the total, which is how the cache-read lever
+  -- stayed invisible for two batches. Recorded so the next cost question is
+  -- answered from data.
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  cache_read_tokens INTEGER,
+  cache_write_tokens INTEGER
 );
 
 -- AMENDMENT_05 A (BINDING 2026-07-18): one key-value row per setting.
@@ -154,7 +162,20 @@ def connect(db_path=None, init=True) -> sqlite3.Connection:
                      tuple(DEFAULT_CHANNEL.values()))
         conn.commit()
     _migrate_source_ref(conn)
+    _migrate_curation_tokens(conn)
     return conn
+
+
+def _migrate_curation_tokens(conn):
+    """Entry 28: per-run token counts on curation_runs. Pre-migration rows keep
+    NULL — the totals they recorded are still true, the breakdown just wasn't
+    captured, and backfilling it would be inventing numbers."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(curation_runs)")}
+    for col in ("input_tokens", "output_tokens", "cache_read_tokens",
+                "cache_write_tokens"):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE curation_runs ADD COLUMN {col} INTEGER")
+    conn.commit()
 
 
 def _migrate_source_ref(conn):
