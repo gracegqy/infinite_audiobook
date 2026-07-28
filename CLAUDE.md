@@ -76,7 +76,8 @@ scripts/             # one-off tools
 ## Session-close ritual (every working session, ~3 minutes)
 
 1. **JOURNAL entry** for anything decided or changed (with the "measurements invalidated"
-   line where applicable).
+   line where applicable). JOURNAL.md is **reverse chronological** — PREPEND the new
+   entry directly under the header block, never append to the bottom.
 2. **STATE reconciled** — next-actions current, completed items deleted, "reconciled
    through Entry N" stamp updated. If STATE wasn't touched, say so explicitly rather than
    assuming it still holds.

@@ -18,8 +18,53 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import config, curate, db, renderjob, worker
+from pipeline import config, curate, db, renderjob, sources, worker
 from pipeline.models import OffsetsManifest, StoryMeta
+
+# Settings copy for the curation modes. Kept beside the API rather than in the
+# frontend so the cost figures and the coverage answer have ONE source — the
+# Entry-29 UI hardcoded its two descriptions in JSX and they went stale the
+# moment a third mode existed.
+CURATION_MODE_LABELS = {
+    "free": ("free — $0", "Builds the pool from every free source covering "
+             "this channel, ranked by each source's own reputation metadata. "
+             "No model call at all, and references come from the sources as "
+             "fields so they are never guessed wrong. What it lacks is taste: "
+             "within a source's recognised set the ordering is arbitrary, so "
+             "expect obscure work beside the canon."),
+    "free_llm": ("free sources + AI picks — ~$0.03", "Same free sources, but "
+                 "the model chooses from the shortlist they produce. It picks "
+                 "by index, so it cannot invent a reference — and with no web "
+                 "search a batch costs a few cents. It cannot reach beyond the "
+                 "sources listed below."),
+    "llm": ("AI web search — ~$0.75", "Paid curation with web search: the only "
+            "mode that can reach beyond the free sources, verifying reputation "
+            "against named lists it finds live. Its weak point is the "
+            "reference, which it can still get wrong, and cost scales with "
+            "batch size (3 searches per candidate)."),
+}
+
+
+def curation_mode_info(conn) -> list[dict]:
+    """Per-mode label/description plus, for the free modes, which registered
+    sources cover the ACTIVE channel and which do not and why."""
+    channel = db.active_channel(conn)
+    covering, skipped = sources.for_channel(channel)
+    src_info = ([{"name": s.name, "covers": True, "reason": s.covers(channel)[1]}
+                 for s in covering]
+                + [{"name": s.name, "covers": False, "reason": why}
+                   for s, why in skipped])
+    out = []
+    for mode in db.CURATION_MODES:
+        label, desc = CURATION_MODE_LABELS.get(mode, (mode, ""))
+        entry = {"mode": mode, "label": label, "description": desc}
+        if mode in ("free", "free_llm"):
+            entry["sources"] = src_info
+            entry["available"] = bool(covering)
+        else:
+            entry["available"] = True
+        out.append(entry)
+    return out
 
 FRONTEND_DIST = config.ROOT / "app" / "frontend" / "dist"
 
@@ -454,9 +499,15 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return {
             "curation_model": db.effective_curation_model(c),
             "curation_model_options": sorted(config.MODEL_PRICING),
-            # Entry 29: how the pool is built. Grace's choice, never automatic.
+            # Entry 29/32: how the pool is built. Grace's choice, never
+            # automatic. The mode descriptions and the free-source coverage
+            # come from the pipeline, not the frontend, so a channel that no
+            # free source covers says so HERE rather than failing later at
+            # build time (AMENDMENT_01: nothing outside the channel row assumes
+            # horror).
             "curation_mode": db.effective_curation_mode(c),
             "curation_mode_options": list(db.CURATION_MODES),
+            "curation_modes": curation_mode_info(c),
             "default_voices": {lang: db.effective_voice(c, lang)
                                for lang in config.VOICE_OPTIONS},
             "quality_notice": (

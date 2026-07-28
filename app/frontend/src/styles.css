@@ -67,6 +67,11 @@ h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
 .card-sub { color: var(--dim); font-size: 0.85rem; }
 .card-ev { color: var(--dim); font-size: 0.75rem; margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Free-source coverage under the curation-mode picker. Wraps rather than
+   truncating: an "off" row's reason is the whole point of showing it. */
+.sources { list-style: none; padding: 0; margin: 6px 0 0; }
+.sources li { margin-top: 4px; line-height: 1.35; }
+.sources li.off { opacity: 0.65; }
 .card-actions { display: flex; flex-direction: column; gap: 6px; align-items: end; }
 .empty, .error { color: var(--dim); text-align: center; margin-top: 30px; }
 .error { color: var(--danger); }

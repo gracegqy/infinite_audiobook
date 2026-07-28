@@ -35,33 +35,7 @@ export default function Settings() {
       )}
 
       <h2 className="group">Curation mode</h2>
-      <div className="card">
-        <div className="card-main">
-          <select value={s.curation_mode}
-                  onChange={(e) => save({ curation_mode: e.target.value })}>
-            {(s.curation_mode_options || []).map((m) => (
-              <option key={m} value={m}>
-                {m === "catalog"
-                  ? "catalog — free"
-                  : "llm — paid, better reputation"}
-              </option>
-            ))}
-          </select>
-          <div className="card-sub">
-            {s.curation_mode === "catalog"
-              ? "Builds the pool from Project Gutenberg's own catalog: $0, no API "
-                + "call, and ebook ids come from the catalog so they are never "
-                + "guessed wrong. Public-domain classics only — no creepypasta — "
-                + "and reputation is Gutenberg's bookshelves and subject headings "
-                + "rather than a critic's list, so expect some obscure pulp "
-                + "alongside the canon."
-              : "Paid curation with web search: verifies reputation against named "
-                + "lists and covers both classics and modern web horror. Costs "
-                + "roughly $0.2–0.5 per batch with caching on. Its weak point is "
-                + "the ebook id, which it can still get wrong."}
-          </div>
-        </div>
-      </div>
+      <CurationMode s={s} onPick={(m) => save({ curation_mode: m })} />
 
       <h2 className="group">Curation model</h2>
       <div className="card">
@@ -91,6 +65,45 @@ export default function Settings() {
         </div>
       ))}
       {saved && <p className="empty">{saved}</p>}
+    </div>
+  );
+}
+
+// Labels, costs and source coverage all come from /api/settings — the previous
+// version hardcoded two mode descriptions here and they described the wrong
+// thing the moment a third mode existed. Coverage is per ACTIVE CHANNEL: a
+// non-horror channel must be able to see that the horror-only source is off.
+function CurationMode({ s, onPick }) {
+  const modes = s.curation_modes || [];
+  const current = modes.find((m) => m.mode === s.curation_mode);
+  const sources = current?.sources;
+  return (
+    <div className="card">
+      <div className="card-main">
+        <select value={s.curation_mode} onChange={(e) => onPick(e.target.value)}>
+          {modes.map((m) => (
+            <option key={m.mode} value={m.mode}>{m.label}</option>
+          ))}
+        </select>
+        <div className="card-sub">{current?.description}</div>
+
+        {sources && (
+          <div className="card-sub">
+            {current.available
+              ? "Free sources for this channel:"
+              : "⚠ No free source covers this channel — a pool build in this "
+                + "mode will stop with an explanation instead of running. "
+                + "Switch to AI web search, or add a source."}
+            <ul className="sources">
+              {sources.map((src) => (
+                <li key={src.name} className={src.covers ? "on" : "off"}>
+                  {src.covers ? "✓" : "—"} <strong>{src.name}</strong>: {src.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

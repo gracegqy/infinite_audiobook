@@ -111,24 +111,30 @@ app ≥5 min, kill and reopen → resumes within 2 s of pause point. Evidence in
 > tell me when you need me to test."*
 
 ## Phase 5 — Queue automation, sync, channels UI   · Owner: Claude Code
-**Status: [IN PROGRESS] (2026-07-28)** — worker + channels editor built; 151
-tests green. **Two of three gate criteria PASSED:** queue self-healed 1→3/3 in
-one cycle, artifact-verified with no all-time title repeats (Entry 27); phone
-highlight tracking confirmed by Grace (Entry 26). **Owed to close:** the
-channel-edit curation diff (needs one authorized batch), Grace's scrubber
-re-check after the view lock, and `/code-review`. Also owed: the Entry-28 prompt
-rebalance was never verified end-to-end — its verification run is the one that
-exposed the unbounded pause-turn loop and was killed at 70 min (Entry 29).
+**Status: [IN PROGRESS] (2026-07-28)** — worker + channels editor built; 189
+tests green. **ALL THREE gate criteria PASSED:** queue self-healed 1→3/3 in one
+cycle, artifact-verified with no all-time title repeats (Entry 27); phone
+highlight tracking confirmed by Grace (Entry 26); channel-edit curation diff run
+live in free_llm mode — excluding Lovecraft/cosmic horror dropped exactly the
+two Lovecraft titles and replaced them, $0.0264 for both halves (Entry 32).
+Grace confirmed the scrubber still drags after the view lock (Entry 32).
+**Owed to close:** `/code-review` on the Phase 5 + Entry 28-32 diffs.
+The Entry-28 paid-path prompt rebalance is still unverified end-to-end and is
+now unlikely to be — free_llm reaches the same goal structurally (Entry 32), so
+the paid prompt matters only for reach beyond the registered free sources.
 Bugs found and fixed across this phase: arbitrary acquisition order (now
 `rowid`), failed references blacklisting real story titles (refs and titles now
 excluded separately), the sticky player's hardcoded 52 px offset against a 63 px
 header, and — the serious one — `run_curation`'s `while True:` pause-turn loop
 with the cost ledger written only after it exited, i.e. unbounded AND invisible
 spend (now capped at 12 turns and always ledgered).
-Curation economics reworked (Entries 28-29): prompt caching serves ~93% of input
-from cache ($1.05 → $0.23 per batch), search budget scales with batch size, and
-a free `catalog` curation mode is selectable in Settings beside the paid `llm`
-one.
+Curation economics reworked (Entries 28-29, 32): prompt caching serves ~93% of
+input from cache ($1.05 → $0.23 per batch) and the search budget scales with
+batch size. Then Entry 32 removed the need for search on the routine path — a
+registry of free sources (`pipeline/sources.py`) supplies verified references
+and reputation as fields, so three modes now sit in Settings: `free` ($0),
+`free_llm` (**measured $0.0176** for 12 candidates), and `llm` (~$0.75, the only
+one that reaches beyond the registered sources).
 
 **Goal:** The self-sustaining part of the brief.
 **Actions:** replenishment worker (unread < 3 → curate/fetch/synthesize; dedup against

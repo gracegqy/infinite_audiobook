@@ -58,6 +58,32 @@ CURATION_EFFORT = "medium"
 # replenishment consumes stored candidates at $0 marginal.
 POOL_BATCH_SIZE = 40
 
+# free_llm mode (Entry 32): the model picks POOL_BATCH_SIZE candidates from a
+# shortlist this many times larger, assembled free by pipeline/sources.py. The
+# shortlist is the whole cost — it is plain text, ~20 tokens a line — so a wide
+# one is nearly free and gives the pick something to actually choose between.
+# Capped so a source that grows to thousands of entries cannot quietly inflate
+# the prompt.
+FREE_SHORTLIST_MULTIPLIER = 6
+FREE_SHORTLIST_MAX = 400
+# Selection is pick-from-a-supplied-list against explicit criteria, not research:
+# there is nothing unknown to reason toward, and adaptive thinking defaults ON at
+# `high` on Sonnet 5. Raise to "medium" if the picks ever read as arbitrary.
+SELECTION_EFFORT = "low"
+SELECTION_MAX_TOKENS = 4000
+# Ask the selection call for this many picks BEYOND the batch. The free verifier
+# still rejects some picks — the first real run lost 2 of 12 to Gutenberg
+# collection volumes — and a spare costs ~20 output tokens where a re-run costs
+# another whole call. Spares also refill the balance quota when a reject empties
+# one side.
+SELECTION_SPARES = 6
+
+
+def free_shortlist_size(batch: int) -> int:
+    """How many free candidates to put in front of the model for a batch of
+    `batch` — the single copy, so the pool build and any estimate agree."""
+    return min(FREE_SHORTLIST_MAX, max(batch, batch * FREE_SHORTLIST_MULTIPLIER))
+
 # $/M tokens (in, out) + $/search, for the curation_runs cost ledger (R11).
 # Cache multipliers are Anthropic's published ratios: a cache READ costs 0.1x
 # base input, a 5-minute cache WRITE costs 1.25x. Those are what make the

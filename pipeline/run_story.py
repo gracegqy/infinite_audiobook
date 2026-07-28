@@ -8,7 +8,7 @@ Run: .venv/bin/python -m pipeline.run_story                 # $0: consume pool
 """
 import sys
 
-from . import catalog, config, curate, db, fetch, ingest, pool
+from . import config, curate, db, fetch, freepool, ingest, pool, sources
 
 
 def main(argv: list[str]) -> int:
@@ -18,22 +18,31 @@ def main(argv: list[str]) -> int:
           f"language={channel['language']})")
 
     if "--build-pool" in argv:
-        # Entry 29: which builder runs is Grace's `curation_mode` setting —
-        # catalog is $0, llm is paid. Never chosen automatically.
+        # Entry 29/32: which builder runs is Grace's `curation_mode` setting —
+        # free is $0, free_llm ~$0.03, llm paid. Never chosen automatically.
         mode = db.effective_curation_mode(conn)
         print(f"[pool] curation_mode={mode}")
-        if mode == "catalog":
-            candidates = catalog.build_pool(conn, channel,
-                                            limit=config.POOL_BATCH_SIZE)
-        else:
-            candidates = curate.run_curation(conn, channel,
-                                             batch=config.POOL_BATCH_SIZE)
+        try:
+            if mode in ("free", "free_llm"):
+                candidates = freepool.build_pool(
+                    conn, channel, limit=config.POOL_BATCH_SIZE,
+                    use_llm=(mode == "free_llm"))
+            else:
+                candidates = curate.run_curation(conn, channel,
+                                                 batch=config.POOL_BATCH_SIZE)
+        except sources.NoFreeSource as e:
+            # A channel no free source covers is a real answer, not a crash —
+            # and the fix is Grace's (switch mode, or add a source), so say both.
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 2
     else:
         candidates = pool.pool_candidates(conn)
         if not candidates:
             mode = db.effective_curation_mode(conn)
-            cost = ("$0, no API call" if mode == "catalog"
-                    else f"PAID on {db.effective_curation_model(conn)}")
+            cost = {"free": "$0, no API call",
+                    "free_llm": f"~$0.03 on {db.effective_curation_model(conn)}, "
+                                "no web search"}.get(
+                        mode, f"PAID on {db.effective_curation_model(conn)}")
             print("Pool is empty. Refill with:  python -m pipeline.run_story "
                   f"--build-pool  ({cost}; curation_mode={mode}, "
                   f"~{config.POOL_BATCH_SIZE} candidates). Switch modes in the "

@@ -68,6 +68,42 @@ Return ONLY a JSON array (no prose around it), each element:
 
 CURATION_BATCH_SIZE_DEFAULT = config.CURATION_BATCH_SIZE
 
+# Selection prompt (free_llm mode, Entry 32). The model never names a story and
+# never supplies a reference — it returns INDICES into a list the pipeline
+# built from free sources. A hallucinated ref is therefore not mitigated, it is
+# impossible: every field except the rationale comes from the source adapter.
+# No web search tool is attached, which is where ~half the paid path's cost went.
+SELECTION_TEMPLATE = """You are the curator for a private read-aloud fiction \
+library (single listener, personal use).
+
+Below are {n} candidate stories the pipeline already found and length-checked.
+Choose the {batch} BEST for this channel:
+- Genre: {genre}
+- Language: {language}
+- Topics/themes: {topics}
+- Era: {era}
+- Avoid: {avoid}
+- Extra criteria: {extra}
+
+Judge on literary quality and how well each fits the criteria above, using what
+you know of these works. You have no web access here — if you do not recognise a
+title, judge it on its stated reputation evidence and length, and say so in your
+reason rather than inventing a claim about it.
+{balance}
+CANDIDATES:
+{listing}
+
+Return ONLY a JSON array of {ask} objects, BEST FIRST, no prose around it:
+[{{"i": <index from the list above>, "why": "<one sentence>"}}, ...]
+Use each index at most once. Never invent an index that is not listed.
+Rank {ask} rather than {batch}: some references fail a mechanical length check
+afterwards, and the extras replace them without another round."""
+
+BALANCE_CLAUSE = """
+BALANCE: the list mixes {classes}. Rank good picks from EACH kind — the pipeline
+enforces the final split itself, so ranking only one kind just wastes your picks.
+"""
+
 SOURCE_HINTS = {
     "en": "Project Gutenberg plain text (public domain) or creepypasta-wiki pages",
     "fr": "Project Gutenberg plain text (French-language public domain)",
@@ -211,14 +247,10 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
             + searches * config.WEB_SEARCH_COST)
     text = "\n".join(b.text for b in (response.content if response else [])
                      if b.type == "text")
-    run_id = conn.execute(
-        "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, "
-        "candidates_json, input_tokens, output_tokens, cache_read_tokens, "
-        "cache_write_tokens) VALUES(?,?,?,?,?,?,?,?,?)",
-        (channel["id"], model, round(cost, 4), searches,
-         json.dumps({"unparsed": text[:20000]}, ensure_ascii=False),
-         in_tok, out_tok, cache_read, cache_write)).lastrowid
-    conn.commit()
+    run_id = db.record_curation_run(
+        conn, channel["id"], model, cost, searches,
+        json.dumps({"unparsed": text[:20000]}, ensure_ascii=False),
+        in_tok, out_tok, cache_read, cache_write)
 
     candidates = parse_candidates(text, batch)
     # Verify references mechanically before they reach the pool (Entry 25).
@@ -227,9 +259,8 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
     if verify_refs:
         print(f"[curate] verifying {len(candidates)} references (no API cost)…")
         candidates = verify.annotate(candidates)
-    conn.execute("UPDATE curation_runs SET candidates_json=? WHERE id=?",
-                 (json.dumps(candidates, ensure_ascii=False), run_id))
-    conn.commit()
+    db.update_curation_candidates(
+        conn, run_id, json.dumps(candidates, ensure_ascii=False))
     usable = sum(1 for c in candidates if c.get("verified") is not False)
     cached_pct = (100 * cache_read / (in_tok + cache_read + cache_write)
                   if (in_tok + cache_read + cache_write) else 0)
@@ -239,3 +270,157 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
           f"{cache_read:,} cache-read ({cached_pct:.0f}% of input served from "
           f"cache) · {cache_write:,} cache-write")
     return candidates
+
+
+# ---- free_llm selection (Entry 32): taste over a supplied list, no search ----
+
+def apply_class_quotas(candidates: list[dict], batch: int) -> list[dict]:
+    """Re-order the model's ranked picks so the FIRST `batch` are spread evenly
+    across source classes, with the rest kept behind them as spares.
+
+    Balance is enforced here, in code, and not asked for in the prompt. Entries
+    27-28 spent two paid batches and two prompt rewrites discovering that a
+    model told to balance will still return what it recognises best — the first
+    free_llm run came back 9 Gutenberg / 3 creepypasta off a 36/36 shortlist.
+    The model is good at ranking within a kind; it should not also be trusted to
+    hold a ratio. Nothing is discarded: a class with too few picks simply yields
+    its unused places to the next-ranked candidates.
+    """
+    buckets: dict[str, list[dict]] = {}
+    for c in candidates:
+        buckets.setdefault(c.get("source_class") or "?", []).append(c)
+    if len(buckets) < 2:
+        return list(candidates)
+
+    head, taken = [], set()
+    while len(head) < batch:
+        progressed = False
+        for bucket in buckets.values():         # round-robin = even split
+            for c in bucket:
+                if id(c) in taken:
+                    continue
+                head.append(c)
+                taken.add(id(c))
+                progressed = True
+                break
+            if len(head) >= batch:
+                break
+        if not progressed:                      # every bucket exhausted
+            break
+    tail = [c for c in candidates if id(c) not in taken]  # spares, rank order
+    return head + tail
+
+
+def build_selection_prompt(channel, candidates: list[dict], batch: int,
+                           ask: int | None = None) -> str:
+    classes = sorted({c.get("source_class") or "?" for c in candidates})
+    listing = "\n".join(
+        f"[{i}] {c['title']}"
+        + (f" — {c['author']}" if c.get("author") else "")
+        + f" ({c.get('source_class')}"
+        + (f", {c['evidence'][0]}" if c.get("evidence") else "")
+        + ")"
+        for i, c in enumerate(candidates))
+    return SELECTION_TEMPLATE.format(
+        n=len(candidates), batch=batch, ask=ask or batch,
+        genre=channel["genre"] or "any",
+        language=channel["language"],
+        topics=", ".join(channel_list_field(channel, "topics_json")) or "any",
+        era=channel["era"] or "any",
+        avoid=", ".join(channel_list_field(channel, "exclusions_json")) or "nothing",
+        extra=channel["extra_criteria"] or "none",
+        balance=(BALANCE_CLAUSE.format(classes=" and ".join(classes))
+                 if len(classes) > 1 else ""),
+        listing=listing)
+
+
+def parse_selection(text: str, n: int, batch: int) -> list[tuple[int, str]]:
+    """[(index, why)] — every index validated against the list that was sent.
+    An out-of-range index is dropped rather than trusted: it is the one way this
+    mode could still point at something that does not exist."""
+    m = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", text, re.S) or \
+        re.search(r"(\[\s*\{.*\}\s*\])", text, re.S)
+    if not m:
+        raise ValueError(
+            "selection returned prose, not JSON — its text is stored in the "
+            "curation_runs ledger row; read it before re-running.")
+    out, seen = [], set()
+    for item in json.loads(m.group(1)):
+        try:
+            i = int(item["i"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (0 <= i < n) or i in seen:
+            continue
+        seen.add(i)
+        out.append((i, str(item.get("why") or "").strip()))
+    return out[:batch]
+
+
+def run_selection(conn, channel, candidates: list[dict], batch: int,
+                  log=print) -> tuple[list[dict], int]:
+    """(chosen candidates, ledger run id). One zero-search selection call over
+    `candidates`. Writes its own R11
+    ledger row like every other pool build. On any failure the free candidates
+    are returned in source order — degrading to the $0 path is safe because
+    every candidate is already real and length-checked, but it is logged and
+    stamped on the candidates rather than passed off as a successful pick."""
+    client = config.anthropic_client()
+    model = db.effective_curation_model(conn)
+    ask = min(len(candidates), batch + config.SELECTION_SPARES)
+    prompt = build_selection_prompt(channel, candidates, batch, ask=ask)
+
+    response = client.messages.create(
+        model=model,
+        max_tokens=config.SELECTION_MAX_TOKENS,
+        # No `tools`: the whole point of this mode is that search is unnecessary
+        # once the sources supply verified references.
+        output_config={"effort": config.SELECTION_EFFORT},
+        messages=[{"role": "user", "content": prompt}],
+    )
+    u = response.usage
+    in_tok, out_tok = u.input_tokens, u.output_tokens
+    cache_read = u.cache_read_input_tokens or 0
+    cache_write = u.cache_creation_input_tokens or 0
+    price_in, price_out = config.model_pricing(model)
+    cost = (in_tok / 1e6 * price_in
+            + cache_read / 1e6 * price_in * config.CACHE_READ_MULTIPLIER
+            + cache_write / 1e6 * price_in * config.CACHE_WRITE_MULTIPLIER
+            + out_tok / 1e6 * price_out)
+    text = "\n".join(b.text for b in response.content if b.type == "text")
+
+    run_id = db.record_curation_run(
+        conn, channel["id"], model, cost, 0,
+        json.dumps({"unparsed": text[:20000]}, ensure_ascii=False),
+        in_tok, out_tok, cache_read, cache_write)
+
+    try:
+        picks = parse_selection(text, len(candidates), ask)
+    except ValueError as e:
+        log(f"[select] WARNING: {e}")
+        picks = []
+    if picks:
+        chosen = []
+        for i, why in picks:
+            c = dict(candidates[i])
+            if why:
+                c["selection_note"] = why
+            chosen.append(c)
+        chosen = apply_class_quotas(chosen, batch)
+    else:
+        log(f"[select] falling back to source order — no usable picks. "
+            f"Cost ${cost:.4f} is still recorded (ledger row {run_id}).")
+        chosen = [dict(c) for c in candidates[:ask]]
+        for c in chosen:
+            c["unverified"] = list(c.get("unverified") or []) + [
+                "model selection failed; this candidate was taken in source "
+                "order, so no taste judgement was applied"]
+
+    mix = {}
+    for c in chosen[:batch]:
+        mix[c.get("source_class") or "?"] = mix.get(c.get("source_class") or "?", 0) + 1
+    log(f"[select] {len(chosen)} ranked ({len(candidates)} offered), "
+        f"top {batch} = " + ", ".join(f"{n} {k}" for k, n in sorted(mix.items()))
+        + f"; 0 searches, ${cost:.4f} ({model})")
+    log(f"[select] tokens: {in_tok:,} in · {out_tok:,} out")
+    return chosen, run_id

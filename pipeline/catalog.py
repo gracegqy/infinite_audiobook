@@ -237,37 +237,7 @@ def read_rows(path=None):
         return list(csv.DictReader(fh))
 
 
-LEDGER_MODEL = "gutenberg-catalog"  # not a model; recorded so cost is auditable
-
-
-def build_pool(conn, channel=None, limit: int = config.POOL_BATCH_SIZE,
-               verify_refs: bool = True, log=print) -> list[dict]:
-    """Catalog-mode pool build. Costs $0: one HTTP download (cached 30 days) and
-    no model call. Writes the same `curation_runs` row shape as the paid path —
-    with cost 0 and model 'gutenberg-catalog' — so pool/worker/verify treat the
-    result identically and the R11 ledger still accounts for every pool build,
-    including the free ones."""
-    import json
-
-    from . import db, verify
-    channel = channel or db.active_channel(conn)
-    fetch_catalog(log=log)
-    rows = read_rows()
-    cands = select(rows, channel, db.known_titles(conn), limit)
-    log(f"[catalog] {len(rows):,} catalog records → {len(cands)} candidates "
-        f"for channel '{channel['name']}' ($0, no API call)")
-
-    if verify_refs and cands:
-        log(f"[catalog] verifying {len(cands)} references (no API cost)…")
-        cands = verify.annotate(cands, log=log)
-
-    conn.execute(
-        "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, "
-        "candidates_json, input_tokens, output_tokens, cache_read_tokens, "
-        "cache_write_tokens) VALUES(?,?,0,0,?,0,0,0,0)",
-        (channel["id"], LEDGER_MODEL,
-         json.dumps(cands, ensure_ascii=False)))
-    conn.commit()
-    usable = sum(1 for c in cands if c.get("verified") is not False)
-    log(f"[catalog] {len(cands)} candidates ({usable} usable), $0.00")
-    return cands
+# The pool build that used to live here moved to pipeline/freepool.py in Entry
+# 32, when Gutenberg stopped being the only free source. What remains is the
+# catalog-specific logic, which `sources.GutenbergCatalogSource` drives — one
+# build path for every free source rather than one per source.

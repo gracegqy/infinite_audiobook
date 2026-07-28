@@ -222,18 +222,53 @@ def set_setting(conn, key: str, value: str):
     conn.commit()
 
 
-# Entry 29: how the pool gets built. "catalog" = Gutenberg's own catalog, $0, no
-# API call, ebook ids are a field rather than a guess — but reputation evidence
-# is catalog metadata. "llm" = paid curation with web-verified named lists and
-# both source classes (creepypasta included). Grace's choice, never automatic.
-CURATION_MODES = ("catalog", "llm")
+# How the pool gets built (Entry 29, extended Entry 32). Grace's choice, never
+# automatic. Cost figures are per batch of ~12 on 2026-07-28 pricing.
+#
+#   free     — every free source covering the channel (pipeline/sources.py),
+#              ranked heuristically. $0, no model call at all.
+#   free_llm — same free sources, but the model PICKS from the supplied list.
+#              ~$0.03: no web search, and it cannot invent a reference because
+#              it only chooses indices from candidates the pipeline found.
+#   llm      — paid curation with web search. ~$0.75. The only mode that can
+#              reach beyond the registered free sources.
+CURATION_MODES = ("free", "free_llm", "llm")
+# "catalog" was the Entry-29 name for what is now `free`, back when Gutenberg
+# was the only free source. Mapped rather than migrated so an existing setting
+# keeps working and means the same thing (Gutenberg still covers that channel).
+CURATION_MODE_ALIASES = {"catalog": "free"}
+DEFAULT_CURATION_MODE = "llm"
 
 
 def effective_curation_mode(conn) -> str:
     """Grace's curation-mode setting, defaulting to the paid LLM path so this
     never silently changes what an existing install does."""
-    mode = get_setting(conn, "curation_mode", "llm")
-    return mode if mode in CURATION_MODES else "llm"
+    mode = get_setting(conn, "curation_mode", DEFAULT_CURATION_MODE)
+    mode = CURATION_MODE_ALIASES.get(mode, mode)
+    return mode if mode in CURATION_MODES else DEFAULT_CURATION_MODE
+
+
+def record_curation_run(conn, channel_id: int, model: str, cost_usd: float,
+                        searches: int, candidates_json: str,
+                        in_tok: int = 0, out_tok: int = 0,
+                        cache_read: int = 0, cache_write: int = 0) -> int:
+    """The single copy of the R11 ledger write. Every pool build lands here —
+    paid, free, and aborted alike — so 'what has curation cost' is always one
+    query and a free build can never be mistaken for a missing row."""
+    run_id = conn.execute(
+        "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, "
+        "candidates_json, input_tokens, output_tokens, cache_read_tokens, "
+        "cache_write_tokens) VALUES(?,?,?,?,?,?,?,?,?)",
+        (channel_id, model, round(cost_usd, 4), searches, candidates_json,
+         in_tok, out_tok, cache_read, cache_write)).lastrowid
+    conn.commit()
+    return run_id
+
+
+def update_curation_candidates(conn, run_id: int, candidates_json: str):
+    conn.execute("UPDATE curation_runs SET candidates_json=? WHERE id=?",
+                 (candidates_json, run_id))
+    conn.commit()
 
 
 def effective_curation_model(conn) -> str:

@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.server import create_app
-from pipeline import catalog, db
+from pipeline import catalog, db, sources
 
 
 def row(text_id, title, subjects="Horror tales", shelves="Category: Short Stories",
@@ -134,10 +134,18 @@ def test_mode_defaults_to_llm_so_nothing_changes_silently(conn):
 
 
 def test_mode_roundtrips_and_rejects_garbage(conn):
-    db.set_setting(conn, "curation_mode", "catalog")
-    assert db.effective_curation_mode(conn) == "catalog"
+    db.set_setting(conn, "curation_mode", "free")
+    assert db.effective_curation_mode(conn) == "free"
     db.set_setting(conn, "curation_mode", "nonsense")
     assert db.effective_curation_mode(conn) == "llm"  # falls back, never crashes
+
+
+def test_catalog_mode_name_still_resolves(conn):
+    """Entry 32 renamed `catalog` → `free` (it is no longer Gutenberg-only). A
+    stored setting from before the rename must keep meaning the same thing, not
+    silently fall back to the PAID default."""
+    db.set_setting(conn, "curation_mode", "catalog")
+    assert db.effective_curation_mode(conn) == "free"
 
 
 @pytest.fixture()
@@ -153,10 +161,28 @@ def client(tmp_path):
 def test_settings_exposes_and_accepts_mode(client):
     body = client.get("/api/settings").json()
     assert body["curation_mode"] == "llm"
-    assert set(body["curation_mode_options"]) == {"catalog", "llm"}
+    assert set(body["curation_mode_options"]) == {"free", "free_llm", "llm"}
     assert client.put("/api/settings",
-                      json={"curation_mode": "catalog"}).json()["curation_mode"] \
-        == "catalog"
+                      json={"curation_mode": "free"}).json()["curation_mode"] \
+        == "free"
+
+
+def test_settings_describes_every_mode_and_its_free_sources(client):
+    """The UI renders whatever this returns, so a mode missing a label or a
+    cost would ship as a blank dropdown entry (the Entry-30 symptom)."""
+    body = client.get("/api/settings").json()
+    modes = {m["mode"]: m for m in body["curation_modes"]}
+    assert set(modes) == set(body["curation_mode_options"])
+    for m in modes.values():
+        assert m["label"] and m["description"]
+        assert "$" in m["label"]  # every mode states its cost up front
+    # free modes carry per-source coverage for the ACTIVE channel; llm does not
+    assert modes["free"]["sources"] and modes["free_llm"]["sources"]
+    assert "sources" not in modes["llm"]
+    names = {s["name"] for s in modes["free"]["sources"]}
+    assert names == {s.name for s in sources.REGISTRY}
+    for s in modes["free"]["sources"]:
+        assert s["reason"], "a source must explain coverage either way"
 
 
 def test_settings_rejects_unknown_mode(client):
