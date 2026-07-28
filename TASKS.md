@@ -202,10 +202,14 @@ from artifacts; fix or journal every finding. Also owed here: an independent
 `/code-review` pass — Entry 33's was Claude reviewing its own same-session code.
 **Gate:** audit report exists; every severe finding fixed or explicitly risk-accepted in
 JOURNAL; cold-start test from the runbook alone succeeds.
-**[IN PROGRESS]** Entry 37 landed the scheduler, spend cap and backup half. Still owed:
-RUNBOOK, independent `/code-review` (now ~1600 lines of same-session code across
-Entries 33–37), `/security-review`, fresh-session audit. Phase 6 also re-opened —
-its gate was run at batch 12, production is batch 40 (see STATE).
+**[IN PROGRESS]** Entry 37 landed the scheduler, spend cap and backup half.
+**Entry 38 completed RUNBOOK.md** and paid off the per-tag evidence floor. Still owed:
+independent `/code-review` (now ~1750 lines of same-session code across Entries 33–38,
+and Grace must run it — it is blocked on being a fresh session), `/security-review`,
+fresh-session audit, and **the cold-start test from the runbook alone — the literal
+gate, never run**. Phase 6 also re-opened: its gate ran at batch 12, production is
+batch 40, and Entry 38's floor changed the profile the re-gate would measure (see
+STATE next-action 2 — Grace rules before any re-gate spend).
 > Prompt: *"Fresh session, read-only: audit horror_readaloud. Trust nothing in prose;
 > re-derive every STATE/TASKS claim from artifacts. Report gaps."*
 

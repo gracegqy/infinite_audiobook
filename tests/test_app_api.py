@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.server import create_app
-from pipeline import db
+from pipeline import config, db
 
 AUDIO_BYTES = bytes(range(256)) * 4  # fake m4a — range math doesn't care
 
@@ -181,16 +181,41 @@ def test_taste_is_empty_below_the_rating_floor(env):
 
 
 def test_taste_reports_preferences_once_rated(env):
+    # Two stories per subgenre, not one: since Entry 38 a tag needs
+    # TASTE_MIN_N_PER_TAG stories behind it to be reported as a preference.
+    for i, (score, sub) in enumerate([(5, "gothic"), (5, "gothic"),
+                                      (1, "weird"), (1, "weird")]):
+        sid = env.add(f"t{i}", "read")
+        env.client.put(f"/api/ratings/{sid}", json={"score": score})
+        tag_story(env, sid, "subgenre", sub)
+    body = env.client.get("/api/taste").json()
+    assert body["rated_story_count"] == 4
+    assert [r["value"] for r in body["liked"]] == ["gothic"]
+    assert [r["value"] for r in body["disliked"]] == ["weird"]
+    assert "gothic" in body["profile_text"]
+    assert body["min_n_per_tag"] == config.TASTE_MIN_N_PER_TAG
+
+
+def test_a_tag_with_one_story_behind_it_is_shown_but_not_reported(env):
+    """Entry 38, the `weird` defect: a single badly-made story must not become a
+    verdict on its subgenre. The row stays visible on the Trends screen — an
+    invisible tag cannot be overridden — but it is not stated as a preference."""
     for i, (score, sub) in enumerate([(5, "gothic"), (5, "gothic"),
                                       (1, "weird")]):
         sid = env.add(f"t{i}", "read")
         env.client.put(f"/api/ratings/{sid}", json={"score": score})
         tag_story(env, sid, "subgenre", sub)
     body = env.client.get("/api/taste").json()
-    assert body["rated_story_count"] == 3
-    assert [r["value"] for r in body["liked"]] == ["gothic"]
-    assert [r["value"] for r in body["disliked"]] == ["weird"]
-    assert "gothic" in body["profile_text"]
+    assert [r["value"] for r in body["disliked"]] == [], "n=1: no verdict"
+    assert "weird" in [r["value"] for r in body["all"]], "still visible to Grace"
+    assert "weird" not in body["profile_text"]
+
+    # ...and her override forces it back in, verbatim and unshrunk.
+    assert env.client.put("/api/taste/subgenre/weird",
+                          json={"score": 4.0}).status_code == 200
+    body = env.client.get("/api/taste").json()
+    assert [r["value"] for r in body["liked"]] == ["gothic", "weird"]
+    assert "weird [subgenre] (set by the listener: 4.0/5)" in body["profile_text"]
 
 
 def test_taste_flags_when_the_curation_mode_cannot_use_it(env):

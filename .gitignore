@@ -25,5 +25,5 @@ dist/
 *.mp3
 *.m4a
 
-# local DB snapshots (scripts/backup_db.py) — same machine, never committed
+# local DB snapshots (pipeline/backup.py) — same machine, never committed
 backups/

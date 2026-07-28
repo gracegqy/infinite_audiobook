@@ -113,10 +113,12 @@ def test_no_ratings_renders_no_profile_at_all():
 
 
 def test_profile_states_raw_average_and_n():
+    # `weird` gets two stories: since Entry 38 a lone rating is not reportable,
+    # and this test is about the FORMAT, not the floor.
     stats = taste.aggregate(rows(
         ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "gothic", 4),
-        ("s3", "subgenre", "weird", 1)))
-    text = taste.render_profile(stats, 3)
+        ("s3", "subgenre", "weird", 1), ("s4", "subgenre", "weird", 1)))
+    text = taste.render_profile(stats, 4)
     assert "liked: gothic [subgenre] (4.5/5, n=2)" in text
     assert "disliked:" in text and "weird" in text
 
@@ -128,25 +130,100 @@ def test_neutral_tags_appear_in_neither_list():
     assert liked == [] and disliked == []
 
 
+def liked_pair(prefix: str, kind: str, value: str, score: int):
+    """Two stories carrying the same tag — the minimum that clears the Entry-38
+    evidence floor, so cap/spread tests exercise the cap and not the floor."""
+    return rows((f"{prefix}a", kind, value, score),
+                (f"{prefix}b", kind, value, score))
+
+
 def test_cap_spreads_across_kinds_rather_than_taking_one_kind():
     """15 liked themes must not crowd out the single liked era/subgenre."""
-    data = rows(*[("s%d" % i, "theme", "t%d" % i, 5) for i in range(15)])
-    data += rows(("s99", "era", "19th-century", 5),
-                 ("s98", "subgenre", "gothic", 5),
-                 # every kind must vary, else the discriminating-kind rule
-                 # drops it before the cap is ever reached
-                 ("s97", "theme", "bad", 1), ("s97", "era", "contemporary", 1),
-                 ("s97", "subgenre", "weird", 1))
+    data = []
+    for i in range(15):
+        data += liked_pair("t%d" % i, "theme", "t%d" % i, 5)
+    data += liked_pair("e", "era", "19th-century", 5)
+    data += liked_pair("g", "subgenre", "gothic", 5)
+    # every kind must vary, else the discriminating-kind rule drops it before
+    # the cap is ever reached
+    data += liked_pair("x", "theme", "bad", 1)
+    data += liked_pair("y", "era", "contemporary", 1)
+    data += liked_pair("z", "subgenre", "weird", 1)
     liked, _ = taste.split_preferences(taste.aggregate(data), limit=6)
     assert {r["kind"] for r in liked} == {"theme", "era", "subgenre"}
 
 
 def test_cap_yields_places_when_a_kind_runs_out():
-    data = rows(*[("s%d" % i, "theme", "t%d" % i, 5) for i in range(6)])
-    data += rows(("s98", "era", "19th-century", 5), ("s97", "theme", "bad", 1),
-                 ("s97", "era", "contemporary", 1))
+    data = []
+    for i in range(6):
+        data += liked_pair("t%d" % i, "theme", "t%d" % i, 5)
+    data += liked_pair("e", "era", "19th-century", 5)
+    data += liked_pair("x", "theme", "bad", 1)
+    data += liked_pair("y", "era", "contemporary", 1)
     liked, _ = taste.split_preferences(taste.aggregate(data), limit=5)
     assert len(liked) == 5, "one era must not cap the whole profile at 2"
+
+
+# ---- per-tag evidence floor (Entry 38) ----
+
+def test_one_story_is_not_a_verdict_on_its_subgenre():
+    """The `weird` defect: Grace rated ONE badly-made cosmic-horror story a 1,
+    and the profile reported `weird (1.0/5)` — a verdict on a subgenre she
+    likes. Shrinkage did not cover it, because the DISPLAYED figure is the raw
+    average and that is what the model reads."""
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "gothic", 5),
+        ("s3", "subgenre", "weird", 1)))
+    weird = next(r for r in stats if r["value"] == "weird")
+    assert weird["n"] == 1 and weird["shrunk"] < taste.NEUTRAL_SCORE, (
+        "still computed, and still ranked below neutral")
+    _, disliked = taste.split_preferences(stats)
+    assert disliked == [], "but not stated as a preference"
+    assert "weird" not in taste.render_profile(stats, 3)
+
+
+def test_the_floor_is_per_tag_not_per_corpus():
+    """A 20-story corpus does not license a claim about the one tag that
+    appeared once — the two floors answer different questions."""
+    data = rows(*[("s%d" % i, "subgenre", "gothic", 5) for i in range(20)])
+    data += rows(("s99", "subgenre", "weird", 1))
+    _, disliked = taste.split_preferences(taste.aggregate(data))
+    assert [r["value"] for r in disliked] == []
+
+
+def test_a_tag_clears_the_floor_at_exactly_two_stories():
+    """Boundary: TASTE_MIN_N_PER_TAG is inclusive, so n=2 reports."""
+    data = rows(("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "gothic", 5),
+                ("s3", "subgenre", "weird", 1), ("s4", "subgenre", "weird", 1))
+    _, disliked = taste.split_preferences(taste.aggregate(data))
+    assert [r["value"] for r in disliked] == ["weird"]
+
+
+def test_has_evidence_reads_the_configured_floor(monkeypatch):
+    """The floor is a config knob, not a literal 2 buried in the predicate."""
+    monkeypatch.setattr(config, "TASTE_MIN_N_PER_TAG", 3)
+    assert not taste.has_evidence({"n": 2})
+    assert taste.has_evidence({"n": 3})
+
+
+def test_a_manual_override_bypasses_the_evidence_floor():
+    """Grace's correction path for exactly this defect: a stated preference is
+    not an inference from thin evidence, so the floor does not apply to it."""
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "gothic", 5),
+        ("s3", "subgenre", "weird", 1)))
+    merged = taste.apply_overrides(stats, {("subgenre", "weird"): 4.0})
+    liked, _ = taste.split_preferences(merged)
+    assert "weird" in [r["value"] for r in liked]
+
+
+def test_thin_tags_stay_visible_even_though_they_are_not_reported():
+    """They must remain in `all` — a tag Grace cannot see is one she cannot
+    override, and the override is the whole remedy."""
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "gothic", 5),
+        ("s3", "subgenre", "weird", 1)))
+    assert "weird" in [r["value"] for r in stats]
 
 
 # ---- manual overrides (Entry 35) ----

@@ -27,6 +27,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Run from the repo root whatever directory the caller was in. `status` imports
+# `pipeline`, which resolves off the cwd, not off $PY — so without this the
+# script only worked when invoked from the root, and a runbook reader following
+# it from $HOME got a ModuleNotFoundError. Every other path below is absolute,
+# so this is safe for all subcommands.
+cd "$ROOT"
 LABEL="com.gracegu.horror-readaloud.worker"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 PY="$ROOT/.venv/bin/python"

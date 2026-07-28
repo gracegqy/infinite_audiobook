@@ -5,6 +5,127 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 38 — 2026-07-28 — The per-tag evidence floor; RUNBOOK completed; the floor makes the profile honest and much thinner
+
+Paid off standing debt 1, completed the RUNBOOK, and fixed two small things found
+by running commands rather than reading them. The floor's *consequence* is the
+part that needs a ruling.
+
+### What the live profile actually looked like
+
+Before designing anything I rendered the profile the model is sent. It was worse
+than STATE described:
+
+```
+liked: charlotte perkins gilman [author] (5.0/5, n=1), 19th-century [era] (5.0/5, n=1),
+folk [subgenre] (5.0/5, n=1), consequences-of-desire [theme] (5.0/5, n=1), … (8 tags, all n=1)
+disliked: weird [subgenre] (1.0/5, n=1), corporate-horror [theme] (1.0/5, n=1),
+contemporary [era] (2.0/5, n=3), … (8 tags, 5 of them n=1)
+```
+
+**12 of the 16 reported tags had n=1.** And the four strongest-*looking* dislikes
+were all n=1, ranking *above* the three tags with real evidence behind them.
+
+Two mechanisms, not one:
+
+1. **No per-tag floor** (the known debt).
+2. **Shrinkage was assumed to cover it and does not.** `weird`'s shrunk mean is
+   2.33 — mildly below neutral, correctly demoted. But DESIGN §8 fixes the
+   DISPLAYED figure as the raw average, and *the display is what the model
+   reads*. So shrinkage protects the ranking and then the render throws that
+   protection away. A lone 1 arrives looking like the strongest dislike in the
+   profile. That is the actual mechanism behind Grace's Entry-37 correction.
+
+Also visible and worth recording: the `theme` kind is polluted by near-duplicates
+from a single story — The Monkey's Paw alone produced `wishes-and-consequences`,
+`wish-fulfillment-and-consequences`, `consequences-of-desire`, `greed`,
+`greed-and-desire`, `fate-and-wishes`, `fate-and-destiny`, `fate-vs-free-will`,
+`family`, `family-tragedy`, `family-bonds-tested-by-desire`. That is a *tagger*
+defect feeding the taste defect, and it is why themes crowd the profile.
+
+### Built: `taste.has_evidence` + `config.TASTE_MIN_N_PER_TAG = 2`
+
+A tag needs 2 rated stories behind it before the profile states it as a
+preference. Four judgements:
+
+- **Applied in `split_preferences`, not `aggregate`** — `summary`'s `all` list
+  keeps every computed row, so the Trends screen still SHOWS thin tags. A tag
+  that is invisible cannot be overridden, and the override is the remedy.
+- **Manual overrides bypass it**, exactly as they bypass the corpus floor. This
+  is Grace's correction path for `weird`.
+- **2, not 3.** 2 is the smallest n meaning "more than one story agreed"; 3 would
+  empty the liked side completely at the current rating count.
+- **The rendered format was NOT changed.** Displaying the shrunk figure instead
+  of the raw one would fix mechanism 2 directly, but DESIGN §8 is FROZEN and says
+  in as many words: *"Rank on a shrunk mean, display the raw one… the figure
+  SHOWN stays the raw avg + n."* That needs an AMENDMENT, not a scope call —
+  same reasoning that stopped auto-refill in Entry 37. Left for Grace's ruling.
+
+Trends gained a collapsed "N tags with fewer than 2 stories behind them — not
+sent to the curator" section, with the score control live inside it, so a
+held-back tag is one tap from being corrected. Found by checking the JSX rather
+than assuming: the screen renders only `liked`/`disliked` and never `all`, so
+without this the floor would have made those tags invisible — contradicting the
+rationale above.
+
+### The consequence, which is a ruling for Grace
+
+The profile is now honest and **much thinner** — 16 tags to 5, and the liked side
+collapsed to one:
+
+```
+liked: supernatural [subgenre] (3.8/5, n=4)
+disliked: contemporary [era] (2.0/5, n=3), found-footage [subgenre] (2.0/5, n=3),
+creepypasta [theme] (2.0/5, n=3), psychological-deterioration [theme] (2.0/5, n=2)
+```
+
+`weird` is gone — the specific defect is fixed. But every tag that drove Entry
+35's measured effect (gothic, 19th-century, early-20th, folk, all n=1) is now
+silent, so **the profile is nearly dislike-only: it says what to avoid and almost
+nothing about what to seek.** The batch-40 re-gate would now measure that, which
+is a different and weaker instrument than the one Entry 35 used. Not resolved
+here — Grace rules.
+
+### Two things found by running rather than reading
+
+- `scripts/scheduler.sh status` only worked from the repo root: it computes
+  `$ROOT` for every path but the `status` python call inherited the caller's cwd
+  and could not import `pipeline`. A runbook reader following it from `$HOME`
+  would have hit `ModuleNotFoundError`. Fixed with `cd "$ROOT"`; verified from
+  the root, `$HOME` and `/private/tmp`.
+- **The sandbox blocks `git push`** — `credential.helper` is `osxkeychain` and
+  keychain reads are denied, so the helper returns nothing and git tries to
+  prompt on a non-TTY. Recorded in the RUNBOOK; Entry 37's commit was pushed with
+  a one-command sandbox override.
+- `.gitignore` pointed at `scripts/backup_db.py`, deleted in Entry 37.
+
+### RUNBOOK completed
+
+Cold start (clone → venv → keys → frontend → Tailscale), key rotation, the
+scheduler section, the settings table with every knob and its meaning, the spend
+cap, backup incl. the off-machine opt-in and a restore procedure, and a
+troubleshooting table carrying the hard-won ones (the `-u` buffering trap, the
+`afconvert` Mach-lookup failure, the resume-at-end bug). **Its verification
+status is stated in the file**: the scheduler/backup/budget commands were run and
+checked; cold start, key rotation and restore are written from the code and have
+NOT been executed. The cold-start test is itself the Phase 7 gate and is still
+owed.
+
+### State at close
+
+267 tests green (was 260: +7 for the floor, 4 rewritten). Backup taken before the
+change — 20 stories, 6 ratings, integrity ok. Server was NOT running at session
+start and was not started. Scheduler still not installed. Off-machine backup
+still OFF.
+
+Measurements invalidated by this change: **the live taste profile changed
+substantially** — 16 reported tags to 5, and the liked side from 8 tags to 1. Any
+comparison against a profile-driven run from Entry 35 or 37 is now against a
+different instrument. Entry 37's finding (11 of 12 Lovecraft at batch 40) stands
+as a measurement of the OLD profile; the `weird 1.0/5` dislike that made it
+notable no longer exists, so a batch-40 re-gate is now measuring something else
+again. No cost figures change — nothing was spent this session.
+
 ## Entry 37 — 2026-07-28 — Scheduler + spend cap built; the Phase-6 gate does not describe production; an unasked iCloud copy, and the sandbox that followed
 
 Three things happened, and the third is the one that matters most for how future

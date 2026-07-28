@@ -2,7 +2,7 @@
 (kind, value_norm) into a short taste profile that is injected into the curation
 prompt and stored on the run for the gate's before/after diff.
 
-Three judgements are encoded here, because the naive version of each is wrong:
+Four judgements are encoded here, because the naive version of each is wrong:
 
 1. **Shrinkage, not raw averages.** With a handful of ratings most tag values
    have n=1, and a single 5 would otherwise outrank a tag averaging 4.5 over
@@ -23,7 +23,18 @@ Three judgements are encoded here, because the naive version of each is wrong:
    anonymous creepypasta into one bogus "author" the curator cannot act on.
    Values that name no entity are dropped from the author kind only.
 
+4. **One story is not evidence about a genre** (`has_evidence`, Entry 38). A tag
+   needs `config.TASTE_MIN_N_PER_TAG` rated stories behind it before the profile
+   states it as a preference. Shrinkage (1) was assumed to cover this and does
+   not: it moves the RANKING but DESIGN §8 fixes the DISPLAYED number as the raw
+   average, and the display is what the model reads.
+
 Everything above the persistence helper is pure and unit-tested.
+
+Known limit, NOT fixed here (Entry 37, Grace's framing): a 1–5 rating conflates
+"this story was badly made" with "I dislike this kind of story", and only the
+second belongs in a taste profile. No floor can separate them — that needs a
+second signal from the player, and it is a design decision, not a tuning one.
 """
 from . import config
 
@@ -168,17 +179,46 @@ def apply_overrides(stats: list[dict], overrides: dict) -> list[dict]:
     return out
 
 
+def has_evidence(row: dict) -> bool:
+    """Is there enough behind this tag to state it as a preference? (Entry 38)
+
+    `config.TASTE_MIN_RATED_STORIES` floors the CORPUS; this floors each
+    individual CLAIM, and the gap between those two was a real defect: with six
+    ratings, every tag the profile reported but three had n=1, so one badly-made
+    story became `weird [subgenre] (1.0/5)` — a verdict on a whole subgenre
+    Grace actually likes (Entry 37).
+
+    Shrinkage alone did not cover this. It protects the RANKING (weird's shrunk
+    mean is 2.33, mildly below neutral) but DESIGN §8 fixes the DISPLAYED figure
+    as the raw average, and the displayed figure is what the model reads — so a
+    lone 1 still arrives looking like the strongest dislike in the profile.
+
+    Manual overrides bypass the floor, exactly as they bypass the corpus floor:
+    they are the listener stating a preference, not an inference drawn from thin
+    evidence, so there is no degenerate prior to guard against. This is also the
+    mechanism by which Grace corrects a tag the floor has silenced.
+    """
+    return bool(row.get("manual")) or row["n"] >= config.TASTE_MIN_N_PER_TAG
+
+
 def split_preferences(stats: list[dict], limit: int = 8
                       ) -> tuple[list[dict], list[dict]]:
     """(liked, disliked), each capped at `limit`, strongest-first within a kind
     and spread across kinds. Rows whose shrunk mean sits exactly at
     NEUTRAL_SCORE are in neither list: they carry no direction, and padding the
-    profile with them would dilute the ones that do.
+    profile with them would dilute the ones that do. Rows without enough
+    evidence behind them (`has_evidence`) are in neither list either.
+
+    The evidence floor is applied HERE rather than in `aggregate` on purpose:
+    `summary`'s `all` list keeps every computed row so the Trends screen still
+    SHOWS the thin ones. A tag that is invisible cannot be overridden, and the
+    override is the listener's way of saying "this one is right anyway".
     """
+    rows = [r for r in stats if has_evidence(r)]
     liked = _take_across_kinds(
-        [r for r in stats if r["shrunk"] > NEUTRAL_SCORE], limit)
+        [r for r in rows if r["shrunk"] > NEUTRAL_SCORE], limit)
     disliked = _take_across_kinds(
-        sorted((r for r in stats if r["shrunk"] < NEUTRAL_SCORE),
+        sorted((r for r in rows if r["shrunk"] < NEUTRAL_SCORE),
                key=lambda r: (r["shrunk"], -r["n"])), limit)
     return liked, disliked
 
@@ -319,6 +359,9 @@ def summary(conn, channel_id: int | None = None) -> dict:
         "all": stats,
         "profile_text": profile_for(conn, channel_id),
         "min_ratings_for_signal": config.TASTE_MIN_RATED_STORIES,
+        # So the Trends screen can explain why a row in `all` is absent from
+        # liked/disliked, and point at the override as the way to force it in.
+        "min_n_per_tag": config.TASTE_MIN_N_PER_TAG,
         "kinds": sorted({r["kind"] for r in stats}
                         | set(config.CONTROLLED_VOCAB) | {"theme", "author"}),
     }

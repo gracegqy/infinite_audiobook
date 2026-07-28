@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 37 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 38 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -14,7 +14,7 @@
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
 | 6 — Preference adaptation | **RE-OPENED** | Curation demonstrably weighted by ratings | Entry 35 passed a controlled A/A′/B **at batch 12** (noise 1 title, effect 7–8; Lovecraft 7/12 → 0/12). **Entry 37 showed that does not describe production**: the first real build at `POOL_BATCH_SIZE = 40` took **11 of 12** Lovecraft. Mechanism works at the top of the ranking, does not exclude at depth. Grace ruled: record + **re-gate at batch 40** (not yet done) |
-| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). Still owed: RUNBOOK, independent `/code-review`, `/security-review`, fresh-session audit |
+| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). Still owed: independent `/code-review`, `/security-review`, fresh-session audit, cold-start test |
 
 ## Confirmed findings
 
@@ -67,29 +67,44 @@ production). Queue is healthy — 3/3 ready, 29 in the pool — so **nothing is
 time-sensitive.**
 
 1. **An independent `/code-review`.** Still the top item, and now larger:
-   Entries 33–35 landed ~900 lines of same-session-reviewed code and Entry 37
-   added ~700 more (budget, backup rework, scheduler, settings API/UI). 34→35 is
-   the worked example of why it matters — a result that read as a clean pass
-   until a control run showed it was noise.
-2. **Re-gate Phase 6 at batch 40** (Grace's ruling, Entry 37). Same A/A′/B
+   Entries 33–35 landed ~900 lines of same-session-reviewed code, Entry 37 added
+   ~700 more (budget, backup rework, scheduler, settings API/UI) and Entry 38
+   another ~150 (taste floor, Trends section, RUNBOOK). 34→35 is the worked
+   example of why it matters — a result that read as a clean pass until a
+   control run showed it was noise. **Grace runs this in a fresh session**; it
+   is blocked *on* being a different session, so Claude cannot discharge it.
+2. **RULE ON THE THIN PROFILE (Entry 38).** The evidence floor fixed `weird` but
+   cut the profile from 16 reported tags to 5, and the liked side from 8 to
+   **one** (`supernatural`, n=4). It is now nearly dislike-only. Options:
+   (a) state the real preferences by hand from Trends — gothic, cosmic horror —
+   which bypass the floor and are used verbatim; (b) rate more stories and let
+   it refill; (c) lower `TASTE_MIN_N_PER_TAG`, which re-admits the defect.
+   **(a) is the recommendation, and it gates item 3.**
+3. **Re-gate Phase 6 at batch 40** (Grace's ruling, Entry 37). Same A/A′/B
    design as Entry 35, run at `POOL_BATCH_SIZE`, sandboxed via `HR_DATA_DIR`.
-   ~$0.15. **Sequencing judgement to make first:** this measures the MECHANISM,
-   and the profile's CONTENT is known-wrong (see debt 1), so consider landing
-   the evidence floor before spending on the re-gate.
-3. **RUNBOOK.md** — cold start, Tailscale, key rotation, and now: how to install
-   the scheduler, set the spend cap, and turn on off-machine backup.
-4. `/security-review`, then the fresh-session audit. Both are Phase-7 gate items.
+   ~$0.15. **Do item 2 first** — re-gating a nearly-dislike-only profile
+   measures a weaker instrument than Entry 35 used and would not be comparable.
+4. `/security-review`, then the fresh-session audit, then the **cold-start test
+   from the RUNBOOK alone** — that last one is the literal Phase 7 gate and has
+   never been run.
+5. **Open ruling: the profile displays the raw average, and the model reads the
+   display** (Entry 38). Shrinkage protects the ranking only, so a lone 1 still
+   arrives looking like the strongest dislike. Fixing it means rendering the
+   shrunk figure — which contradicts FROZEN DESIGN §8 ("display the raw one")
+   and therefore needs an AMENDMENT, not a scope call. The evidence floor
+   mitigates it (surviving tags have small raw-vs-shrunk gaps) but does not
+   remove it.
 
 **Standing debts (no deadline):**
 
-1. **No per-tag evidence floor (Entry 37, Grace's correction).** Entry 34 floors
-   the number of rated STORIES at 3, but nothing floors n per TAG — so one
-   rating becomes a 1.0/5 verdict on a whole subgenre. Live example: `weird`
-   scored 1.0 from n=1 and **Grace says she likes cosmic horror**; that rating
-   was about one badly-made story. Deeper version of the same defect: a 1–5
-   rating conflates "badly made" with "not my kind of thing", and only the
-   second belongs in a taste profile. Until this is fixed the profile is
-   actively misleading, not merely thin.
+1. **PAID OFF (Entry 38)** — `taste.has_evidence` + `config.TASTE_MIN_N_PER_TAG
+   = 2`. `weird` no longer reaches the profile. **The deeper half is NOT fixed
+   and no floor can fix it:** a 1–5 rating conflates "this story was badly made"
+   with "I dislike this kind of story", and only the second belongs in a taste
+   profile. Separating them needs a second signal from the player — a design
+   decision, not a tuning one. Also unfixed and feeding this: the tagger emits
+   near-duplicate themes, so one story (The Monkey's Paw) produced eleven
+   overlapping n=1 theme rows.
 2. **Off-machine backup is OFF.** The code half landed (Entry 37,
    `pipeline.backup`, verified at the destination) but it is **opt-in by
    design** — nothing leaves the Mac until a path is set in Settings. Local
@@ -133,10 +148,16 @@ at Entry-37 close.
   rows to keep dead references out of curation; deleting would re-open Entry 16.
 
 **Queue is healthy: 3/3 ready, 29 usable candidates in the pool** (Entry 37's
-build). The worker still never spends, so the refill after that stays an
-explicit `run_story --build-pool` — now also gated by the spend cap. **Read the
-pool order before trusting it:** ranks 5–15 are eleven consecutive Lovecraft
-titles, which is the Entry-37 finding, not a queue fault.
+build; both re-derived from the DB at Entry-38 close). The worker still never
+spends, so the refill after that stays an explicit `run_story --build-pool` —
+now also gated by the spend cap. **Read the pool order before trusting it:**
+ranks 4–14 are eleven consecutive Lovecraft titles, which is the Entry-37
+finding, not a queue fault.
+
+**The server was NOT running at Entry-38 close** — no response on either
+`127.0.0.1:8123` or `100.117.147.107:8123`, and it was deliberately not started.
+Start it with `scripts/serve.sh`; the Trends tab (and so every manual taste
+override) needs it up.
 
 **6 ratings, with real contrast** (1,2,2,3,5,5) — enough for the Phase 6 floor
 of 3. Unfinished ≠ disliked: the two in_progress are unrated because Grace
@@ -154,17 +175,23 @@ holds $4.86 of July's `llm` experiments; lower it after ~2026-08-27).
 
 ## Taste (Phase 6)
 
-The live profile, from those 6 ratings: **liked** gothic · 19th-century ·
-early-20th · folk · Gilman · Jacobs · descent-into-madness (all 5.0, n=1);
-**disliked** weird 1.0 · contemporary 2.0 (n=3) · found-footage 2.0 (n=3) ·
-creepypasta 2.0 (n=3). `language` and `origin` are correctly absent — one
-distinct value each across the rated set, so they express no preference.
+The live profile, re-rendered at Entry-38 close, **after** the evidence floor:
 
-**⚠ `weird` 1.0/5 is known to be WRONG** (Grace, Entry 37): she likes cosmic
-horror, and that score came from one badly-made story at n=1. It is the live
-example of the missing per-tag evidence floor (standing debt 1). Until that
-lands, the quickest correction is a manual override from the Trends tab —
-a manual score is used verbatim and never shrunk.
+```
+liked: supernatural [subgenre] (3.8/5, n=4)
+disliked: contemporary [era] (2.0/5, n=3), found-footage [subgenre] (2.0/5, n=3),
+creepypasta [theme] (2.0/5, n=3), psychological-deterioration [theme] (2.0/5, n=2)
+```
+
+Five reported tags, every one with ≥2 stories behind it. `language` and `origin`
+are correctly absent — one distinct value each across the rated set.
+
+**⚠ This is honest but nearly dislike-only.** `weird 1.0/5` is gone (the Entry-37
+complaint is fixed), but so are gothic · 19th-century · early-20th · folk ·
+Gilman · Jacobs · descent-into-madness — all were n=1. The profile now says what
+to avoid and almost nothing about what to seek. 40 held-back tags remain visible
+in a collapsed section on Trends, one tap from being corrected: **a manual score
+bypasses the floor and is used verbatim, never shrunk.** See next-action 2.
 
 `taste_overrides` is **empty** — everything shown is computed. Grace can adjust
 any score, add a tag the ratings never produced, suppress one they did, or

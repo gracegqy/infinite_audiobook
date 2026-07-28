@@ -135,6 +135,17 @@ CLASS_FLOOR = 2
 # which tags can actually disagree with each other.
 TASTE_MIN_RATED_STORIES = 3
 
+# ...and below this many rated stories BEHIND ONE TAG, that tag is not reported
+# as a preference (Entry 38). TASTE_MIN_RATED_STORIES floors the corpus; this
+# floors each individual claim, which is a different question and was the gap:
+# with 6 ratings every reported tag but three had n=1, so `weird [subgenre]`
+# rendered as a 1.0/5 verdict on cosmic horror off ONE badly-made story — a
+# subgenre Grace says she likes (Entry 37).
+# 2 rather than 3: it is the smallest n that means "more than one story agreed",
+# and 3 would empty the liked side entirely at the current rating count. Manual
+# overrides bypass this — a stated preference is not an inference from evidence.
+TASTE_MIN_N_PER_TAG = 2
+
 
 def free_shortlist_size(batch: int) -> int:
     """How many free candidates to put in front of the model for a batch of

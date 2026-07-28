@@ -117,6 +117,15 @@ export default function Trends() {
   const short = rated < data.min_ratings_for_signal;
   const hasManual = [...liked, ...disliked].some((r) => r.manual);
 
+  // Entry 38: tags computed but held back by the per-tag evidence floor. They
+  // have to be SHOWN — a tag Grace cannot see is one she cannot correct, and
+  // correcting one (`weird` was a 1.0/5 verdict on cosmic horror off a single
+  // badly-made story) is exactly why the override exists.
+  const reported = new Set([...liked, ...disliked].map((r) => `${r.kind}:${r.value}`));
+  const thin = (data.all || []).filter(
+    (r) => !r.manual && r.n < data.min_n_per_tag
+           && !reported.has(`${r.kind}:${r.value}`));
+
   return (
     <div className="list">
       {short && !hasManual ? (
@@ -169,6 +178,24 @@ export default function Trends() {
 
       <h2 className="group">state a preference</h2>
       <AddForm kinds={data.kinds} onChanged={load} />
+
+      {thin.length > 0 && (
+        <details className="taste-raw">
+          <summary>
+            {thin.length} tag{thin.length === 1 ? "" : "s"} with fewer than{" "}
+            {data.min_n_per_tag} stories behind them — not sent to the curator
+          </summary>
+          <p className="card-sub">
+            One story is not evidence about a whole subgenre, so these are left
+            out of the profile. If one of them is right anyway, set a score and
+            it goes in verbatim.
+          </p>
+          {thin.map((r) => (
+            <TagRow key={`${r.kind}:${r.value}`} row={r}
+                    tone={r.avg >= 3 ? "good" : "bad"} onChanged={load} />
+          ))}
+        </details>
+      )}
 
       {data.profile_text && (
         <details className="taste-raw">
