@@ -5,6 +5,31 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 36 — 2026-07-28 — Session close: 6-tab header confirmed on the phone
+
+Grace: "6 tab header works." That closes the last verification owed from Entries
+34–35 — the sticky-header risk was real (the 5-tab row wrapped once and took the
+player's `--header-h` offset with it), and the 430/380px breakpoints added for
+the Trends tab were arithmetic until she looked at them on the real target.
+Phone-over-Tailscale is the standard, so this was a genuine open item, not a
+formality.
+
+State at handoff, re-derived rather than recalled: 243 tests green · working
+tree clean, nothing unpushed (`b6565d1`) · server answering 200 on `/` and
+`/api/taste` at 100.117.147.107:8123 · queue **1 ready + 2 in_progress**, pool
+**empty** · `curation_mode` = free_llm, `CLASS_FLOOR` = 2 · 6 ratings, 0 manual
+overrides (the Entry-35 live test rows were removed). Backup taken after the
+`taste_overrides` schema change: 18 stories, 2 progress rows, 6 ratings,
+integrity ok.
+
+**Phases 0–6 are DONE. Phase 7 (hardening & audit) is next**, and the two things
+it most wants are already named in it: the off-machine backup half, and an
+independent `/code-review` — Entries 33–35 all reviewed their own same-session
+code, which is the weakest kind, and 34→35 is a worked example of why (a result
+that read as a pass until a control ran).
+
+Measurements invalidated by this change: none.
+
 ## Entry 35 — 2026-07-28 — Quota becomes a floor (Grace's ruling); Phase 6 gate PASSES; manual taste steering
 
 Grace ruled **(a) a floor, not an even split**, and asked for manual control of

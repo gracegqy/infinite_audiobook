@@ -180,6 +180,10 @@ rule, rating floor), injection into both curation paths, persistence to
 changed — until a second no-profile run showed the diff was noise. Any future re-run of
 this gate MUST include one.
 
+Phone target confirmed by Grace at close (Entry 36): the 6-tab header renders cleanly —
+the tightened 430/380px breakpoints hold, and the sticky player's `--header-h` offset
+survived the tab that broke it once before.
+
 **Known limit, carried forward:** creepypasta candidates carry no author, year or theme
 (2 distinct evidence strings across all 36), so the profile can only discriminate among
 them by title. Enriching that source is unclaimed work, not a Phase 6 debt.

@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 35 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 36 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -64,23 +64,30 @@
 
 Phases 0–6 are DONE. **Phase 7 (hardening & audit) is next** — nothing blocks it.
 
-**Needs Grace:**
+**The one time-sensitive item:**
 
-1. **Refill the queue — it is at 1/3 with an empty pool.** One
-   `run_story --build-pool` on `free_llm` (~$0.02). This will be the first real
+1. **Refill the queue — 1 ready + 2 in_progress, pool empty.** One
+   `.venv/bin/python -m pipeline.run_story --build-pool` on `free_llm` (~$0.02).
+   The worker cannot do this itself (it never spends). This will be the first
    build with the taste profile live, so it doubles as the production check on
-   Entry 35's gate result.
-2. **Phone check of the 6-tab header.** The 5-tab row already wrapped once and
-   took the sticky player offset with it; breakpoints were tightened at 430/380px
-   but are **unverified on the real target**. Also worth trying the new Trends
-   edit controls (score dropdown / ✕ / ↺ / add) on a phone-width screen.
-3. **An independent `/code-review` pass** when convenient. Entry 33's review was
-   Claude's own read of code Claude had just written — the weakest kind. It found
-   and fixed 4 real defects, and Entries 34–35 added ~600 more lines the same way.
-4. **Self-heal + budget (Grace's proposal, Entry 35 assessment).** Not built —
-   assessed and scoped, with one part recommended against (an API key pasted
-   into Settings; DESIGN §10 forbids keys reaching the frontend, and `.env`
-   already works). Decide scope before building.
+   Entry 35's sandboxed gate — worth eyeballing whether the picks skew ghost/
+   gothic over cosmic, which is what the gate predicts.
+
+**Then Phase 7, whose two biggest items are already named:**
+
+2. **An independent `/code-review`.** Entries 33, 34 and 35 each reviewed their
+   own same-session code — the weakest kind — and 34→35 is the worked example of
+   why it matters: a result that read as a clean pass until a control run showed
+   it was noise. ~900 lines have landed this way.
+3. **Off-machine backup.** `scripts/backup_db.py` is WAL-consistent and
+   integrity-checked but **same-machine only, and nothing schedules it**. Last
+   snapshot taken at Entry-36 close (18 stories, 6 ratings, integrity ok).
+
+**Open, needs a scope decision before any code:**
+
+4. **Self-heal + budget (Grace's proposal, assessed Entry 35).** Three
+   independent pieces — a scheduler, a spend cap, auto-refill. See Open
+   decisions; one part is recommended against.
 
 **Standing debts (no deadline):**
 
@@ -136,6 +143,23 @@ set 2026-07-28 via `PUT /api/settings`, verified through
 `db.effective_curation_mode`). `curation_model` has no stored row and resolves
 to the code default `claude-sonnet-5`.
 
+## Taste (Phase 6)
+
+The live profile, from those 6 ratings: **liked** gothic · 19th-century ·
+early-20th · folk · Gilman · Jacobs · descent-into-madness (all 5.0, n=1);
+**disliked** weird 1.0 · contemporary 2.0 (n=3) · found-footage 2.0 (n=3) ·
+creepypasta 2.0 (n=3). `language` and `origin` are correctly absent — one
+distinct value each across the rated set, so they express no preference.
+
+`taste_overrides` is **empty** — everything shown is computed. Grace can adjust
+any score, add a tag the ratings never produced, suppress one they did, or
+revert to automatic, from the Trends tab. A manual score is used verbatim (never
+shrunk) and is labelled "set by the listener" in the prompt.
+
+**Only `free_llm` and `llm` can use any of this** — `free` makes no model call,
+so there is nowhere to put a profile. The Trends screen says so when the mode
+cannot use it.
+
 ## Spend to date (R11)
 
 Ledger total $4.81 across 4 curation runs, but the first three used list price —
@@ -146,11 +170,11 @@ estimated under $0.50 but not verifiable, so it is not counted above.
 
 **Not in the live ledger:** Entry 32's verification runs cost **$0.0594** of
 real API calls ($0.0154 first free_llm build + $0.0176 after the quota/spares
-fix + $0.0264 for the channel-edit A/B), and Entry 34's Phase-6 gate cost
-**$0.0568** (4 selection calls: A $0.0181 · B $0.0202 · A′ control $0.0185).
-All ran against `HR_DATA_DIR` sandboxes, so their `curation_runs` rows are in
-sandbox DBs, not this one. Recorded here rather than dropped —
-**$0.1162 of sandbox spend to date.**
+fix + $0.0264 for the channel-edit A/B); Entry 34's first Phase-6 gate cost
+**$0.0568**; Entry 35's re-run under the class floor cost **$0.0595** (A $0.0186
+· A′ control $0.0179 · B $0.0230). All ran against `HR_DATA_DIR` sandboxes, so
+their `curation_runs` rows are in sandbox DBs, not this one. Recorded here
+rather than dropped — **$0.1757 of sandbox spend to date.**
 
 Per-batch cost by mode (measured, 2026-07-28): `free` $0 · `free_llm` **$0.0176**
 for 12 candidates · `llm` ~$2.40 at the coded batch of 40 (~$0.75 at 12).
@@ -158,11 +182,32 @@ for 12 candidates · `llm` ~$2.40 at the coded batch of 40 (~$0.75 at 12).
 ## Open decisions
 
 **Scope of self-heal + budget** (Grace's proposal, assessed Entry 35). Nothing
-built. The three pieces are independent and can ship separately: a scheduler
-(nothing runs the worker today — no launchd job, no crontab), a spend cap in the
-DB, and the auto-refill itself. **Recommended against:** storing the API key via
-Settings — DESIGN §10 forbids keys reaching the frontend, `data/app.db` is
-copied into `backups/` unencrypted, and `.env` already works.
+built; needs her scope call first. Three independent pieces, shippable
+separately:
+
+- **(i) a scheduler.** Nothing runs the worker today — verified, no launchd job
+  and no crontab. `pipeline.worker --loop` exists but nothing invokes it. This
+  is the actual blocker: without it, "self-heal" is only "refill on demand".
+- **(ii) a spend cap** in settings + "spent since reset" readout, checked before
+  any paid call.
+- **(iii) auto `--build-pool`** when the pool empties, gated on (ii), with a
+  `.notice` banner when the cap trips (reuse the existing pattern — a worker
+  that stops silently is the failure mode, and a banner survives dismissal).
+
+Two corrections to the proposal as stated:
+- **Recommended against: the API key in Settings.** DESIGN §10 forbids keys
+  reaching the frontend; `data/app.db` is copied into `backups/` unencrypted, so
+  this turns every snapshot into a credential. `.env` already works and solves
+  the same problem.
+- **The budget cannot see her Anthropic balance** — only what this app spent.
+  "Replenish credits" is unverifiable from here, so build it as an honest local
+  cap and report a credit-exhausted API error as a separate condition.
+
+Sizing, so the cap is set knowingly: a `free_llm` batch of 12 costs ~$0.02 and
+feeds ~4 worker cycles, so **$1/month ≈ 50 batches ≈ 600 stories** — unreachable
+in practice. The cap's real job is containing the `llm` mode (~$2.40/batch) and
+runaway loops, which Entry 33's `--yes-spend` guard already half-covers. A low
+default (~$2/month) is a tripwire, not an allowance.
 
 Settled: the classics/modern quota is a **floor of `CLASS_FLOOR = 2`**, not an
 even split (Grace, Entry 35 — supersedes the Entry-32 round-robin).
