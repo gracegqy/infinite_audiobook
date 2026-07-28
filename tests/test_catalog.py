@@ -235,3 +235,15 @@ def test_pause_turn_loop_is_capped_and_still_records_spend(conn, monkeypatch):
     assert row["searches"] == 4 and row["output_tokens"] == 200
     assert row["cache_read_tokens"] == 3600
     assert row["cost_usd"] > 0, "spend must never look free"
+
+
+def test_settings_renders_without_an_active_channel(client, tmp_path):
+    """Settings is where you go to fix a broken install, so it must not 500 when
+    channel state is bad — coverage degrades, the screen survives."""
+    import sqlite3
+    c = sqlite3.connect(tmp_path / "app.db")
+    c.execute("UPDATE channels SET is_active=0")
+    c.commit(); c.close()
+    body = client.get("/api/settings").json()
+    assert {m["mode"] for m in body["curation_modes"]} == set(db.CURATION_MODES)
+    assert all(m["label"] and m["description"] for m in body["curation_modes"])

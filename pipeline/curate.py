@@ -424,3 +424,42 @@ def run_selection(conn, channel, candidates: list[dict], batch: int,
         + f"; 0 searches, ${cost:.4f} ({model})")
     log(f"[select] tokens: {in_tok:,} in · {out_tok:,} out")
     return chosen, run_id
+
+
+# ---- spend guard (Entry 33) ----
+
+def estimate_cost(model: str, batch: int) -> tuple[float, str]:
+    """(estimated $, how it was derived) for a paid `llm` batch.
+
+    Deliberately rough and deliberately stated. Search fees are exact — the
+    budget is a hard cap and a batch of any size tends to use it. Tokens are
+    scaled from run 4's measured split (Entry 28: 212,191 input at 93% cached,
+    ~8,900 output for a batch of 8), which is the only cached run there is.
+    Being approximate is fine; being SILENT is what went wrong before.
+    """
+    searches = config.curation_search_budget(batch)
+    fees = searches * config.WEB_SEARCH_COST
+    price_in, price_out = config.model_pricing(model)
+    scale = batch / config.CURATION_BATCH_SIZE
+    # cached input: 212k tokens at run 4's 93% cache-read ratio
+    in_cost = (212_191 * scale / 1e6) * price_in * (
+        0.93 * config.CACHE_READ_MULTIPLIER + 0.07)
+    out_cost = (8_900 * scale / 1e6) * price_out
+    total = fees + in_cost + out_cost
+    return total, (f"{searches} searches x ${config.WEB_SEARCH_COST:.2f} = "
+                   f"${fees:.2f} in fees, plus ~${in_cost + out_cost:.2f} of "
+                   f"tokens scaled from run 4 for a batch of {batch}")
+
+
+def confirm_spend(model: str, batch: int, approved: bool,
+                  log=print) -> bool:
+    """True when a paid build may proceed. Prints the estimate either way."""
+    total, how = estimate_cost(model, batch)
+    log(f"[curate] estimated cost: ${total:.2f} ({how})")
+    if total <= config.CURATION_SPEND_CONFIRM_USD or approved:
+        return True
+    log(f"[curate] ABORTED: estimate exceeds "
+        f"${config.CURATION_SPEND_CONFIRM_USD:.2f}. Re-run with --yes-spend to "
+        f"approve, switch to a free mode in Settings, or lower "
+        f"config.POOL_BATCH_SIZE.")
+    return False

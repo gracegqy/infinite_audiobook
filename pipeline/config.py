@@ -43,6 +43,13 @@ def curation_search_budget(batch: int) -> int:
 
 
 CURATION_BATCH_SIZE = 8
+# A paid build above this estimate needs an explicit --yes-spend (Entry 33).
+# `--build-pool` is already the opt-in to spending (AMENDMENT_04 A), but it does
+# not tell you HOW MUCH: at POOL_BATCH_SIZE=40 the search budget alone is $1.20,
+# and a plausible reading of "the batch costs ~$0.23" was off by 10x. The guard
+# is on the ESTIMATE, printed either way, so the number is on screen before the
+# money is gone rather than in the ledger after.
+CURATION_SPEND_CONFIRM_USD = 1.00
 # Hard cap on pause_turn continuations (Entry 29). The loop used to be
 # `while True:` with the cost ledger written only AFTER it exited — so a run
 # that kept pausing spent money indefinitely AND invisibly. One run sat open 70

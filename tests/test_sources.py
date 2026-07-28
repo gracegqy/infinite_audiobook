@@ -162,3 +162,63 @@ def test_gather_dedupes_a_title_two_sources_both_claim(monkeypatch):
                             {"title": "the rake", "source_class": "creepypasta"}])
     out = sources.gather(None, channel(), [], 6, log=lambda *a: None)
     assert len(out) == 1
+
+
+# ---- resilience: findings from the Phase 5 close review (Entry 33) ----
+
+def test_one_failing_source_does_not_lose_the_others(monkeypatch):
+    """Gutenberg and the wiki are independent networks. Losing the wiki should
+    cost the modern half, not the whole build."""
+    monkeypatch.setattr(sources.GutenbergCatalogSource, "candidates",
+                        lambda self, c, ch, k, n, log=print: [
+                            {"title": "classic", "source_class": "gutenberg"}])
+    monkeypatch.setattr(sources.CreepypastaWikiSource, "candidates",
+                        lambda self, c, ch, k, n, log=print: (_ for _ in ()).throw(
+                            TimeoutError("wiki down")))
+    out = sources.gather(None, channel(), [], 6, log=lambda *a: None)
+    assert [c["title"] for c in out] == ["classic"]
+
+
+def test_all_sources_failing_is_a_real_error(monkeypatch):
+    for cls in (sources.GutenbergCatalogSource, sources.CreepypastaWikiSource):
+        monkeypatch.setattr(cls, "candidates",
+                            lambda self, c, ch, k, n, log=print: (
+                                _ for _ in ()).throw(TimeoutError("down")))
+    with pytest.raises(sources.NoFreeSource, match="transient"):
+        sources.gather(None, channel(), [], 6, log=lambda *a: None)
+
+
+def test_page_lengths_key_on_the_title_we_asked_for(monkeypatch):
+    """MediaWiki normalizes titles ('the rake' → 'The rake'). Keying on the
+    REPLY would drop those pages' lengths, or KeyError the caller's index."""
+    monkeypatch.setattr(sources, "_api", lambda **p: {"query": {
+        "normalized": [{"from": "the rake", "to": "The rake"}],
+        "pages": {"1": {"title": "The rake", "length": 5000},
+                  "2": {"title": "NoEnd House", "length": 27291}}}})
+    assert sources._page_lengths(["the rake", "NoEnd House"]) == {
+        "the rake": 5000, "NoEnd House": 27291}
+
+
+def test_stale_index_is_used_when_the_refresh_fails(monkeypatch, tmp_path):
+    """A month-old editorial list beats failing the pool build outright."""
+    import json as _json
+    cache = tmp_path / "creepypasta_reputation.json"
+    cache.write_text(_json.dumps({"Old Story": {"length": 9000,
+                                                "categories": ["PotM"]}}))
+    import os
+    old = cache.stat()
+    os.utime(cache, (old.st_atime - 86400 * 90, old.st_mtime - 86400 * 90))
+    monkeypatch.setattr(sources, "creepypasta_cache_path", lambda: cache)
+    monkeypatch.setattr(sources, "_category_members",
+                        lambda cat: (_ for _ in ()).throw(TimeoutError("down")))
+    index = sources.fetch_reputation_index(log=lambda *a: None)
+    assert index == {"Old Story": {"length": 9000, "categories": ["PotM"]}}
+
+
+def test_no_cache_and_a_failed_refresh_still_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(sources, "creepypasta_cache_path",
+                        lambda: tmp_path / "missing.json")
+    monkeypatch.setattr(sources, "_category_members",
+                        lambda cat: (_ for _ in ()).throw(TimeoutError("down")))
+    with pytest.raises(TimeoutError):
+        sources.fetch_reputation_index(log=lambda *a: None)

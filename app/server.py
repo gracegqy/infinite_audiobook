@@ -47,8 +47,21 @@ CURATION_MODE_LABELS = {
 
 def curation_mode_info(conn) -> list[dict]:
     """Per-mode label/description plus, for the free modes, which registered
-    sources cover the ACTIVE channel and which do not and why."""
-    channel = db.active_channel(conn)
+    sources cover the ACTIVE channel and which do not and why.
+
+    Coverage needs a channel, but Settings must render WITHOUT one — it is where
+    you would go to fix a broken install, so a missing active channel has to
+    degrade to "modes without coverage" rather than 500 the whole screen."""
+    try:
+        channel = db.active_channel(conn)
+    except Exception:
+        channel = None
+    if channel is None:
+        return [{"mode": m, "available": True, "sources": [],
+                 "label": CURATION_MODE_LABELS.get(m, (m, ""))[0],
+                 "description": CURATION_MODE_LABELS.get(m, (m, ""))[1]}
+                for m in db.CURATION_MODES]
+
     covering, skipped = sources.for_channel(channel)
     src_info = ([{"name": s.name, "covers": True, "reason": s.covers(channel)[1]}
                  for s in covering]

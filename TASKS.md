@@ -111,14 +111,21 @@ app ≥5 min, kill and reopen → resumes within 2 s of pause point. Evidence in
 > tell me when you need me to test."*
 
 ## Phase 5 — Queue automation, sync, channels UI   · Owner: Claude Code
-**Status: [IN PROGRESS] (2026-07-28)** — worker + channels editor built; 189
-tests green. **ALL THREE gate criteria PASSED:** queue self-healed 1→3/3 in one
-cycle, artifact-verified with no all-time title repeats (Entry 27); phone
-highlight tracking confirmed by Grace (Entry 26); channel-edit curation diff run
-live in free_llm mode — excluding Lovecraft/cosmic horror dropped exactly the
-two Lovecraft titles and replaced them, $0.0264 for both halves (Entry 32).
-Grace confirmed the scrubber still drags after the view lock (Entry 32).
-**Owed to close:** `/code-review` on the Phase 5 + Entry 28-32 diffs.
+**Status: DONE (2026-07-28)** — worker + channels editor built; 200 tests green.
+**ALL THREE gate criteria PASSED:** queue self-healed 1→3/3 in one cycle,
+artifact-verified with no all-time title repeats (Entry 27); phone highlight
+tracking confirmed by Grace (Entry 26); channel-edit curation diff run live in
+free_llm mode — excluding Lovecraft/cosmic horror dropped exactly the two
+Lovecraft titles and replaced them, $0.0264 for both halves (Entry 32). Grace
+confirmed the scrubber still drags after the view lock. Close review done
+(Entry 33): 4 resilience defects found and fixed — a single failing source no
+longer kills a whole build, a failed cache refresh falls back to the stale
+index, MediaWiki title normalization no longer risks a KeyError, and
+/api/settings survives a missing active channel. A spend guard now aborts any
+paid build estimated over $1.00 without `--yes-spend`.
+Caveat on that review: it was Claude's own read of code Claude wrote the same
+session, not the `/code-review` harness command (unavailable as a skill). An
+independent pass is listed in STATE.
 The Entry-28 paid-path prompt rebalance is still unverified end-to-end and is
 now unlikely to be — free_llm reaches the same goal structurally (Entry 32), so
 the paid prompt matters only for reach beyond the registered free sources.

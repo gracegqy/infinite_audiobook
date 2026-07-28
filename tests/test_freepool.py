@@ -269,3 +269,46 @@ def test_selection_asks_for_spares_beyond_the_batch(conn, monkeypatch):
                          log=lambda *a: None)
     prompt = seen["messages"][0]["content"]
     assert f"array of {4 + config.SELECTION_SPARES} objects" in prompt
+
+
+# ---- spend guard (Entry 33) ----
+
+def test_estimate_scales_with_batch_and_names_the_fees():
+    small, how_small = curate.estimate_cost("claude-sonnet-5", 8)
+    big, _ = curate.estimate_cost("claude-sonnet-5", 40)
+    assert big > small
+    assert "searches" in how_small and "fees" in how_small
+    # search fees are exact, so they must be a floor on the estimate
+    assert big >= config.curation_search_budget(40) * config.WEB_SEARCH_COST
+
+
+def test_small_paid_build_needs_no_approval():
+    assert curate.confirm_spend("claude-sonnet-5", 4, approved=False,
+                                log=lambda *a: None)
+
+
+def test_big_paid_build_is_blocked_without_yes_spend():
+    """The coded POOL_BATCH_SIZE lands here: --build-pool opts into spending,
+    not into $2."""
+    assert curate.estimate_cost("claude-sonnet-5", config.POOL_BATCH_SIZE)[0] \
+        > config.CURATION_SPEND_CONFIRM_USD
+    assert not curate.confirm_spend("claude-sonnet-5", config.POOL_BATCH_SIZE,
+                                    approved=False, log=lambda *a: None)
+    assert curate.confirm_spend("claude-sonnet-5", config.POOL_BATCH_SIZE,
+                                approved=True, log=lambda *a: None)
+
+
+def test_the_estimate_is_printed_even_when_it_passes():
+    lines = []
+    curate.confirm_spend("claude-sonnet-5", 4, approved=False, log=lines.append)
+    assert any("estimated cost" in ln for ln in lines)
+
+
+def test_run_story_refuses_a_big_paid_build_without_the_flag(conn, monkeypatch):
+    """End-to-end: the guard must stop the CALL, not just return False."""
+    from pipeline import run_story
+    monkeypatch.setattr(db, "connect", lambda *a, **k: conn)
+    db.set_setting(conn, "curation_mode", "llm")
+    monkeypatch.setattr(curate, "run_curation", lambda *a, **k: pytest.fail(
+        "a paid batch must not start without --yes-spend"))
+    assert run_story.main(["--build-pool"]) == 3

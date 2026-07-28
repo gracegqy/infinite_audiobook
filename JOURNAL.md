@@ -5,6 +5,72 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 33 — 2026-07-28 — Phase 5 CLOSED: close review, 4 resilience bugs fixed, spend guard added
+
+Grace: finish Phase 5, then hand off. The one item owed was the pre-phase-close
+code review.
+
+**`/code-review` was not available to me as a skill** (only `/review` for GitHub
+PRs and `/security-review`), so this was my own read of the Phase 5 and Entry
+28-32 diffs, not the harness command. Worth an independent pass from Grace when
+convenient — a self-review is the weakest kind, and every finding below is in
+code I wrote hours earlier.
+
+### Four real defects, all in this session's additions
+
+1. **One flaky source killed the whole build.** `sources.gather` let any
+   exception propagate, so a creepypasta-wiki outage would have failed the
+   build *including the Gutenberg half* — two independent networks, one shared
+   failure. Now each source is attempted separately and a failure costs only its
+   own half; `NoFreeSource` is raised only when EVERY source failed, and says
+   the condition is usually transient. This is the same rule `verify.py` already
+   applies with `ok=None`: an outage is not a verdict.
+2. **A failed refresh discarded a good cache.** Past `CREEPYPASTA_MAX_AGE_DAYS`,
+   the code fetched fresh and, if that raised, returned nothing — losing a
+   perfectly usable index. The wiki's editorial picks change monthly at most, so
+   a month-old index beats no index; a stale cache is now the fallback, and only
+   a failure with *no* cache at all still raises.
+3. **A latent `KeyError` from MediaWiki title normalization.** `_page_lengths`
+   keyed on the title the API *answers* with, but the API rewrites what you send
+   — verified live: `the rake` → `The rake`, `Ted_the_Caver` → `Ted the Caver`,
+   reported in `query.normalized`. Category listings happen to come back already
+   normalized, which is why 209/209 worked, but any title needing normalization
+   would have crashed the index build. Now keyed on what we asked for.
+4. **`/api/settings` could 500 on a channel problem.** My coverage lookup called
+   `db.active_channel`, which raises when no channel is active. Settings is
+   where you go to fix a broken install, so it must not be the screen that dies:
+   coverage now degrades to "modes without sources" and the screen survives.
+   (`activate_channel` validates its id, so this is defensive, not reachable
+   today.)
+
+### Spend guard — Entry 29's lesson, one layer up
+
+`--build-pool` is the opt-in to spending (AMENDMENT_04 A), but it never said
+HOW MUCH, and this session showed why that gap matters: I read "$0.23 a batch"
+and the real command was ~10x that. `curate.estimate_cost` now prints an
+estimate before any paid call — search fees exactly (the budget is a hard cap),
+tokens scaled from run 4's measured split — and a build over
+`CURATION_SPEND_CONFIRM_USD` ($1.00) aborts unless re-run with `--yes-spend`.
+
+At the coded `POOL_BATCH_SIZE = 40` the estimate is **$1.99**, so the default
+paid path is now blocked by default rather than merely documented. The estimate
+is deliberately rough; being approximate is fine, being silent is what went
+wrong before.
+
+### Phase 5 gate — final status
+
+All three criteria passed (queue self-heal Entry 27 · phone highlight Entry 26 ·
+channel-edit diff Entry 32), scrubber re-confirmed by Grace, review done and its
+findings fixed. **200 tests green** (was 151 at the start of the session, 189
+after Entry 32). Phase 5 is CLOSED.
+
+Queue refilled to 3/3 at $0 from the already-paid pool — Grace had finished
+Willows, Ben Drowned and Squidward's during the session, emptying it.
+
+Measurements invalidated by this change: none. The Entry-32 cost figures stand
+($0.0176 per free_llm batch, measured); the new `estimate_cost` is a forecast
+for the PAID path and is labelled as such, not a measurement.
+
 ## Entry 32 — 2026-07-28 — Free source registry: curation goes $0.75 → $0.0176 a batch; Phase 5 gate closed
 
 Grace confirmed the scrubber still drags after the Entry-26 view lock (that debt

@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 32 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 33 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -12,7 +12,7 @@
 | 2 — Design | DONE | DESIGN.md frozen; Grace sign-off | Grace signed off v0.3 in session ("I sign off DESIGN v0.3", Entry 15); DESIGN header now FROZEN v1.0; AMENDMENTS 02/03 flipped to BINDING; §11 traceability covers R1–R15 |
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
-| 5 — Queue + sync + channels | [IN PROGRESS] | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace after the view lock. Owed: `/code-review` only |
+| 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
 | 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
 
@@ -62,25 +62,24 @@
 
 ## Next actions
 
-**Needs Grace (blocking):**
+Phase 5 is CLOSED. Phase 6 (preference adaptation) is the next phase — nothing
+blocks starting it.
 
-0. **The queue is empty (0/3)** and the pool holds only 3 creepypasta
-   candidates. `python -m pipeline.worker` refills it at $0 but renders no
-   classics; a `free_llm` pool build first (~$0.02) restores the mix. Which one
-   runs depends on #1, so this is hers to call.
-1. **Pick a curation mode in Settings.** Three exist now (Entry 32), each
-   labelled with its cost, and the free modes list which sources cover the
-   active channel. `free` = $0, no model call, but ordering within a source is
+**Needs Grace (not blocking Phase 6):**
+
+1. **Pick a curation mode in Settings.** Three exist (Entry 32), each labelled
+   with its cost, and the free modes list which sources cover the active
+   channel. `free` = $0, no model call, but ordering within a source is
    arbitrary. `free_llm` = **$0.0176 measured**, model picks from the free
-   shortlist, balance enforced in code. `llm` = ~$0.75, the only mode that
+   shortlist, balance enforced in code — this is the recommended default for
+   routine refills. `llm` = ~$2 at the coded batch of 40, and the only mode that
    reaches beyond the registered sources (r/nosleep etc.).
-   **The default is still `llm`** — nothing changed without her say — so
-   `--build-pool` untouched still costs ~$2.40. One dropdown fixes it.
-
-**Owed to close Phase 5 (Claude):**
-
-2. `/code-review` on the AMENDMENT_06 + Phase 5 + Entry 28–32 diffs. Nothing
-   else is outstanding; all three gate criteria pass.
+   Currently `free` (her stored `catalog`, aliased). The **paid path is now
+   guarded**: a build estimated over $1.00 aborts unless re-run with
+   `--yes-spend` (Entry 33), so the old ~$2 footgun is closed.
+2. **An independent `/code-review` pass** when convenient. Entry 33's review was
+   Claude's own read of code Claude had just written — the weakest kind. It found
+   and fixed 4 real defects, but a second pair of eyes is worth having.
 
 **Standing debts (no deadline):**
 

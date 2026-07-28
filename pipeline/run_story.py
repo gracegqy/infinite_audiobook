@@ -4,7 +4,12 @@ flag (no silent spend). Announces each candidate BEFORE fetching so Grace can
 Ctrl-C and pre-mark known stories (pipeline.mark).
 
 Run: .venv/bin/python -m pipeline.run_story                 # $0: consume pool
-     .venv/bin/python -m pipeline.run_story --build-pool    # PAID: refill pool
+     .venv/bin/python -m pipeline.run_story --build-pool    # refill pool (cost
+                                                            # depends on
+                                                            # curation_mode)
+     .venv/bin/python -m pipeline.run_story --build-pool --yes-spend
+                                        # approve a paid build over
+                                        # config.CURATION_SPEND_CONFIRM_USD
 """
 import sys
 
@@ -28,6 +33,14 @@ def main(argv: list[str]) -> int:
                     conn, channel, limit=config.POOL_BATCH_SIZE,
                     use_llm=(mode == "free_llm"))
             else:
+                # --build-pool opts into spending, but not into an AMOUNT.
+                # Entry 29 shipped an unbounded paid loop; the estimate is now
+                # on screen before the call, and a big one needs a second word.
+                if not curate.confirm_spend(
+                        db.effective_curation_model(conn),
+                        config.POOL_BATCH_SIZE,
+                        approved="--yes-spend" in argv):
+                    return 3
                 candidates = curate.run_curation(conn, channel,
                                                  batch=config.POOL_BATCH_SIZE)
         except sources.NoFreeSource as e:

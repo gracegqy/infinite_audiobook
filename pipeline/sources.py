@@ -119,13 +119,24 @@ def _category_members(category: str) -> list[str]:
 
 
 def _page_lengths(titles: list[str]) -> dict[str, int]:
-    """Markup byte length per title, 50 at a time (the API's cap)."""
+    """Markup byte length per title, 50 at a time (the API's cap).
+
+    Keyed by the title WE ASKED FOR, not the one the API answers with: MediaWiki
+    normalizes ("the rake" → "The rake", "Ted_the_Caver" → "Ted the Caver") and
+    reports the mapping in `query.normalized`. Category listings happen to come
+    back already normalized, so this has never bitten — but keying on the reply
+    would silently drop those pages' lengths, or KeyError on the caller's index.
+    """
     sizes = {}
     for i in range(0, len(titles), 50):
-        r = _api(action="query", prop="info", titles="|".join(titles[i:i + 50]))
+        batch = titles[i:i + 50]
+        r = _api(action="query", prop="info", titles="|".join(batch))
+        back = {n["to"]: n["from"]
+                for n in r["query"].get("normalized", [])}
         for page in r["query"]["pages"].values():
+            asked = back.get(page["title"], page["title"])
             if "length" in page:
-                sizes[page["title"]] = page["length"]
+                sizes[asked] = page["length"]
     return sizes
 
 
@@ -139,22 +150,35 @@ def fetch_reputation_index(force: bool = False, log=print) -> dict:
     import datetime
 
     path = creepypasta_cache_path()
+    stale = None
     if path.exists() and not force:
         age = datetime.datetime.now() - datetime.datetime.fromtimestamp(
             path.stat().st_mtime)
         if age.days < CREEPYPASTA_MAX_AGE_DAYS:
             return json.loads(path.read_text())
         log(f"[creepypasta-wiki] index is {age.days} days old — refreshing")
+        stale = path  # keep it: a failed refresh must not lose a good index
 
-    index: dict[str, dict] = {}
-    for cat, label in REPUTATION_CATEGORIES.items():
-        members = _category_members(cat)
-        log(f"[creepypasta-wiki] category {cat}: {len(members)} pages")
-        for t in members:
-            index.setdefault(t, {"length": None, "categories": []})
-            index[t]["categories"].append(label)
-    for title, length in _page_lengths(sorted(index)).items():
-        index[title]["length"] = length
+    try:
+        index: dict[str, dict] = {}
+        for cat, label in REPUTATION_CATEGORIES.items():
+            members = _category_members(cat)
+            log(f"[creepypasta-wiki] category {cat}: {len(members)} pages")
+            for t in members:
+                index.setdefault(t, {"length": None, "categories": []})
+                index[t]["categories"].append(label)
+        for title, length in _page_lengths(sorted(index)).items():
+            if title in index:  # see _page_lengths on title normalization
+                index[title]["length"] = length
+    except Exception as e:
+        if stale is None:
+            raise
+        # An expired cache still beats no cache: the wiki's editorial picks
+        # change monthly at most, so month-old data is a far better answer than
+        # failing the whole pool build (the same reasoning verify.py applies to
+        # transient errors — an outage must not condemn).
+        log(f"[creepypasta-wiki] refresh failed ({e}); using the stale index")
+        return json.loads(stale.read_text())
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(index, ensure_ascii=False, indent=1))
@@ -282,8 +306,24 @@ def gather(conn, channel, known_titles: list[str], limit: int,
             + " Use curation_mode=llm for this channel, or add a source to "
               "pipeline/sources.py.")
 
-    per_source = [src.candidates(conn, channel, known_titles, limit, log=log)
-                  for src in covering]
+    # One unreachable source must not fail the build. Gutenberg and the wiki are
+    # independent networks; losing the wiki should cost the modern half, not the
+    # classics too. Same principle as verify.py's ok=None: a transient failure is
+    # not a verdict. Only a build where EVERY source failed is a real error.
+    per_source, failures = [], []
+    for src in covering:
+        try:
+            per_source.append(
+                src.candidates(conn, channel, known_titles, limit, log=log))
+        except Exception as e:
+            log(f"[sources] {src.name} unavailable — {type(e).__name__}: {e}")
+            failures.append((src, e))
+    if failures and not any(per_source):
+        raise NoFreeSource(
+            "every free source covering channel "
+            f"'{channel['name']}' failed: "
+            + " ".join(f"{s.name}: {e}." for s, e in failures)
+            + " This is usually transient — retry before switching modes.")
     out, seen = [], set()
     for i in range(max((len(p) for p in per_source), default=0)):
         for candidates in per_source:
