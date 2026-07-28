@@ -210,19 +210,37 @@ def q(cls, n=1):
     return [{"title": f"{cls}-{i}", "source_class": cls} for i in range(n)]
 
 
-def test_quotas_rebalance_a_lopsided_ranking():
-    """The first real free_llm run returned 9 gutenberg / 3 creepypasta off a
-    36/36 shortlist. The model ranks; the code holds the ratio."""
+def test_quotas_guarantee_a_floor_not_an_even_split():
+    """Grace's ruling (Entry 35): every class gets CLASS_FLOOR places, and the
+    model's ranking — which carries the taste profile — takes the rest. The
+    even split this replaced pinned the axis her ratings are clearest on."""
     ranked = q("gutenberg", 9) + q("creepypasta", 3)
-    out = curate.apply_class_quotas(ranked, 6)
-    assert [c["source_class"] for c in out[:6]] == \
-        ["gutenberg", "creepypasta"] * 3
+    out = curate.apply_class_quotas(ranked, 6, floor=2)
+    classes = [c["source_class"] for c in out[:6]]
+    assert classes.count("creepypasta") == 2, "the floor is honoured"
+    assert classes.count("gutenberg") == 4, "the ranking keeps the remainder"
+
+
+def test_a_starved_class_still_gets_its_floor():
+    """The Entry-32 guarantee that survives: never zero of a class."""
+    ranked = q("gutenberg", 20) + q("creepypasta", 2)
+    out = curate.apply_class_quotas(ranked, 12, floor=2)
+    assert sum(1 for c in out[:12] if c["source_class"] == "creepypasta") == 2
+
+
+def test_floor_degrades_when_the_batch_is_too_small_to_hold_it():
+    """batch=3 across 2 classes cannot give both a floor of 2."""
+    out = curate.apply_class_quotas(q("gutenberg", 5) + q("creepypasta", 5), 3,
+                                    floor=2)
+    assert len(out[:3]) == 3
+    assert {c["source_class"] for c in out[:3]} == {"gutenberg", "creepypasta"}
 
 
 def test_quotas_preserve_rank_within_a_class():
-    out = curate.apply_class_quotas(q("gutenberg", 4) + q("creepypasta", 4), 4)
+    out = curate.apply_class_quotas(q("gutenberg", 4) + q("creepypasta", 4), 4,
+                                    floor=2)
     assert [c["title"] for c in out[:4]] == \
-        ["gutenberg-0", "creepypasta-0", "gutenberg-1", "creepypasta-1"]
+        ["gutenberg-0", "gutenberg-1", "creepypasta-0", "creepypasta-1"]
 
 
 def test_quotas_never_discard_anything():

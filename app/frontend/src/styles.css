@@ -190,6 +190,18 @@ button.danger { color: var(--danger); }
 .taste-fill.bad { background: var(--danger); }
 .taste-num { flex: 0 0 auto; color: var(--fg); font-size: 0.8rem;
   font-variant-numeric: tabular-nums; }
+.taste-manual { color: var(--accent); font-size: 0.68rem; margin-left: 6px;
+  white-space: nowrap; }
+.taste-score { background: var(--card-now); color: var(--fg);
+  border: 1px solid #333; border-radius: 6px; padding: 2px 4px;
+  font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.taste-n { flex: 0 0 30px; text-align: right; }
+.taste-add { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.taste-add input { flex: 1 1 120px; min-width: 0; }
+.taste-add input, .taste-add select, .taste-add button {
+  background: var(--card-now); color: var(--fg); border: 1px solid #333;
+  border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 0.85rem; }
+.taste-add button:disabled { opacity: 0.5; }
 .taste-raw { margin-top: 18px; color: var(--dim); font-size: 0.8rem; }
 .taste-raw summary { cursor: pointer; }
 .taste-raw pre { white-space: pre-wrap; word-break: break-word;

@@ -85,6 +85,14 @@ SELECTION_MAX_TOKENS = 4000
 # one side.
 SELECTION_SPARES = 6
 
+# Minimum places each source class gets in a batch (Grace's ruling, Entry 35).
+# A FLOOR, not an even split: Entry 32's round-robin guaranteed variety but also
+# pinned the classics/modern ratio at 1:1, which is the axis her ratings are
+# clearest on — that is why the Phase 6 gate could measure no effect (Entry 34).
+# 2 keeps a class from ever being starved to zero while leaving the rest of the
+# batch to the ranking, and so to the taste profile.
+CLASS_FLOOR = 2
+
 # Preference adaptation (Phase 6, DESIGN §8). Below this many rated stories no
 # taste profile is built at all: the prior is centred on the listener's own mean
 # rating, so at n=1 every tag's shrunk mean equals that mean and a single 5-star

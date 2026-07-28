@@ -157,40 +157,32 @@ phone; a channel edit demonstrably changes the next curation batch.
 > Prompt: *"Read STATE, JOURNAL, DESIGN.md. Build Phase 5 per TASKS; run the queue gate
 > end-to-end and show me the worker log."*
 
-## Phase 6 — Preference adaptation   · Owner: Claude Code   · **[IN PROGRESS]**
+## Phase 6 — Preference adaptation   · Owner: Claude Code   · **DONE**
 **Goal:** Ratings steer curation (brief item 4).
 **Actions:** 1–5 rating UI; per-tag aggregation (author, era, subgenre, themes, origin,
 language); taste profile injected into curation prompt; trends viewable in UI.
 **Output:** rating flow + weighted curation; aggregation unit-tested.
 **Gate:** seed contrasting ratings on ≥6 stories → next curation batch's tag distribution
 shifts toward liked tags (shown by diffing two curation runs' candidate lists).
-> Prompt: *"Read STATE, JOURNAL, DESIGN.md. Build Phase 6 per TASKS; demonstrate the gate
-> with a before/after curation diff."*
 
-**Where it stands (Entry 34).** BUILT: `pipeline/taste.py` (aggregation +
-profile), injection into both curation paths, persistence to
-`curation_runs.taste_profile_text`, `/api/taste` + Trends screen, 28 new tests
-(228 green). Rating UI already existed from AMENDMENT_05 C8.
+**GATE PASSED (Entry 35), with a control run.** Sandboxed A/A′/B over one shortlist:
+two no-profile runs differ by **1** title (the noise floor); the profile run differs from
+them by **7–8**. Lovecraft picks go **7/12 → 0/12** when the profile is applied, replaced
+by ghost/gothic stories (Benson, Crawford, Middleton, Chambers) — matching `weird` 1.0/5
+against `gothic`/`19th-century`/`folk` 5.0/5. $0.0595.
 
-**GATE NOT PASSED.** The A/B diff looked like a pass until the no-profile
-control ran: A vs A′ (both no profile) differ by 2 titles, A′ vs B (profile)
-by 1, and B is rank-identical to A′. No effect beyond run-to-run noise. The
-profile IS reaching the model — B's reasons cite "19th-century gothic" and
-"descent-into-madness" — it just moves nothing. Three causes, all evidenced in
-Entry 34; the blocking one is Grace's call:
+Built: `pipeline/taste.py` (shrunk-mean ranking, raw-average display, discriminating-kind
+rule, rating floor), injection into both curation paths, persistence to
+`curation_runs.taste_profile_text`, `/api/taste` + Trends screen, and manual overrides
+(`taste_overrides`: adjust / add / suppress / revert). 243 tests green.
 
-1. Half the shortlist (all 36 creepypasta candidates) carries no author, no
-   year and 2 distinct evidence strings, so the profile's era/subgenre/theme
-   terms cannot discriminate between them.
-2. `curate.apply_class_quotas` pins the classics/modern ratio at 1:1, which is
-   the axis Grace's ratings are clearest on (classics 5.0 vs creepypasta 2.0,
-   n=3). **Relaxing it reverses an Entry-32 decision — needs Grace.**
-3. The classics half is canon-saturated and already maximal on her liked tags.
+**The control is the lesson.** The first attempt (Entry 34) read as a pass — 3/12 titles
+changed — until a second no-profile run showed the diff was noise. Any future re-run of
+this gate MUST include one.
 
-**Remaining to close Phase 6:** Grace's ruling on (2); then either enrich
-candidates with discriminating metadata (1) or re-run the gate on the axis the
-ruling frees, with the no-profile control as the baseline every time.
-**Also owed:** server restart + phone check of the now-6-tab header.
+**Known limit, carried forward:** creepypasta candidates carry no author, year or theme
+(2 distinct evidence strings across all 36), so the profile can only discriminate among
+them by title. Enriching that source is unclaimed work, not a Phase 6 debt.
 
 ## Phase 7 — Hardening & audit   · Owner: Both
 **Goal:** Close the drift gap; make the system survivable across gaps.

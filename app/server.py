@@ -18,7 +18,7 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import config, curate, db, renderjob, sources, taste, worker
+from pipeline import config, curate, db, renderjob, sources, tag, taste, worker
 from pipeline.models import OffsetsManifest, StoryMeta
 
 # Settings copy for the curation modes. Kept beside the API rather than in the
@@ -324,6 +324,38 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         out["curation_mode"] = mode
         out["applies_to_curation"] = mode in ("free_llm", "llm")
         return out
+
+    @app.put("/api/taste/{kind}/{value}")
+    def put_taste_override(kind: str, value: str,
+                           score: float | None = Body(default=None, embed=True),
+                           suppress: bool = Body(default=False, embed=True)):
+        """Manual steering (Grace, Entry 35). `score` sets a preference the
+        ratings did not produce (or overrides one they did); `suppress: true`
+        drops a tag from the profile. Persists until cleared — it applies to
+        every future batch, not only the next one."""
+        if not suppress and score is None:
+            raise HTTPException(422, "give a score, or suppress: true")
+        if score is not None and not 1 <= score <= 5:
+            raise HTTPException(422, "score must be 1..5")
+        c = conn()
+        # normalized the same way tags are, so a hand-typed "Ghost Stories"
+        # lands on the same key the tagger would have written
+        norm = tag.free_value_norm(value)
+        if not norm:
+            raise HTTPException(422, "value cannot be empty")
+        taste.set_override(c, kind.strip().lower(), norm,
+                           None if suppress else float(score))
+        return {"kind": kind.strip().lower(), "value": norm,
+                "score": None if suppress else float(score)}
+
+    @app.delete("/api/taste/{kind}/{value}")
+    def delete_taste_override(kind: str, value: str):
+        """Revert one tag to the automatically computed value."""
+        c = conn()
+        if not taste.clear_override(c, kind.strip().lower(),
+                                    tag.free_value_norm(value)):
+            raise HTTPException(404, "no manual override for that tag")
+        return {"reverted": True}
 
     @app.post("/api/stories/{sid}/bookmarks")
     def add_bookmark(sid: str, position_s: float = Body(embed=True),

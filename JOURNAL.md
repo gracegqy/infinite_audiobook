@@ -5,6 +5,84 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 35 — 2026-07-28 — Quota becomes a floor (Grace's ruling); Phase 6 gate PASSES; manual taste steering
+
+Grace ruled **(a) a floor, not an even split**, and asked for manual control of
+the profile on top of the computed one.
+
+### The floor, and what it cost to learn
+
+`apply_class_quotas` now guarantees `config.CLASS_FLOOR = 2` places per source
+class and lets the model's ranking — which carries the taste profile — take the
+rest. What Entry 32 was actually protecting (never zero of a class) survives;
+what it accidentally did (pin the axis Grace's ratings are clearest on) does
+not. The two tests asserting an even split encoded the old ruling and were
+rewritten rather than deleted, so the change is visible in the diff.
+
+### Gate: PASSED, and only the control makes that claim honest
+
+Same A/A′/B design as Entry 34, re-run with the floor. Sandboxed, $0.0595.
+
+| comparison | titles differing |
+|---|---|
+| A vs A′ — both NO profile (noise) | **1** |
+| A vs B — the effect | **8** |
+| A′ vs B | **7** |
+
+Seven to eight times the noise floor, where Entry 34 measured an effect
+*smaller* than its noise. The direction is the ratings' own:
+
+- **Lovecraft picks: 7/12 → 7/12 → 0/12.** Both no-profile runs load the batch
+  with cosmic horror; the profile run takes none. Grace rates `weird [subgenre]`
+  **1.0/5** — her single strongest dislike, and Lovecraft is what `weird` means
+  in this shortlist.
+- What replaced them: The Ghost Ship (Middleton), Wandering Ghosts (Crawford),
+  Visible and Invisible (Benson), The Mystery of Choice (Chambers), The Night
+  Wire, The Golgotha Dancers, The Parenticide Club (Bierce) — ghost and gothic
+  stories, against liked `gothic` / `19th-century` / `early-20th` / `folk`, all
+  5.0.
+
+Interesting non-result: the class mix is now 10 gutenberg / 2 creepypasta in
+**all three** runs. The model ranks classics-heavy on reputation alone, so the
+class axis never discriminated — Entry 34's "shift toward classics" was noise
+twice over. The real signal was always *which* classics, and the even split was
+hiding it by consuming the slots.
+
+`The Parenticide Club` is the known Entry-29/32 residual (an innocent-titled
+Bierce collection); the free verifier catches it at pool-build and a spare
+replaces it, so it costs a spare, not a slot.
+
+### Manual taste steering (Grace's request)
+
+New `taste_overrides(kind, value_norm, score)` — score NULL suppresses. Three
+operations, one table: **adjust** an existing score, **add** a tag the ratings
+never produced, **delete** (suppress) one they did. Deleting the ROW reverts to
+automatic. `PUT /api/taste/{kind}/{value}` and `DELETE` the same path; the
+Trends screen gets a score dropdown, ✕, ↺ and an add form.
+
+Two rules worth stating:
+- **A manual score is used verbatim, never shrunk.** Shrinkage discounts thin
+  evidence; a stated preference is not evidence to be discounted. It is also
+  labelled in the prompt as "set by the listener" rather than shown as n=0,
+  which a model would read as weak.
+- **Overrides bypass the rating floor** (they carry no degenerate-prior problem)
+  — but a suppress-only override does not conjure a profile out of nothing: it
+  says what to leave out, not what to seek.
+
+Values are normalized through `tag.free_value_norm`, so a hand-typed "Ghost
+Stories" lands on the key the tagger would have written. Verified live end to
+end and the test overrides removed afterwards (`taste_overrides` is empty).
+
+243 tests green (was 228). Server restarted on the new build; Grace was not
+playing (no progress write in ~8 min).
+
+Measurements invalidated by this change: **Entry 34's gate result is superseded,
+not corrected** — it measured the pipeline as it then stood, and the floor is
+what changed the answer. Entry 34's diagnosis of *why* nothing moved stands, and
+cause 1 (creepypasta candidates carry no author/year/theme) is still true and
+still unaddressed; the floor simply made cause 2 stop dominating. Cost figures
+unchanged.
+
 ## Entry 34 — 2026-07-28 — Phase 6 built; gate NOT passed — the profile reaches the model and changes nothing
 
 Grace set `curation_mode = free_llm`, rated a 6th story, and asked for the six

@@ -202,6 +202,56 @@ def test_taste_flags_when_the_curation_mode_cannot_use_it(env):
     assert env.client.get("/api/taste").json()["applies_to_curation"] is True
 
 
+def test_taste_override_adjust_add_and_revert(env):
+    for i, (score, sub) in enumerate([(5, "gothic"), (5, "gothic"),
+                                      (1, "weird")]):
+        sid = env.add(f"t{i}", "read")
+        env.client.put(f"/api/ratings/{sid}", json={"score": score})
+        tag_story(env, sid, "subgenre", sub)
+
+    # adjust: flip a liked tag to disliked
+    assert env.client.put("/api/taste/subgenre/gothic",
+                          json={"score": 1}).status_code == 200
+    body = env.client.get("/api/taste").json()
+    assert "gothic" in [r["value"] for r in body["disliked"]]
+
+    # add: a preference the ratings never produced
+    env.client.put("/api/taste/subgenre/folk", json={"score": 5})
+    folk = next(r for r in env.client.get("/api/taste").json()["liked"]
+                if r["value"] == "folk")
+    assert folk["n"] == 0 and folk["manual"] is True
+
+    # revert
+    assert env.client.delete("/api/taste/subgenre/gothic").status_code == 200
+    assert "gothic" in [r["value"] for r in
+                        env.client.get("/api/taste").json()["liked"]]
+    assert env.client.delete("/api/taste/subgenre/gothic").status_code == 404
+
+
+def test_taste_override_suppresses_a_tag(env):
+    for i, (score, sub) in enumerate([(5, "gothic"), (5, "gothic"),
+                                      (1, "weird")]):
+        sid = env.add(f"t{i}", "read")
+        env.client.put(f"/api/ratings/{sid}", json={"score": score})
+        tag_story(env, sid, "subgenre", sub)
+    env.client.put("/api/taste/subgenre/gothic", json={"suppress": True})
+    body = env.client.get("/api/taste").json()
+    assert "gothic" not in [r["value"] for r in body["liked"] + body["disliked"]]
+
+
+def test_taste_override_normalizes_a_hand_typed_value(env):
+    """"Ghost Stories" must land on the key the tagger would have written."""
+    r = env.client.put("/api/taste/theme/Ghost Stories", json={"score": 5})
+    assert r.json()["value"] == "ghost-stories"
+
+
+def test_taste_override_rejects_bad_input(env):
+    assert env.client.put("/api/taste/subgenre/gothic",
+                          json={"score": 9}).status_code == 422
+    assert env.client.put("/api/taste/subgenre/gothic",
+                          json={}).status_code == 422
+
+
 def test_taste_survives_no_active_channel(env):
     """Entry-33 rule: a channel problem must not take out an explanatory screen."""
     env.conn.execute("UPDATE channels SET is_active=0")

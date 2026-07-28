@@ -20,6 +20,15 @@ export const rate = (id, score) =>
   req(`/api/ratings/${id}`, { method: "PUT", body: JSON.stringify({ score }) });
 export const clearRating = (id) => req(`/api/ratings/${id}`, { method: "DELETE" });
 export const getTaste = () => req("/api/taste");
+const tastePath = (kind, value) =>
+  `/api/taste/${encodeURIComponent(kind)}/${encodeURIComponent(value)}`;
+export const setTaste = (kind, value, score) =>
+  req(tastePath(kind, value), { method: "PUT", body: JSON.stringify({ score }) });
+export const suppressTaste = (kind, value) =>
+  req(tastePath(kind, value),
+      { method: "PUT", body: JSON.stringify({ suppress: true }) });
+export const clearTaste = (kind, value) =>
+  req(tastePath(kind, value), { method: "DELETE" });
 export const getSettings = () => req("/api/settings");
 export const putSettings = (body) =>
   req("/api/settings", { method: "PUT", body: JSON.stringify(body) });

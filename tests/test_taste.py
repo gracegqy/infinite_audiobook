@@ -149,6 +149,62 @@ def test_cap_yields_places_when_a_kind_runs_out():
     assert len(liked) == 5, "one era must not cap the whole profile at 2"
 
 
+# ---- manual overrides (Entry 35) ----
+
+def test_override_replaces_a_computed_score_verbatim():
+    """A stated preference is not evidence to be discounted — no shrinkage."""
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "weird", 1)))
+    out = taste.apply_overrides(stats, {("subgenre", "gothic"): 2.0})
+    gothic = next(r for r in out if r["value"] == "gothic")
+    assert gothic["avg"] == 2.0 and gothic["shrunk"] == 2.0
+    assert gothic["manual"] is True
+    assert gothic["n"] == 1, "the underlying evidence count is still reported"
+
+
+def test_override_can_suppress_a_tag():
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "weird", 1)))
+    out = taste.apply_overrides(stats, {("subgenre", "gothic"): None})
+    assert [r["value"] for r in out] == ["weird"]
+
+
+def test_override_can_add_a_tag_with_no_ratings_behind_it():
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "weird", 1)))
+    out = taste.apply_overrides(stats, {("subgenre", "folk"): 5.0})
+    folk = next(r for r in out if r["value"] == "folk")
+    assert folk["n"] == 0 and folk["avg"] == 5.0 and folk["manual"] is True
+
+
+def test_added_tag_bypasses_the_discriminating_kind_rule():
+    """An explicit instruction about a tag is a preference about it, even if
+    the kind never varies across rated stories."""
+    stats = taste.aggregate(rows(("s1", "subgenre", "gothic", 5)))
+    assert stats == [], "one distinct subgenre is dropped as uninformative"
+    out = taste.apply_overrides(stats, {("language", "zh"): 5.0})
+    assert [r["value"] for r in out] == ["zh"]
+
+
+def test_overrides_do_not_mutate_the_input_stats():
+    stats = taste.aggregate(rows(
+        ("s1", "subgenre", "gothic", 5), ("s2", "subgenre", "weird", 1)))
+    before = [dict(r) for r in stats]
+    taste.apply_overrides(stats, {("subgenre", "gothic"): 1.0})
+    assert stats == before
+
+
+def test_manual_entries_are_labelled_in_the_prompt_text():
+    """n=0 must not read to the model as weak evidence."""
+    stats = taste.apply_overrides(
+        taste.aggregate(rows(("s1", "subgenre", "gothic", 5),
+                             ("s2", "subgenre", "weird", 1))),
+        {("subgenre", "folk"): 5.0})
+    text = taste.render_profile(stats, 2)
+    assert "folk [subgenre] (set by the listener: 5.0/5)" in text
+    assert "n=0" not in text
+
+
 # ---- DB boundary ----
 
 @pytest.fixture()
@@ -199,6 +255,35 @@ def test_profile_is_scoped_to_one_channel(conn):
     assert "gothic" in taste.profile_for(conn, 1)
     assert "gothic" not in taste.profile_for(conn, 2)
     assert "cyberpunk" in taste.profile_for(conn, 2)
+
+
+def test_manual_override_survives_a_round_trip(conn):
+    for i, score in enumerate([5, 4, 1]):
+        seed(conn, f"s{i}", score,
+             [("subgenre", "gothic" if score > 3 else "weird")])
+    taste.set_override(conn, "subgenre", "gothic", 1.0)
+    assert "gothic" in taste.profile_for(conn)
+    liked, disliked = taste.split_preferences(
+        taste._stats_with_overrides(conn, None))
+    assert "gothic" in [r["value"] for r in disliked], "flipped by the override"
+    assert taste.clear_override(conn, "subgenre", "gothic") is True
+    liked, _ = taste.split_preferences(taste._stats_with_overrides(conn, None))
+    assert "gothic" in [r["value"] for r in liked], "back to automatic"
+
+
+def test_a_manual_entry_alone_builds_a_profile_below_the_floor(conn):
+    """Overrides bypass the rating floor — they carry no degenerate prior."""
+    seed(conn, "s1", 5, [("subgenre", "gothic")])
+    assert taste.profile_for(conn) == ""
+    taste.set_override(conn, "subgenre", "folk", 5.0)
+    assert "folk" in taste.profile_for(conn)
+
+
+def test_suppression_alone_does_not_conjure_a_profile(conn):
+    """A suppress-only override says what to leave OUT, not what to seek."""
+    seed(conn, "s1", 5, [("subgenre", "gothic")])
+    taste.set_override(conn, "subgenre", "gothic", None)
+    assert taste.profile_for(conn) == ""
 
 
 def test_summary_matches_the_profile_the_model_is_sent(conn):

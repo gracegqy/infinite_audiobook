@@ -57,6 +57,19 @@ CREATE TABLE IF NOT EXISTS tags(
   PRIMARY KEY(story_id, kind, value_norm)
 );
 
+-- Manual taste steering (Phase 6, Grace's request Entry 35). Overrides sit ON
+-- TOP of the computed aggregation and always win, because they are a stated
+-- preference rather than inferred evidence. score NULL = suppress this tag from
+-- the profile; a row with no matching computed tag is one Grace added herself.
+-- Deleting the ROW reverts that tag to automatic.
+CREATE TABLE IF NOT EXISTS taste_overrides(
+  kind TEXT NOT NULL,
+  value_norm TEXT NOT NULL,
+  score REAL,
+  updated_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY(kind, value_norm)
+);
+
 CREATE TABLE IF NOT EXISTS progress(
   story_id TEXT PRIMARY KEY REFERENCES stories(id),
   position_s REAL NOT NULL,

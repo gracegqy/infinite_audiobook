@@ -130,6 +130,44 @@ def _take_across_kinds(rows: list[dict], limit: int) -> list[dict]:
     return out
 
 
+def apply_overrides(stats: list[dict], overrides: dict) -> list[dict]:
+    """Merge Grace's manual steering over the computed stats. Pure.
+
+    `overrides` maps (kind, value_norm) -> score, where None means "suppress".
+    Three effects, matching the three things the Trends screen offers:
+
+      adjust  — a manual score REPLACES the computed one for an existing tag
+      add     — an override with no computed tag behind it enters with n=0
+      delete  — a None score removes the tag from the profile entirely
+
+    A manual score is used verbatim, NOT shrunk: shrinkage exists to discount
+    thin evidence, and a stated preference is not evidence to be discounted —
+    if Grace says 5, the profile says 5. Manual rows also bypass the
+    discriminating-kind rule, since an explicit instruction about a tag is a
+    preference about it by definition.
+    """
+    out, seen = [], set()
+    for r in stats:
+        key = (r["kind"], r["value"])
+        if key not in overrides:
+            out.append(r)
+            continue
+        seen.add(key)
+        score = overrides[key]
+        if score is None:
+            continue  # suppressed
+        out.append({**r, "avg": round(float(score), 2),
+                    "shrunk": float(score), "manual": True})
+    for (kind, value), score in overrides.items():
+        if (kind, value) in seen or score is None:
+            continue
+        out.append({"kind": kind, "value": value, "n": 0,
+                    "avg": round(float(score), 2), "shrunk": float(score),
+                    "manual": True})
+    out.sort(key=lambda r: (-r["shrunk"], -r["n"], r["kind"], r["value"]))
+    return out
+
+
 def split_preferences(stats: list[dict], limit: int = 8
                       ) -> tuple[list[dict], list[dict]]:
     """(liked, disliked), each capped at `limit`, strongest-first within a kind
@@ -158,8 +196,14 @@ def render_profile(stats: list[dict], rated_story_count: int = 0,
         return ""
 
     def fmt(rows):
-        return ", ".join(f"{r['value']} [{r['kind']}] "
-                         f"({r['avg']:.1f}/5, n={r['n']})" for r in rows)
+        # A manual entry is labelled as such: it is the listener speaking
+        # directly, and the model should not read "n=0" as weak evidence.
+        return ", ".join(
+            f"{r['value']} [{r['kind']}] "
+            + ("(set by the listener: "
+               f"{r['avg']:.1f}/5)" if r.get("manual")
+               else f"({r['avg']:.1f}/5, n={r['n']})")
+            for r in rows)
 
     lines = []
     if liked:
@@ -211,6 +255,37 @@ def rated_story_count(conn, channel_id: int | None = None) -> int:
     return conn.execute(sql, args).fetchone()["n"]
 
 
+def overrides(conn) -> dict:
+    """{(kind, value_norm): score|None} — Grace's manual steering."""
+    return {(r["kind"], r["value_norm"]): r["score"]
+            for r in conn.execute(
+                "SELECT kind, value_norm, score FROM taste_overrides")}
+
+
+def set_override(conn, kind: str, value: str, score: float | None):
+    """Upsert one manual entry. score=None suppresses the tag."""
+    conn.execute(
+        "INSERT INTO taste_overrides(kind, value_norm, score, updated_at) "
+        "VALUES(?,?,?,datetime('now')) ON CONFLICT(kind, value_norm) DO UPDATE "
+        "SET score=excluded.score, updated_at=excluded.updated_at",
+        (kind, value, score))
+    conn.commit()
+
+
+def clear_override(conn, kind: str, value: str) -> bool:
+    """Revert a tag to automatic. True if an override was actually removed."""
+    cur = conn.execute(
+        "DELETE FROM taste_overrides WHERE kind=? AND value_norm=?",
+        (kind, value))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def _stats_with_overrides(conn, channel_id) -> list[dict]:
+    return apply_overrides(aggregate(rated_tags(conn, channel_id)),
+                           overrides(conn))
+
+
 def profile_for(conn, channel_id: int | None = None) -> str:
     """The single copy of 'what taste profile goes in the prompt' — both
     curation paths and the Trends screen read this, so what the UI shows is by
@@ -221,23 +296,29 @@ def profile_for(conn, channel_id: int | None = None) -> str:
     prior is centred on the listener's own mean, so with a single rated story
     every tag's shrunk mean EQUALS that mean, and one 5-star story would mark
     every tag it carries as "liked" with no evidence separating them.
+
+    Manual overrides bypass the floor: they are a stated preference, not an
+    inference from thin evidence, so they carry no degenerate-prior problem.
     """
     n = rated_story_count(conn, channel_id)
-    if n < config.TASTE_MIN_RATED_STORIES:
+    manual = overrides(conn)
+    if n < config.TASTE_MIN_RATED_STORIES and not any(
+            s is not None for s in manual.values()):
         return ""
-    return render_profile(aggregate(rated_tags(conn, channel_id)), n)
+    return render_profile(_stats_with_overrides(conn, channel_id), n)
 
 
 def summary(conn, channel_id: int | None = None) -> dict:
     """Trends screen payload (DESIGN §8: 'reads the same aggregation')."""
-    stats = aggregate(rated_tags(conn, channel_id))
+    stats = _stats_with_overrides(conn, channel_id)
     liked, disliked = split_preferences(stats)
     return {
         "rated_story_count": rated_story_count(conn, channel_id),
         "liked": liked,
         "disliked": disliked,
         "all": stats,
-        "profile_text": render_profile(stats,
-                                       rated_story_count(conn, channel_id)),
+        "profile_text": profile_for(conn, channel_id),
         "min_ratings_for_signal": config.TASTE_MIN_RATED_STORIES,
+        "kinds": sorted({r["kind"] for r in stats}
+                        | set(config.CONTROLLED_VOCAB) | {"theme", "author"}),
     }

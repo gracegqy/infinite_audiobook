@@ -279,39 +279,54 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
 
 # ---- free_llm selection (Entry 32): taste over a supplied list, no search ----
 
-def apply_class_quotas(candidates: list[dict], batch: int) -> list[dict]:
-    """Re-order the model's ranked picks so the FIRST `batch` are spread evenly
-    across source classes, with the rest kept behind them as spares.
+def apply_class_quotas(candidates: list[dict], batch: int,
+                       floor: int | None = None) -> list[dict]:
+    """Re-order the model's ranked picks so the FIRST `batch` give every source
+    class at least `floor` places, then follow the model's ranking for the rest.
+    The remainder are kept behind them as spares.
 
     Balance is enforced here, in code, and not asked for in the prompt. Entries
     27-28 spent two paid batches and two prompt rewrites discovering that a
     model told to balance will still return what it recognises best — the first
     free_llm run came back 9 Gutenberg / 3 creepypasta off a 36/36 shortlist.
     The model is good at ranking within a kind; it should not also be trusted to
-    hold a ratio. Nothing is discarded: a class with too few picks simply yields
-    its unused places to the next-ranked candidates.
+    hold a ratio.
+
+    A FLOOR, not an even split (Grace's ruling, Entry 35). The even split shipped
+    in Entry 32 also pinned the one axis her ratings are clearest on — she rates
+    classics 5.0 and creepypasta 2.0 (n=3), the model already ranked gutenberg
+    ~2:1, and the round-robin pulled it back to 1:1 every time, which is why the
+    Phase 6 gate could detect no effect (Entry 34). The floor keeps what Entry 32
+    was actually protecting — no class is ever starved to zero — while letting
+    the ranking, and so the taste profile behind it, decide the remaining slots.
+
+    Nothing is discarded: a class with fewer than `floor` picks yields its unused
+    places to the next-ranked candidates.
     """
+    if floor is None:
+        floor = config.CLASS_FLOOR
     buckets: dict[str, list[dict]] = {}
     for c in candidates:
         buckets.setdefault(c.get("source_class") or "?", []).append(c)
     if len(buckets) < 2:
         return list(candidates)
 
+    # A floor that cannot fit degrades to the largest one that can, rather than
+    # silently over-filling the batch or starving the last class.
+    per_class = min(floor, batch // len(buckets))
+
     head, taken = [], set()
-    while len(head) < batch:
-        progressed = False
-        for bucket in buckets.values():         # round-robin = even split
-            for c in bucket:
-                if id(c) in taken:
-                    continue
-                head.append(c)
-                taken.add(id(c))
-                progressed = True
-                break
-            if len(head) >= batch:
-                break
-        if not progressed:                      # every bucket exhausted
+    for bucket in buckets.values():             # the guaranteed minimum
+        for c in bucket[:per_class]:
+            head.append(c)
+            taken.add(id(c))
+    # …then the model's ranking decides the rest, unconstrained.
+    for c in candidates:
+        if len(head) >= batch:
             break
+        if id(c) not in taken:
+            head.append(c)
+            taken.add(id(c))
     tail = [c for c in candidates if id(c) not in taken]  # spares, rank order
     return head + tail
 

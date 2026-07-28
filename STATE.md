@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 34 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 35 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -13,7 +13,7 @@
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
-| 6 — Preference adaptation | **IN PROGRESS — gate not passed** | Curation demonstrably weighted by ratings | BUILT + 228 tests green (Entry 34). Gate FAILS its control: A vs A′ (both no-profile) differ by 2 titles, A′ vs B (profile) by 1, B rank-identical to A′ — no effect beyond noise. Profile does reach the model (B cites "19th-century gothic", "descent-into-madness"). Blocked on Grace's ruling re: the class quota |
+| 6 — Preference adaptation | **DONE** | Curation demonstrably weighted by ratings | **GATE PASSED with a control** (Entry 35): noise (two no-profile runs) = 1 title; effect = 7–8 titles. Lovecraft picks 7/12 → **0/12** with the profile, replaced by ghost/gothic — matching `weird` 1.0/5 vs `gothic`/`19th-century` 5.0. Needed Grace's floor ruling first; Entry 34's even split had pinned the axis. 243 tests green |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
 
 ## Confirmed findings
@@ -62,37 +62,25 @@
 
 ## Next actions
 
-Phase 5 CLOSED. Phase 6 is BUILT but its **gate is not passed** (Entry 34).
+Phases 0–6 are DONE. **Phase 7 (hardening & audit) is next** — nothing blocks it.
 
-**Blocking Phase 6 — needs Grace's ruling:**
+**Needs Grace:**
 
-1. **Does the classics/modern quota stay fixed at 1:1?** This is the thing
-   stopping ratings from steering anything. Grace rates classics 5.0 and
-   creepypasta 2.0 (n=3, her best-evidenced signal); the model already ranks
-   gutenberg ~2:1; `curate.apply_class_quotas` pulls it back to 1:1 every time.
-   Entry 32 introduced that quota for good reason — the model lost the balance
-   fight three times — so **relaxing it reverses a prior decision and is not
-   Claude's to make.** Three options:
-   - **(a) a floor, not a split** (e.g. ≥2 of each per batch) — variety
-     preserved, taste free to move the rest. Recommended.
-   - **(b) weight the ratio by the ratings** — most responsive, least
-     predictable; a run of bad creepypasta ratings could starve that half.
-   - **(c) keep 1:1** — accept that taste steers only *within* each half, and
-     close Phase 6 on the narrower claim.
-2. **Then re-run the gate with its control.** ~$0.06, sandboxed. The control
-   (a second no-profile run) is not optional — without it the noise reads as a
-   pass, which is exactly what happened the first time.
-
-**Needs Grace (not blocking):**
-
-3. **Server restart + phone check.** Deferred because she was listening when
-   the work landed (Entry 34). Until it happens the running process has no
-   `/api/taste`, so a reload would error in Trends only. The header now carries
-   **6 tabs**; the 5-tab row already wrapped once and broke the sticky header,
-   so the new 430/380px breakpoints need confirming on the phone.
-4. **An independent `/code-review` pass** when convenient. Entry 33's review was
+1. **Refill the queue — it is at 1/3 with an empty pool.** One
+   `run_story --build-pool` on `free_llm` (~$0.02). This will be the first real
+   build with the taste profile live, so it doubles as the production check on
+   Entry 35's gate result.
+2. **Phone check of the 6-tab header.** The 5-tab row already wrapped once and
+   took the sticky player offset with it; breakpoints were tightened at 430/380px
+   but are **unverified on the real target**. Also worth trying the new Trends
+   edit controls (score dropdown / ✕ / ↺ / add) on a phone-width screen.
+3. **An independent `/code-review` pass** when convenient. Entry 33's review was
    Claude's own read of code Claude had just written — the weakest kind. It found
-   and fixed 4 real defects, but a second pair of eyes is worth having.
+   and fixed 4 real defects, and Entries 34–35 added ~600 more lines the same way.
+4. **Self-heal + budget (Grace's proposal, Entry 35 assessment).** Not built —
+   assessed and scoped, with one part recommended against (an API key pasted
+   into Settings; DESIGN §10 forbids keys reaching the frontend, and `.env`
+   already works). Decide scope before building.
 
 **Standing debts (no deadline):**
 
@@ -169,13 +157,15 @@ for 12 candidates · `llm` ~$2.40 at the coded batch of 40 (~$0.75 at 12).
 
 ## Open decisions
 
-**One, and it blocks Phase 6: does the classics/modern quota stay 1:1?**
-See Next actions item 1 — options (a) floor / (b) rating-weighted / (c) keep.
-Entry 32 introduced the quota after the model lost the balance fight three
-times, so relaxing it reverses that ruling and is Grace's call. Recommended:
-(a) a floor of ≥2 per class, which keeps the Entry-32 guarantee (a class is
-never starved) while leaving the remaining slots free to follow the ratings.
+**Scope of self-heal + budget** (Grace's proposal, assessed Entry 35). Nothing
+built. The three pieces are independent and can ship separately: a scheduler
+(nothing runs the worker today — no launchd job, no crontab), a spend cap in the
+DB, and the auto-refill itself. **Recommended against:** storing the API key via
+Settings — DESIGN §10 forbids keys reaching the frontend, `data/app.db` is
+copied into `backups/` unencrypted, and `.env` already works.
 
+Settled: the classics/modern quota is a **floor of `CLASS_FLOOR = 2`**, not an
+even split (Grace, Entry 35 — supersedes the Entry-32 round-robin).
 (AMENDMENT_05 A/B were flipped BINDING and implemented in Entry 21.)
 
 Curation cost (Entries 28-29, superseded for the routine path by Entry 32):
