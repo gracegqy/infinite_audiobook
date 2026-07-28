@@ -157,7 +157,7 @@ phone; a channel edit demonstrably changes the next curation batch.
 > Prompt: *"Read STATE, JOURNAL, DESIGN.md. Build Phase 5 per TASKS; run the queue gate
 > end-to-end and show me the worker log."*
 
-## Phase 6 — Preference adaptation   · Owner: Claude Code
+## Phase 6 — Preference adaptation   · Owner: Claude Code   · **[IN PROGRESS]**
 **Goal:** Ratings steer curation (brief item 4).
 **Actions:** 1–5 rating UI; per-tag aggregation (author, era, subgenre, themes, origin,
 language); taste profile injected into curation prompt; trends viewable in UI.
@@ -166,6 +166,31 @@ language); taste profile injected into curation prompt; trends viewable in UI.
 shifts toward liked tags (shown by diffing two curation runs' candidate lists).
 > Prompt: *"Read STATE, JOURNAL, DESIGN.md. Build Phase 6 per TASKS; demonstrate the gate
 > with a before/after curation diff."*
+
+**Where it stands (Entry 34).** BUILT: `pipeline/taste.py` (aggregation +
+profile), injection into both curation paths, persistence to
+`curation_runs.taste_profile_text`, `/api/taste` + Trends screen, 28 new tests
+(228 green). Rating UI already existed from AMENDMENT_05 C8.
+
+**GATE NOT PASSED.** The A/B diff looked like a pass until the no-profile
+control ran: A vs A′ (both no profile) differ by 2 titles, A′ vs B (profile)
+by 1, and B is rank-identical to A′. No effect beyond run-to-run noise. The
+profile IS reaching the model — B's reasons cite "19th-century gothic" and
+"descent-into-madness" — it just moves nothing. Three causes, all evidenced in
+Entry 34; the blocking one is Grace's call:
+
+1. Half the shortlist (all 36 creepypasta candidates) carries no author, no
+   year and 2 distinct evidence strings, so the profile's era/subgenre/theme
+   terms cannot discriminate between them.
+2. `curate.apply_class_quotas` pins the classics/modern ratio at 1:1, which is
+   the axis Grace's ratings are clearest on (classics 5.0 vs creepypasta 2.0,
+   n=3). **Relaxing it reverses an Entry-32 decision — needs Grace.**
+3. The classics half is canon-saturated and already maximal on her liked tags.
+
+**Remaining to close Phase 6:** Grace's ruling on (2); then either enrich
+candidates with discriminating metadata (1) or re-run the gate on the axis the
+ruling frees, with the no-profile control as the baseline every time.
+**Also owed:** server restart + phone check of the now-6-tab header.
 
 ## Phase 7 — Hardening & audit   · Owner: Both
 **Goal:** Close the drift gap; make the system survivable across gaps.

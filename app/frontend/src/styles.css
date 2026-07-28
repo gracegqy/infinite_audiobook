@@ -53,6 +53,15 @@ nav { display: flex; gap: 6px; }
 @media (max-width: 360px) {
   .tab { font-size: 0.76rem; padding: 5px 4px; }
 }
+/* Six tabs since Phase 6 (Trends). The 5-tab row already wrapped once and took
+   the sticky header's height with it, so the label shrink starts earlier now
+   rather than only at the 360px case. */
+@media (max-width: 430px) {
+  .tab { font-size: 0.76rem; padding: 5px 3px; }
+}
+@media (max-width: 380px) {
+  .tab { font-size: 0.7rem; padding: 5px 2px; letter-spacing: -0.01em; }
+}
 h2.group { font-size: 0.85rem; color: var(--dim); text-transform: uppercase;
   letter-spacing: 0.06em; margin: 18px 0 6px; }
 
@@ -167,3 +176,25 @@ button.danger { color: var(--danger); }
 .chan-form button { background: var(--card-now); color: var(--fg);
   border: 1px solid #333; border-radius: 8px; padding: 6px 14px; }
 .chan-form button:disabled { opacity: 0.5; }
+
+/* trends / taste profile (Phase 6) */
+.taste-intro { margin: 4px 0 2px; }
+.taste-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.taste-label { flex: 1 1 auto; min-width: 0; font-size: 0.88rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.taste-kind { color: var(--dim); font-size: 0.72rem; }
+.taste-bar { flex: 0 0 84px; height: 6px; background: var(--card);
+  border-radius: 3px; overflow: hidden; }
+.taste-fill { display: block; height: 100%; border-radius: 3px; }
+.taste-fill.good { background: var(--accent); }
+.taste-fill.bad { background: var(--danger); }
+.taste-num { flex: 0 0 auto; color: var(--fg); font-size: 0.8rem;
+  font-variant-numeric: tabular-nums; }
+.taste-raw { margin-top: 18px; color: var(--dim); font-size: 0.8rem; }
+.taste-raw summary { cursor: pointer; }
+.taste-raw pre { white-space: pre-wrap; word-break: break-word;
+  background: var(--card); border-radius: 8px; padding: 8px; margin-top: 6px; }
+
+/* library: the failed group is an exclusion ledger, not listening material */
+.failed-note { color: var(--dim); font-size: 0.78rem; margin: 2px 0 6px; }
+.card.muted { opacity: 0.6; }

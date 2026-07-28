@@ -85,6 +85,13 @@ SELECTION_MAX_TOKENS = 4000
 # one side.
 SELECTION_SPARES = 6
 
+# Preference adaptation (Phase 6, DESIGN §8). Below this many rated stories no
+# taste profile is built at all: the prior is centred on the listener's own mean
+# rating, so at n=1 every tag's shrunk mean equals that mean and a single 5-star
+# story would mark everything it touched as "liked". 3 is the first count at
+# which tags can actually disagree with each other.
+TASTE_MIN_RATED_STORIES = 3
+
 
 def free_shortlist_size(batch: int) -> int:
     """How many free candidates to put in front of the model for a batch of

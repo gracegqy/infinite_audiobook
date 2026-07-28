@@ -205,6 +205,27 @@ short text block ("liked: cosmic-dread (4.7/5, n=3)... disliked: gore (1.5/5, n=
 injected into the curation prompt and stored on curation_runs for the gate's
 before/after diff. Trends screen reads the same aggregation.
 
+Implemented in `pipeline/taste.py` (Entry 34). Four rules the paragraph above did not
+specify, each because the naive reading is wrong:
+- **Rank on a shrunk mean, display the raw one.** Ranking uses the average shrunk toward
+  the listener's own global mean by `PRIOR_WEIGHT` pseudo-observations, so a lone 5 does
+  not outrank a 4.5 over four stories; the figure SHOWN stays the raw avg + n as above.
+- **A kind must vary to be reported.** A kind whose rated stories give it fewer than two
+  distinct values (language, origin in a single-language channel) is dropped — it
+  expresses no preference. Counted before the placeholder filter below.
+- **Placeholders are not preferences.** `author: unknown` is dropped; other kinds keep
+  "unknown" as a legitimate value.
+- **A floor of `config.TASTE_MIN_RATED_STORIES` rated stories**, below which no profile
+  is built. The prior is centred on the listener's own mean, so at n=1 every tag's shrunk
+  mean equals it and one story would mark everything it touched as liked.
+
+Known limit (Entry 34, gate not passed): the profile reaches the model but does not
+measurably change picks, because candidate records carry almost none of the fields the
+profile speaks in (all creepypasta candidates have no author, no year and two distinct
+evidence strings) and `curate.apply_class_quotas` pins the axis the ratings are clearest
+on. Any re-run of the gate MUST include a same-prompt control run — the first attempt
+read as a pass until the control showed the diff was noise.
+
 ## 9. Decisions (Grace's rulings, 2026-07-18 — encoded in v0.2)
 
 1. **Queue:** Grace's redesign adopted — 3-per-active-channel + autoplay in acquisition

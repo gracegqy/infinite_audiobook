@@ -162,6 +162,53 @@ def test_rating_upsert_and_bounds(env):
     assert env.client.put("/api/ratings/s1-ready", json={"score": 0}).status_code == 422
 
 
+# ---- taste / trends (Phase 6) ----
+
+def tag_story(env, sid, kind, value):
+    env.conn.execute(
+        "INSERT OR IGNORE INTO tags(story_id, kind, value_verbatim, value_norm) "
+        "VALUES(?,?,?,?)", (sid, kind, value, value))
+    env.conn.commit()
+
+
+def test_taste_is_empty_below_the_rating_floor(env):
+    env.client.put("/api/ratings/s1-ready", json={"score": 5})
+    tag_story(env, "s1-ready", "subgenre", "gothic")
+    body = env.client.get("/api/taste").json()
+    assert body["rated_story_count"] == 1
+    assert body["profile_text"] == ""
+    assert body["liked"] == [] and body["disliked"] == []
+
+
+def test_taste_reports_preferences_once_rated(env):
+    for i, (score, sub) in enumerate([(5, "gothic"), (5, "gothic"),
+                                      (1, "weird")]):
+        sid = env.add(f"t{i}", "read")
+        env.client.put(f"/api/ratings/{sid}", json={"score": score})
+        tag_story(env, sid, "subgenre", sub)
+    body = env.client.get("/api/taste").json()
+    assert body["rated_story_count"] == 3
+    assert [r["value"] for r in body["liked"]] == ["gothic"]
+    assert [r["value"] for r in body["disliked"]] == ["weird"]
+    assert "gothic" in body["profile_text"]
+
+
+def test_taste_flags_when_the_curation_mode_cannot_use_it(env):
+    """`free` makes no model call, so the screen must not imply ratings steer
+    curation while it is selected."""
+    env.client.put("/api/settings", json={"curation_mode": "free"})
+    assert env.client.get("/api/taste").json()["applies_to_curation"] is False
+    env.client.put("/api/settings", json={"curation_mode": "free_llm"})
+    assert env.client.get("/api/taste").json()["applies_to_curation"] is True
+
+
+def test_taste_survives_no_active_channel(env):
+    """Entry-33 rule: a channel problem must not take out an explanatory screen."""
+    env.conn.execute("UPDATE channels SET is_active=0")
+    env.conn.commit()
+    assert env.client.get("/api/taste").status_code == 200
+
+
 def test_bookmarks_crud(env):
     bid = env.client.post("/api/stories/s1-ready/bookmarks",
                           json={"position_s": 33.3, "note": "creepy bit"}).json()["id"]

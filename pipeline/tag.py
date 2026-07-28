@@ -36,6 +36,18 @@ def normalize_tag(kind: str, value: str) -> str | None:
     return v if v in vocab else None
 
 
+def free_value_norm(verbatim: str) -> str:
+    """Aggregation key for an UNCONTROLLED kind's label. The single copy: tag
+    writes go through it and db._migrate_tag_value_norm re-derives old rows with
+    it, so a stored key can never disagree with a freshly computed one.
+
+    Phase 6 aggregates on (kind, value_norm), so "Unreliable Narrator" and
+    "unreliable-narrator" must collapse to one key — they did not before this
+    was hoisted out, and the two spellings sat in the DB as separate themes.
+    """
+    return re.sub(r"[\s_]+", "-", str(verbatim).strip().lower())
+
+
 def tag_rows(story_id: str, tags: dict, author: str | None,
              language: str) -> list[tuple]:
     """Flatten the LLM tag object + known fields into tags-table rows
@@ -51,8 +63,7 @@ def tag_rows(story_id: str, tags: dict, author: str | None,
         # uncontrolled kinds use the SAME hyphen-collapse normalization as
         # controlled ones — Phase 6 aggregates ratings on (kind, value_norm),
         # so "Body Horror" and "body-horror" must land on one key
-        fallback = re.sub(r"[\s_]+", "-", str(verbatim).strip().lower())
-        rows.append((story_id, kind, str(verbatim), norm or fallback))
+        rows.append((story_id, kind, str(verbatim), norm or free_value_norm(verbatim)))
 
     add("era", tags.get("era"))
     add("origin", tags.get("origin"))

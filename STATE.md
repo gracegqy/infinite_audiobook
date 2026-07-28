@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 33 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 34 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -13,7 +13,7 @@
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
-| 6 — Preference adaptation | not started | Curation demonstrably weighted by ratings | — |
+| 6 — Preference adaptation | **IN PROGRESS — gate not passed** | Curation demonstrably weighted by ratings | BUILT + 228 tests green (Entry 34). Gate FAILS its control: A vs A′ (both no-profile) differ by 2 titles, A′ vs B (profile) by 1, B rank-identical to A′ — no effect beyond noise. Profile does reach the model (B cites "19th-century gothic", "descent-into-madness"). Blocked on Grace's ruling re: the class quota |
 | 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
 
 ## Confirmed findings
@@ -62,22 +62,35 @@
 
 ## Next actions
 
-Phase 5 is CLOSED. Phase 6 (preference adaptation) is the next phase — nothing
-blocks starting it.
+Phase 5 CLOSED. Phase 6 is BUILT but its **gate is not passed** (Entry 34).
 
-**Needs Grace (not blocking Phase 6):**
+**Blocking Phase 6 — needs Grace's ruling:**
 
-1. **Pick a curation mode in Settings.** Three exist (Entry 32), each labelled
-   with its cost, and the free modes list which sources cover the active
-   channel. `free` = $0, no model call, but ordering within a source is
-   arbitrary. `free_llm` = **$0.0176 measured**, model picks from the free
-   shortlist, balance enforced in code — this is the recommended default for
-   routine refills. `llm` = ~$2 at the coded batch of 40, and the only mode that
-   reaches beyond the registered sources (r/nosleep etc.).
-   Currently `free` (her stored `catalog`, aliased). The **paid path is now
-   guarded**: a build estimated over $1.00 aborts unless re-run with
-   `--yes-spend` (Entry 33), so the old ~$2 footgun is closed.
-2. **An independent `/code-review` pass** when convenient. Entry 33's review was
+1. **Does the classics/modern quota stay fixed at 1:1?** This is the thing
+   stopping ratings from steering anything. Grace rates classics 5.0 and
+   creepypasta 2.0 (n=3, her best-evidenced signal); the model already ranks
+   gutenberg ~2:1; `curate.apply_class_quotas` pulls it back to 1:1 every time.
+   Entry 32 introduced that quota for good reason — the model lost the balance
+   fight three times — so **relaxing it reverses a prior decision and is not
+   Claude's to make.** Three options:
+   - **(a) a floor, not a split** (e.g. ≥2 of each per batch) — variety
+     preserved, taste free to move the rest. Recommended.
+   - **(b) weight the ratio by the ratings** — most responsive, least
+     predictable; a run of bad creepypasta ratings could starve that half.
+   - **(c) keep 1:1** — accept that taste steers only *within* each half, and
+     close Phase 6 on the narrower claim.
+2. **Then re-run the gate with its control.** ~$0.06, sandboxed. The control
+   (a second no-profile run) is not optional — without it the noise reads as a
+   pass, which is exactly what happened the first time.
+
+**Needs Grace (not blocking):**
+
+3. **Server restart + phone check.** Deferred because she was listening when
+   the work landed (Entry 34). Until it happens the running process has no
+   `/api/taste`, so a reload would error in Trends only. The header now carries
+   **6 tabs**; the 5-tab row already wrapped once and broke the sticky header,
+   so the new 430/380px breakpoints need confirming on the phone.
+4. **An independent `/code-review` pass** when convenient. Entry 33's review was
    Claude's own read of code Claude had just written — the weakest kind. It found
    and fixed 4 real defects, but a second pair of eyes is worth having.
 
@@ -105,33 +118,35 @@ blocks starting it.
 
 ## Library
 
-18 story rows; 12 rendered; 18 distinct titles (no all-time repeats). Re-read
-from the DB at Entry-33 close — Grace listened heavily during the session and
-finished three stories, then the worker refilled the queue at $0:
+18 story rows; 18 distinct titles (no all-time repeats). Re-derived from the DB
+at Entry-34 close — Grace listened through the session and finished two more
+(Smile Dog, The Backrooms):
 
-- **read (7):** Yellow Wallpaper 32.2 (rated 5) · Monkey's Paw 21.5 (rated 5) ·
-  Owl Creek Bridge 19.7 · Willows 107.1 · Russian Sleep Experiment 12.2 ·
-  Ben Drowned 54.4 · Squidward's Suicide 9.9
-- **in_progress (2):** Damned Thing 18.0 at 15:33 · Smile Dog 11.3 at 2:20
-- **ready (the queue, 3/3):** The Backrooms 5.3 · The Rake 6.5 · NoEnd House
-  24.0 — all kokoro/am_adam, all 4 files present each
-- **failed:** Tell-Tale Heart (550 KB Poe collection, Entry 16) + 5 others —
-  all now re-proposable by title (Entry 24)
+- **read (9):** Yellow Wallpaper 32.2 (rated 5) · Monkey's Paw 21.5 (rated 5) ·
+  Owl Creek Bridge 19.7 · Willows 107.1 · Russian Sleep Experiment 12.2
+  (rated 2) · Ben Drowned 54.4 (rated 3) · Smile Dog 11.3 (rated 2) ·
+  Squidward's Suicide 9.9 (rated 1) · The Backrooms 5.3
+- **in_progress (2):** Damned Thing 18.0 at 15:33 · The Rake 6.5 at 3:21
+- **ready (the queue, 1/3):** NoEnd House 24.0
+- **failed (6):** Tell-Tale Heart · Candle Cove · Ted the Caver · Jeff the
+  Killer · Yellow Sign · Music of Erich Zann. All re-verified live in Entry 34
+  as correct rejections. **Do not delete them** — `pool.failed_refs` reads these
+  rows to keep dead references out of curation; deleting would re-open Entry 16.
 
-**The pool is now empty (0 candidates).** The next worker cycle has nothing to
-draw on, so the next queue shortfall needs a `--build-pool` first — which is
-why the mode choice below is the one live decision.
+**⚠ The queue is 1/3 and the pool is empty (0 candidates).** The worker cannot
+self-heal — it never spends — so the next refill needs an explicit
+`run_story --build-pool`. On `free_llm` that is ~$0.02 and the Entry-33 spend
+guard never fires.
 
-Unfinished ≠ disliked: the two in_progress are unrated because Grace hasn't
-finished them, so they carry no Phase-6 signal (Entry 22).
+**6 ratings, with real contrast** (1,2,2,3,5,5) — enough for the Phase 6 floor
+of 3. Unfinished ≠ disliked: the two in_progress are unrated because Grace
+hasn't finished them, so they carry no Phase-6 signal (Entry 22).
 
-Pool: **empty** — its last 3 candidates became the current queue. Voice gallery: 11 samples in
-data/voice_samples/. Settings rows actually present in the DB:
-`default_voice.en` = am_adam · `curation_mode` = **`catalog`**, written
-2026-07-28 03:54 when Grace tried the selector — the Entry-32 alias resolves it
-to `free`, so the live server now reports `free`. Worth confirming that is what
-she wants rather than a leftover from testing the dropdown. `curation_model`
-has no stored row and resolves to the code default `claude-sonnet-5`.
+Voice gallery: 11 samples in data/voice_samples/. Settings rows in the DB:
+`default_voice.en` = am_adam · `curation_mode` = **`free_llm`** (Grace's choice,
+set 2026-07-28 via `PUT /api/settings`, verified through
+`db.effective_curation_mode`). `curation_model` has no stored row and resolves
+to the code default `claude-sonnet-5`.
 
 ## Spend to date (R11)
 
@@ -143,16 +158,25 @@ estimated under $0.50 but not verifiable, so it is not counted above.
 
 **Not in the live ledger:** Entry 32's verification runs cost **$0.0594** of
 real API calls ($0.0154 first free_llm build + $0.0176 after the quota/spares
-fix + $0.0264 for the channel-edit A/B). They ran against `HR_DATA_DIR`
-sandboxes, so their `curation_runs` rows are in sandbox DBs, not this one.
-Recorded here rather than dropped.
+fix + $0.0264 for the channel-edit A/B), and Entry 34's Phase-6 gate cost
+**$0.0568** (4 selection calls: A $0.0181 · B $0.0202 · A′ control $0.0185).
+All ran against `HR_DATA_DIR` sandboxes, so their `curation_runs` rows are in
+sandbox DBs, not this one. Recorded here rather than dropped —
+**$0.1162 of sandbox spend to date.**
 
 Per-batch cost by mode (measured, 2026-07-28): `free` $0 · `free_llm` **$0.0176**
 for 12 candidates · `llm` ~$2.40 at the coded batch of 40 (~$0.75 at 12).
 
 ## Open decisions
 
-None. (AMENDMENT_05 A/B were flipped BINDING and implemented in Entry 21.)
+**One, and it blocks Phase 6: does the classics/modern quota stay 1:1?**
+See Next actions item 1 — options (a) floor / (b) rating-weighted / (c) keep.
+Entry 32 introduced the quota after the model lost the balance fight three
+times, so relaxing it reverses that ruling and is Grace's call. Recommended:
+(a) a floor of ≥2 per class, which keeps the Entry-32 guarantee (a class is
+never starved) while leaving the remaining slots free to follow the ratings.
+
+(AMENDMENT_05 A/B were flipped BINDING and implemented in Entry 21.)
 
 Curation cost (Entries 28-29, superseded for the routine path by Entry 32):
 prompt caching serves ~93% of input from cache on the `llm` path, so a paid

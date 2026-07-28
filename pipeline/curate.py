@@ -4,7 +4,7 @@ auto-escalated (R14)."""
 import json
 import re
 
-from . import config, db, verify
+from . import config, db, taste, verify
 
 PROMPT_TEMPLATE = """You are the curator for a private read-aloud fiction library \
 (single listener, personal use).
@@ -179,13 +179,17 @@ def parse_candidates(text: str, batch: int = CURATION_BATCH_SIZE_DEFAULT) -> lis
 
 
 def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
-                 verify_refs: bool = True) -> list[dict]:
+                 verify_refs: bool = True,
+                 taste_profile: str | None = None) -> list[dict]:
     """One curation batch → candidates list + a curation_runs ledger row (R11)."""
     channel = channel or db.active_channel(conn)
     client = config.anthropic_client()
     model = db.effective_curation_model(conn)  # R14: Grace's setting or config
 
-    prompt = build_prompt(channel, db.known_titles(conn), batch)
+    if taste_profile is None:  # None = "work it out"; "" = "deliberately none"
+        taste_profile = taste.profile_for(conn, channel["id"])
+    prompt = build_prompt(channel, db.known_titles(conn), batch,
+                          taste_profile=taste_profile)
     messages = [{"role": "user", "content": prompt}]
     searches = in_tok = out_tok = cache_read = cache_write = 0
     turns = 0
@@ -250,7 +254,8 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
     run_id = db.record_curation_run(
         conn, channel["id"], model, cost, searches,
         json.dumps({"unparsed": text[:20000]}, ensure_ascii=False),
-        in_tok, out_tok, cache_read, cache_write)
+        in_tok, out_tok, cache_read, cache_write,
+        taste_profile_text=taste_profile)
 
     candidates = parse_candidates(text, batch)
     # Verify references mechanically before they reach the pool (Entry 25).
@@ -312,7 +317,8 @@ def apply_class_quotas(candidates: list[dict], batch: int) -> list[dict]:
 
 
 def build_selection_prompt(channel, candidates: list[dict], batch: int,
-                           ask: int | None = None) -> str:
+                           ask: int | None = None,
+                           taste_profile: str | None = None) -> str:
     classes = sorted({c.get("source_class") or "?" for c in candidates})
     listing = "\n".join(
         f"[{i}] {c['title']}"
@@ -321,7 +327,7 @@ def build_selection_prompt(channel, candidates: list[dict], batch: int,
         + (f", {c['evidence'][0]}" if c.get("evidence") else "")
         + ")"
         for i, c in enumerate(candidates))
-    return SELECTION_TEMPLATE.format(
+    prompt = SELECTION_TEMPLATE.format(
         n=len(candidates), batch=batch, ask=ask or batch,
         genre=channel["genre"] or "any",
         language=channel["language"],
@@ -332,6 +338,11 @@ def build_selection_prompt(channel, candidates: list[dict], batch: int,
         balance=(BALANCE_CLAUSE.format(classes=" and ".join(classes))
                  if len(classes) > 1 else ""),
         listing=listing)
+    # Phase 6. Appended AFTER the criteria and the listing, in the same shape
+    # build_prompt uses, so both curation paths present taste identically.
+    if taste_profile:
+        prompt += f"\n\nLISTENER TASTE PROFILE (weight your picks):\n{taste_profile}"
+    return prompt
 
 
 def parse_selection(text: str, n: int, batch: int) -> list[tuple[int, str]]:
@@ -358,7 +369,8 @@ def parse_selection(text: str, n: int, batch: int) -> list[tuple[int, str]]:
 
 
 def run_selection(conn, channel, candidates: list[dict], batch: int,
-                  log=print) -> tuple[list[dict], int]:
+                  log=print, taste_profile: str | None = None
+                  ) -> tuple[list[dict], int]:
     """(chosen candidates, ledger run id). One zero-search selection call over
     `candidates`. Writes its own R11
     ledger row like every other pool build. On any failure the free candidates
@@ -368,7 +380,10 @@ def run_selection(conn, channel, candidates: list[dict], batch: int,
     client = config.anthropic_client()
     model = db.effective_curation_model(conn)
     ask = min(len(candidates), batch + config.SELECTION_SPARES)
-    prompt = build_selection_prompt(channel, candidates, batch, ask=ask)
+    if taste_profile is None:  # None = "work it out"; "" = "deliberately none"
+        taste_profile = taste.profile_for(conn, channel["id"])
+    prompt = build_selection_prompt(channel, candidates, batch, ask=ask,
+                                    taste_profile=taste_profile)
 
     response = client.messages.create(
         model=model,
@@ -392,7 +407,8 @@ def run_selection(conn, channel, candidates: list[dict], batch: int,
     run_id = db.record_curation_run(
         conn, channel["id"], model, cost, 0,
         json.dumps({"unparsed": text[:20000]}, ensure_ascii=False),
-        in_tok, out_tok, cache_read, cache_write)
+        in_tok, out_tok, cache_read, cache_write,
+        taste_profile_text=taste_profile)
 
     try:
         picks = parse_selection(text, len(candidates), ask)
@@ -419,6 +435,10 @@ def run_selection(conn, channel, candidates: list[dict], batch: int,
     mix = {}
     for c in chosen[:batch]:
         mix[c.get("source_class") or "?"] = mix.get(c.get("source_class") or "?", 0) + 1
+    log(f"[select] taste profile: "
+        + (f"{len(taste_profile.splitlines())} lines applied"
+           if taste_profile else "none (too few ratings — see "
+                                 "config.TASTE_MIN_RATED_STORIES)"))
     log(f"[select] {len(chosen)} ranked ({len(candidates)} offered), "
         f"top {batch} = " + ", ".join(f"{n} {k}" for k, n in sorted(mix.items()))
         + f"; 0 searches, ${cost:.4f} ({model})")

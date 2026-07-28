@@ -163,6 +163,7 @@ def connect(db_path=None, init=True) -> sqlite3.Connection:
         conn.commit()
     _migrate_source_ref(conn)
     _migrate_curation_tokens(conn)
+    _migrate_tag_value_norm(conn)
     return conn
 
 
@@ -176,6 +177,43 @@ def _migrate_curation_tokens(conn):
         if col not in cols:
             conn.execute(f"ALTER TABLE curation_runs ADD COLUMN {col} INTEGER")
     conn.commit()
+
+
+def _migrate_tag_value_norm(conn):
+    """Phase 6: re-derive uncontrolled tags' value_norm with the canonical
+    normalizer (tag.free_value_norm).
+
+    Rows written before that normalization existed kept spaces, so the SAME
+    theme could sit in the table twice — "unreliable narrator" on one story and
+    "unreliable-narrator" on another. Phase 6 aggregates on (kind, value_norm),
+    which would have scored one theme as two, each with half its evidence.
+
+    `author` is deliberately untouched: its value_norm is a lowercased name and
+    spaces belong in it (tag.tag_rows). Only kinds the tagger free-texts are
+    re-derived. UPDATE OR IGNORE + delete-the-leftover handles the case where a
+    story already carries both spellings, since (story_id, kind, value_norm) is
+    the primary key and the merge would otherwise raise.
+    """
+    stale = conn.execute(
+        "SELECT rowid, kind, value_verbatim, value_norm FROM tags "
+        "WHERE kind NOT IN ('author') AND value_norm LIKE '% %'").fetchall()
+    if not stale:
+        return
+    from . import tag  # deferred: tag imports config, not db — no cycle either way
+    fixed = 0
+    for row in stale:
+        new = tag.free_value_norm(row["value_verbatim"] or row["value_norm"])
+        if new == row["value_norm"]:
+            continue
+        cur = conn.execute(
+            "UPDATE OR IGNORE tags SET value_norm=? WHERE rowid=?",
+            (new, row["rowid"]))
+        if cur.rowcount == 0:  # that (story, kind, value_norm) already exists
+            conn.execute("DELETE FROM tags WHERE rowid=?", (row["rowid"],))
+        fixed += 1
+    conn.commit()
+    if fixed:
+        print(f"[db] normalized {fixed} tag value_norm rows (Phase 6 migration)")
 
 
 def _migrate_source_ref(conn):
@@ -251,16 +289,23 @@ def effective_curation_mode(conn) -> str:
 def record_curation_run(conn, channel_id: int, model: str, cost_usd: float,
                         searches: int, candidates_json: str,
                         in_tok: int = 0, out_tok: int = 0,
-                        cache_read: int = 0, cache_write: int = 0) -> int:
+                        cache_read: int = 0, cache_write: int = 0,
+                        taste_profile_text: str | None = None) -> int:
     """The single copy of the R11 ledger write. Every pool build lands here —
     paid, free, and aborted alike — so 'what has curation cost' is always one
-    query and a free build can never be mistaken for a missing row."""
+    query and a free build can never be mistaken for a missing row.
+
+    `taste_profile_text` is the Phase-6 profile the run was actually given (""
+    when none). Storing the profile ON the run is what makes the gate's
+    before/after diff auditable later: the candidate list and the preferences
+    that produced it stay in the same row (DESIGN §8)."""
     run_id = conn.execute(
         "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, "
         "candidates_json, input_tokens, output_tokens, cache_read_tokens, "
-        "cache_write_tokens) VALUES(?,?,?,?,?,?,?,?,?)",
+        "cache_write_tokens, taste_profile_text) VALUES(?,?,?,?,?,?,?,?,?,?)",
         (channel_id, model, round(cost_usd, 4), searches, candidates_json,
-         in_tok, out_tok, cache_read, cache_write)).lastrowid
+         in_tok, out_tok, cache_read, cache_write,
+         taste_profile_text)).lastrowid
     conn.commit()
     return run_id
 

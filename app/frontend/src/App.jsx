@@ -11,11 +11,12 @@ import Channels from "./Channels";
 import Player, { Stars } from "./Player";
 import RenderBar from "./RenderBar";
 import Settings from "./Settings";
+import Trends from "./Trends";
 import Voices from "./Voices";
 
 const QUEUE_STATUSES = ["text_ready", "ready", "in_progress"];
-const TABS = { queue: "Queue", library: "Library", channels: "Channels",
-               voices: "Voices", settings: "Settings" };
+const TABS = { queue: "Queue", library: "Library", trends: "Trends",
+               channels: "Channels", voices: "Voices", settings: "Settings" };
 const POLL_MS = 15000; // background renders surface without manual refresh
 const RENDER_POLL_MS = 2000; // AMENDMENT_06: a progress bar needs to move
 
@@ -137,6 +138,7 @@ export default function App() {
         <Library stories={stories} currentId={currentId} jobFor={jobFor}
                  onPlay={play}
                  onChanged={() => { reload(); pollRenders(); }} />}
+      {view === "trends" && <Trends />}
       {view === "channels" && <Channels onChanged={reload} />}
       {view === "voices" && <Voices />}
       {view === "settings" && <Settings />}
@@ -202,6 +204,7 @@ const LIB_ORDER = ["in_progress", "ready", "text_ready", "read", "skipped",
                    "queued", "fetching", "failed"];
 
 function Library({ stories, currentId, jobFor, onPlay, onChanged }) {
+  const [showFailed, setShowFailed] = useState(false);
   const groups = LIB_ORDER.map((st) =>
     [st, stories.filter((s) => s.status === st)]).filter(([, g]) => g.length);
   if (!groups.length) return <p className="empty">Library is empty.</p>;
@@ -209,9 +212,34 @@ function Library({ stories, currentId, jobFor, onPlay, onChanged }) {
     <div className="list">
       {groups.map(([st, group]) => (
         <div key={st}>
-          <h2 className="group">{st.replace("_", " ")} ({group.length})</h2>
-          {group.map((s) => (
-            <div key={s.id} className={s.id === currentId ? "card now" : "card"}>
+          {/* `failed` rows are the exclusion ledger, not listening material:
+              each one is a source that proved unusable, and pool.failed_refs
+              reads them to keep that reference from being proposed again
+              (Entry 24). They stay in the library — deleting them would
+              un-block the dead refs — but collapsed, since they are not
+              stories Grace can do anything with. */}
+          {st === "failed" ? (
+            <h2 className="group">
+              <button className="clear-rating"
+                      onClick={() => setShowFailed((v) => !v)}>
+                {showFailed ? "▾" : "▸"} unusable sources ({group.length})
+              </button>
+            </h2>
+          ) : (
+            <h2 className="group">{st.replace("_", " ")} ({group.length})</h2>
+          )}
+          {st === "failed" && showFailed && (
+            <p className="failed-note">
+              Sources that could not yield a story — a deleted wiki page, or an
+              ebook id that turned out to be a whole collection. Kept on purpose:
+              they stop the same bad reference being proposed again. The titles
+              themselves stay available.
+            </p>
+          )}
+          {(st !== "failed" || showFailed) && group.map((s) => (
+            <div key={s.id} className={
+              s.id === currentId ? "card now"
+                : st === "failed" ? "card muted" : "card"}>
               <div className="card-main" onClick={() =>
                 (s.status === "ready" || s.status === "in_progress" || s.status === "read")
                   && onPlay(s.id)}>

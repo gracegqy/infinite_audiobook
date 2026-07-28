@@ -18,7 +18,7 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import config, curate, db, renderjob, sources, worker
+from pipeline import config, curate, db, renderjob, sources, taste, worker
 from pipeline.models import OffsetsManifest, StoryMeta
 
 # Settings copy for the curation modes. Kept beside the API rather than in the
@@ -31,17 +31,20 @@ CURATION_MODE_LABELS = {
              "No model call at all, and references come from the sources as "
              "fields so they are never guessed wrong. What it lacks is taste: "
              "within a source's recognised set the ordering is arbitrary, so "
-             "expect obscure work beside the canon."),
+             "expect obscure work beside the canon. Because there is no model "
+             "call, this mode CANNOT use your ratings — nothing here reads "
+             "the taste profile."),
     "free_llm": ("free sources + AI picks — ~$0.03", "Same free sources, but "
                  "the model chooses from the shortlist they produce. It picks "
                  "by index, so it cannot invent a reference — and with no web "
                  "search a batch costs a few cents. It cannot reach beyond the "
-                 "sources listed below."),
+                 "sources listed below. Your ratings steer the picks (Trends)."),
     "llm": ("AI web search — ~$0.75", "Paid curation with web search: the only "
             "mode that can reach beyond the free sources, verifying reputation "
             "against named lists it finds live. Its weak point is the "
             "reference, which it can still get wrong, and cost scales with "
-            "batch size (3 searches per candidate)."),
+            "batch size (3 searches per candidate). Your ratings steer the "
+            "search and the picks (Trends)."),
 }
 
 
@@ -292,6 +295,35 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         c.execute("DELETE FROM ratings WHERE story_id=?", (sid,))
         c.commit()
         return {"score": None}
+
+    # ---- taste / trends (Phase 6, DESIGN §8) ----
+
+    @app.get("/api/taste")
+    def get_taste():
+        """The Trends screen. Returns `taste.summary` for the ACTIVE channel,
+        plus the profile text verbatim — the screen shows the same string the
+        curation prompt is given, so 'what does the pipeline think I like' and
+        'what was the model told' can never drift apart.
+
+        `applies_to_curation` is stated because it is genuinely conditional:
+        `free` mode makes no model call, so it has nowhere to put a profile.
+        A trends screen that implied otherwise would be lying about the
+        listener's ratings changing anything.
+        """
+        c = conn()
+        try:
+            channel = db.active_channel(c)
+            channel_id, channel_name = channel["id"], channel["name"]
+        except Exception:
+            # Settings-style degradation (Entry 33): a broken channel must not
+            # take out the screen that explains the library.
+            channel_id, channel_name = None, None
+        mode = db.effective_curation_mode(c)
+        out = taste.summary(c, channel_id)
+        out["channel"] = channel_name
+        out["curation_mode"] = mode
+        out["applies_to_curation"] = mode in ("free_llm", "llm")
+        return out
 
     @app.post("/api/stories/{sid}/bookmarks")
     def add_bookmark(sid: str, position_s: float = Body(embed=True),

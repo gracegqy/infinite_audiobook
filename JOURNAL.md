@@ -5,6 +5,130 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 34 — 2026-07-28 — Phase 6 built; gate NOT passed — the profile reaches the model and changes nothing
+
+Grace set `curation_mode = free_llm`, rated a 6th story, and asked for the six
+failed rows to be investigated before Phase 6.
+
+### The 6 `failed` rows: all correct rejections, none a bug
+
+Re-fetched every source live rather than trusting the notes. Candle Cove is a
+**copyright notice** ("can no longer be read on this wiki"); Jeff the Killer
+**redirects into `Creepypasta Wiki:Deleted Page/`**; Ted the Caver is a 67-char
+nav stub; Yellow Sign (8492) and Tell-Tale Heart (2148) are collection volumes;
+Erich Zann had `source_ref: "unknown"`. Five of the six were written inside a
+**0.93-second window** on 7/27 — one worker cycle over the unverified 7/18
+batch (Entry 24's gate run) — and the verifier landed at 15:42 that day, the
+free registry at 23:32. Replayed all six through today's code: **6/6 rejected**
+before a story row could exist. The three creepypasta ones cannot even be
+proposed now — 2 are absent from the editorial index, Ted the Caver is filtered
+at 415 markup bytes.
+
+Stated for the next reader, because the tidy-up is tempting and wrong: **these
+rows are load-bearing.** `pool.failed_refs` reads them to keep dead references
+out of curation. Deleting them would un-block ebook 2148 and re-open Entry 16.
+
+### A real defect found on the way: one theme, two aggregation keys
+
+`theme|unreliable narrator` and `theme|unreliable-narrator` both existed —
+written before tag.py normalized uncontrolled labels. Phase 6 aggregates on
+`(kind, value_norm)`, so that theme would have scored as two tags with half its
+evidence each. Hoisted the normalizer to `tag.free_value_norm` (single copy) and
+added `db._migrate_tag_value_norm`, which re-derives only uncontrolled kinds —
+`author`'s value_norm is a lowercased name and its spaces are correct. Dry-run
+on a copy first: 6 rows normalized, 163 tag rows before and after, nothing lost.
+
+### Phase 6, built
+
+`pipeline/taste.py`: ratings aggregate per (kind, value_norm) into liked/disliked
+with n and average, injected into BOTH curation paths and stored on
+`curation_runs.taste_profile_text` (the column has existed since Phase 2 and
+nothing wrote it). Three judgements worth recording, each because the naive
+version is wrong:
+
+1. **Shrunk means for ranking, raw averages for display.** At n=1 a single 5
+   would outrank a 4.5 over four stories.
+2. **A kind must vary to be reported.** Every story is `language: en` and
+   `origin: western`; "liked: en" spends tokens to say nothing. The rule adapts
+   when a second language appears instead of hardcoding a channel's shape.
+   Counted BEFORE the placeholder filter, so a real author is not dropped
+   because the only other story's author was recorded as "unknown".
+3. **A floor of 3 rated stories.** The prior is centred on Grace's own mean, so
+   at n=1 every tag's shrunk mean EQUALS that mean and one 5-star story would
+   mark everything it touched as liked.
+
+Also: `_take_across_kinds` spreads the profile's cap across kinds (the device
+`apply_class_quotas` already uses) — themes outnumber eras ~15:2, so a plain
+ranking cut fills the profile with one-off themes and drops the tags that
+transfer. `/api/taste` + a Trends screen read the SAME function the prompt does,
+so the screen cannot claim a preference the model was never told. 228 tests
+green (was 200).
+
+### The gate: NOT passed, and the control is why
+
+A/B over one shortlist, sandboxed: A with no profile, B with Grace's profile.
+The diff looked like a pass — 3 of 12 titles changed, class mix 6/6 → 7/5 toward
+the classics she rates 5.0. **Then I ran the control** (A′: the no-profile
+prompt a second time), and it collapsed:
+
+| comparison | titles differing |
+|---|---|
+| A vs A′ — both NO profile (noise) | **2** |
+| A vs B — the effect under test | 3 |
+| A′ vs B | **1** |
+
+B is *closer* to a no-profile run than two no-profile runs are to each other.
+On the rank-level measures B and A′ are **identical** (13/5 gutenberg split,
+mean gutenberg rank 6.00). The 7/5 "shift toward classics" I nearly reported as
+the pass appears in the no-profile control. There is no detectable effect.
+
+What IS established: the profile reaches the model and is read. B's reasons cite
+Grace's actual tags — Usher "with **descent-into-madness** themes matches the
+listener's top preferences", Dracula's Guest "fitting **19th-century gothic**
+taste" — where A and A′ cite only reputation. The mechanism works; it just moves
+nothing.
+
+### Why, from artifacts
+
+1. **Half the shortlist has no fields the profile speaks in.** All 36
+   creepypasta candidates carry 0 authors, 0 years, and 2 distinct evidence
+   strings between them. What the model literally sees is
+   `[3] 12 Minutes (creepypasta, Pasta of the Month)`. A profile saying
+   "disliked: contemporary, found-footage, creepypasta" cannot tell those 36
+   pages apart. (Gutenberg's `year` is None too, but that is a *correct*
+   documented choice — the Issued date is the posting date, not a publication
+   year — so era survives only as something the model infers from the author.)
+2. **The class quota pins the axis Grace's taste is clearest on.** She rates
+   classics 5.0 and creepypasta 2.0 (n=3). The model already ranks gutenberg
+   ~2:1 (12-13 of 18) — and `apply_class_quotas` pulls it back to 1:1. The
+   quota that fixed Entries 27/28/32 now suppresses preference adaptation.
+3. **The classics half is canon-saturated.** Poe, Lovecraft, Stoker, Chambers
+   are already gothic/19th-c/early-20th — already maximal on her liked tags, so
+   "shift toward liked tags" has nowhere to go.
+
+Cause 2 is a genuine design conflict and reverses an Entry-32 ruling, so it is
+**Grace's call, not mine** — left unimplemented. Options in STATE.
+
+Measurements invalidated by this change: none of Entry 32-33's cost figures. The
+Entry-32 claim that 200 of 209 wiki pages fall inside the length bounds now
+measures **205** on the same cached index — noted, not chased; it does not bear
+on anything.
+
+Gate spend: **$0.0568** across 4 sandbox selection calls (A $0.0181, B $0.0202,
+A′ $0.0185, plus the first). Ran under `HR_DATA_DIR`, so those ledger rows are
+in a sandbox DB, not the live one — recorded here as Entry 32 did.
+
+### Deferred, deliberately
+
+Grace was listening when the work landed (progress written 34 s earlier, The
+Rake at 3:21), so the **server restart and frontend reload are NOT done** —
+restarting would have cut off her audio. `dist/` is rebuilt on disk but the
+running process predates `/api/taste`, so a manual reload before the restart
+would show an error in Trends only; playback and every other tab are unaffected.
+The 6-tab header also needs a phone check — the 5-tab row already wrapped once
+and took the sticky header's height with it (breakpoints tightened at 430/380px,
+unverified on the real target).
+
 ## Entry 33 — 2026-07-28 — Phase 5 CLOSED: close review, 4 resilience bugs fixed, spend guard added
 
 Grace: finish Phase 5, then hand off. The one item owed was the pre-phase-close

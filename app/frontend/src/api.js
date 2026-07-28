@@ -19,6 +19,7 @@ export const unskipStory = (id) => req(`/api/stories/${id}/unskip`, { method: "P
 export const rate = (id, score) =>
   req(`/api/ratings/${id}`, { method: "PUT", body: JSON.stringify({ score }) });
 export const clearRating = (id) => req(`/api/ratings/${id}`, { method: "DELETE" });
+export const getTaste = () => req("/api/taste");
 export const getSettings = () => req("/api/settings");
 export const putSettings = (body) =>
   req("/api/settings", { method: "PUT", body: JSON.stringify(body) });
