@@ -24,3 +24,6 @@ dist/
 *.wav
 *.mp3
 *.m4a
+
+# local DB snapshots (scripts/backup_db.py) — same machine, never committed
+backups/

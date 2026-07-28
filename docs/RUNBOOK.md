@@ -32,14 +32,28 @@ prompt in TASKS.md.
 - Voice audition samples (one-time, $0 for en/fr; zh calls edge-tts):
   `.venv/bin/python scripts/render_voice_samples.py` → data/voice_samples/.
 - Pipeline (Phase 3): `.venv/bin/python -m pipeline.run_story` (announce → ingest next
-  pool candidate) · `--build-pool` = paid curation, Grace-initiated only ·
-  `-m pipeline.retry <id> [--voice v]` = $0 re-run · `-m pipeline.mark read|skip
-  "<title>"` = pre-marking.
+  pool candidate) · `-m pipeline.retry <id> [--voice v]` = $0 re-run ·
+  `-m pipeline.mark read|skip "<title>"` = pre-marking.
+- Queue worker (Phase 5): `.venv/bin/python -m pipeline.worker` — one cycle;
+  `--loop` re-checks every `WORKER_INTERVAL_S`. Consumes the already-paid pool at
+  $0 and never spends on its own.
+- Pool refill: `-m pipeline.run_story --build-pool`. **Cost depends on
+  `curation_mode` in Settings** (Entry 32), not on the flag:
+  `free` = $0 · `free_llm` ≈ $0.02 · `llm` ≈ $2 at `POOL_BATCH_SIZE = 40`.
+  A paid build estimated over `CURATION_SPEND_CONFIRM_USD` prints the estimate
+  and aborts unless re-run with `--yes-spend`.
+  Free modes draw on `pipeline/sources.py`; if no registered source covers the
+  active channel the build stops and names the reasons rather than running empty.
 
 ## Backup
 - What matters: `data/library/` (regenerable but expensive in time) and the SQLite DB
-  (ratings/progress/history — NOT regenerable). Backup plan decided in Phase 2, in place
-  before Phase 5's worker runs unattended.
+  (ratings/progress/history — NOT regenerable).
+- `.venv/bin/python scripts/backup_db.py [--keep N]` → WAL-consistent snapshot in
+  `backups/` (gitignored), verified with `PRAGMA integrity_check` and row counts,
+  keeping the last 10. Uses sqlite3's backup API, not `cp` — copying a WAL database
+  mid-write can capture a torn state.
+- **Same machine only.** Covers corruption and bad migrations, not losing the Mac,
+  and nothing schedules it. Off-machine copy + a schedule are Phase 7 (TASKS §7).
 
 ## Definition of "done" for the current milestone
 - Phase 0: see TASKS.md §0 gate — repo pushed, ignores proven, smoke test recorded.

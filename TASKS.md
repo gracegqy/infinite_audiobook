@@ -169,10 +169,14 @@ shifts toward liked tags (shown by diffing two curation runs' candidate lists).
 
 ## Phase 7 — Hardening & audit   · Owner: Both
 **Goal:** Close the drift gap; make the system survivable across gaps.
-**Actions:** complete RUNBOOK.md (cold start, Tailscale, key rotation, backup of SQLite +
-library); `/security-review` (server bound to Tailscale interface only; no key ever
+**Actions:** complete RUNBOOK.md (cold start, Tailscale, key rotation); **backup: the
+local half landed early in Entry 33 — `scripts/backup_db.py`, WAL-consistent +
+integrity-checked, `backups/` keeping 10. Phase 7 owes the OFF-MACHINE copy and a
+schedule (nothing runs it automatically), plus a `data/library/` story**;
+`/security-review` (server bound to Tailscale interface only; no key ever
 reaches the frontend); commission a fresh-session read-only audit re-deriving STATE claims
-from artifacts; fix or journal every finding.
+from artifacts; fix or journal every finding. Also owed here: an independent
+`/code-review` pass — Entry 33's was Claude reviewing its own same-session code.
 **Gate:** audit report exists; every severe finding fixed or explicitly risk-accepted in
 JOURNAL; cold-start test from the runbook alone succeeds.
 > Prompt: *"Fresh session, read-only: audit horror_readaloud. Trust nothing in prose;

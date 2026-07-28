@@ -57,6 +57,25 @@ paid path is now blocked by default rather than merely documented. The estimate
 is deliberately rough; being approximate is fine, being silent is what went
 wrong before.
 
+### The backup the RUNBOOK had been promising since Phase 2
+
+Closing out the phase surfaced a gap nobody had tripped over: the RUNBOOK says a
+DB backup must be "in place before Phase 5's worker runs unattended", DESIGN
+never specified one, and **no backup mechanism existed at all** — while the DB
+holds the only non-regenerable data in the project (ratings, resume positions,
+all-time history; `data/library/` is expensive but reproducible).
+
+`scripts/backup_db.py` uses sqlite3's backup API rather than a file copy — a
+`cp` of a WAL-mode database mid-write can capture a torn state, which is exactly
+when a backup most needs to be right — then re-opens the result and runs
+`PRAGMA integrity_check` plus row counts, because a backup nobody has read is a
+guess. First snapshot: **18 stories, 2 progress rows, 2 ratings, integrity ok.**
+Keeps 10, `backups/` gitignored.
+
+Stated plainly in STATE: this is **same-machine only**. It covers corruption and
+bad migrations, not losing the Mac, and nothing schedules it. Off-machine is
+Phase 7.
+
 ### Phase 5 gate — final status
 
 All three criteria passed (queue self-heal Entry 27 · phone highlight Entry 26 ·
@@ -66,6 +85,14 @@ after Entry 32). Phase 5 is CLOSED.
 
 Queue refilled to 3/3 at $0 from the already-paid pool — Grace had finished
 Willows, Ben Drowned and Squidward's during the session, emptying it.
+Artifact-verified after the run rather than from the worker's own log: The
+Backrooms 5.3 min · The Rake 6.5 · NoEnd House 24.0, all `ready`, all
+kokoro/am_adam, all four files present each; 18 rows / 18 distinct titles, so
+no all-time repeat. The ledger is unchanged at $4.805 across 4 runs — the
+worker spent nothing, as designed.
+
+**The pool is now empty**, so the next queue shortfall needs a `--build-pool`.
+That makes the curation-mode choice the one live decision at handoff.
 
 Measurements invalidated by this change: none. The Entry-32 cost figures stand
 ($0.0176 per free_llm batch, measured); the new `estimate_cost` is a forecast

@@ -83,44 +83,49 @@ blocks starting it.
 
 **Standing debts (no deadline):**
 
-3. Entry-16: edge-tts fallback granularity, vocab-genre coupling. (The
+1. **Backups are same-machine only.** `scripts/backup_db.py` takes a
+   WAL-consistent, integrity-checked snapshot into `backups/` (gitignored,
+   keeps 10) — first one taken at Entry-33 close: 18 stories, 2 progress rows,
+   2 ratings. That covers corruption and bad migrations, **not losing the Mac**.
+   An off-machine copy is Phase 7. Nothing runs it on a schedule yet.
+2. Entry-16: edge-tts fallback granularity, vocab-genre coupling. (The
    source-class registry half is paid off — `pipeline/sources.py`, Entry 32.)
    Entry-21: two fuzzy title-match semantics (mark.py vs pool.find_candidate) —
    centralize on the third user; curation-prompt exclusion list grows with
    all-time history (an R11 cost lever, and now only on the `llm` path).
-4. Free-source residuals (Entries 29, 32): a Gutenberg collection with an
+3. Free-source residuals (Entries 29, 32): a Gutenberg collection with an
    innocent title ("The Parenticide Club") still passes the title and shelf
    filters — the length gate catches it at verify time, and `free_llm` now
    backfills from spares, so it costs a spare rather than a slot. Cheap next
    step if it recurs: a paragraph-count heuristic on the fetched text.
-5. Free-source reach: only `gutenberg-catalog` and `creepypasta-wiki` are
+4. Free-source reach: only `gutenberg-catalog` and `creepypasta-wiki` are
    registered. r/nosleep and non-English modern fiction need either `llm` mode
    or a new adapter. Supply is finite — 514 classics + 200 modern ≈ 240 worker
    cycles.
 
 ## Library
 
-15 story rows; 9 rendered. Listening state re-read from the DB 2026-07-28
-04:12 UTC (Entry 32), not from prose — Grace listened heavily during the
-session and finished three stories:
+18 story rows; 12 rendered; 18 distinct titles (no all-time repeats). Re-read
+from the DB at Entry-33 close — Grace listened heavily during the session and
+finished three stories, then the worker refilled the queue at $0:
 
 - **read (7):** Yellow Wallpaper 32.2 (rated 5) · Monkey's Paw 21.5 (rated 5) ·
-  Owl Creek Bridge 19.7 · **Willows 107.1** · Russian Sleep Experiment 12.2 ·
-  **Ben Drowned 54.4** · **Squidward's Suicide 9.9**
+  Owl Creek Bridge 19.7 · Willows 107.1 · Russian Sleep Experiment 12.2 ·
+  Ben Drowned 54.4 · Squidward's Suicide 9.9
 - **in_progress (2):** Damned Thing 18.0 at 15:33 · Smile Dog 11.3 at 2:20
-- **ready — THE QUEUE IS EMPTY, 0/3.** All three stories that filled it in
-  Entry 27 have been consumed. Replenishment is due: the worker can render the
-  3 remaining pool candidates at $0, after which the pool is empty too.
+- **ready (the queue, 3/3):** The Backrooms 5.3 · The Rake 6.5 · NoEnd House
+  24.0 — all kokoro/am_adam, all 4 files present each
 - **failed:** Tell-Tale Heart (550 KB Poe collection, Entry 16) + 5 others —
   all now re-proposable by title (Entry 24)
+
+**The pool is now empty (0 candidates).** The next worker cycle has nothing to
+draw on, so the next queue shortfall needs a `--build-pool` first — which is
+why the mode choice below is the one live decision.
 
 Unfinished ≠ disliked: the two in_progress are unrated because Grace hasn't
 finished them, so they carry no Phase-6 signal (Entry 22).
 
-Pool: 3 verified candidates left (The Backrooms, The Rake, NoEnd House) — enough
-for one more worker cycle at $0, but **all three are creepypasta**, so that
-cycle renders no classics. A `free_llm` pool build (~$0.02) would restore the
-mix; not run, because the mode is Grace's to pick. Voice gallery: 11 samples in
+Pool: **empty** — its last 3 candidates became the current queue. Voice gallery: 11 samples in
 data/voice_samples/. Settings rows actually present in the DB:
 `default_voice.en` = am_adam · `curation_mode` = **`catalog`**, written
 2026-07-28 03:54 when Grace tried the selector — the Entry-32 alias resolves it
