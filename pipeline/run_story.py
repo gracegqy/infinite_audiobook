@@ -13,7 +13,8 @@ Run: .venv/bin/python -m pipeline.run_story                 # $0: consume pool
 """
 import sys
 
-from . import config, curate, db, fetch, freepool, ingest, pool, sources
+from . import (budget, config, curate, db, fetch, freepool, ingest, pool,
+               sources)
 
 
 def main(argv: list[str]) -> int:
@@ -27,6 +28,21 @@ def main(argv: list[str]) -> int:
         # free is $0, free_llm ~$0.03, llm paid. Never chosen automatically.
         mode = db.effective_curation_mode(conn)
         print(f"[pool] curation_mode={mode}")
+        # Entry 37: the cap is checked before EVERY path that can spend —
+        # free_llm included, which is cheap ($0.05) but not free. `free` makes
+        # no model call at all, so it is the one mode that skips the check.
+        if mode != "free":
+            est, how = (curate.estimate_selection_cost(config.POOL_BATCH_SIZE)
+                        if mode == "free_llm"
+                        else curate.estimate_cost(
+                            db.effective_curation_model(conn),
+                            config.POOL_BATCH_SIZE))
+            try:
+                budget.check(conn, est)
+            except budget.CapExceeded as e:
+                print(f"ERROR: {e}", file=sys.stderr)
+                print(f"       (estimate: {how})", file=sys.stderr)
+                return 4
         try:
             if mode in ("free", "free_llm"):
                 candidates = freepool.build_pool(

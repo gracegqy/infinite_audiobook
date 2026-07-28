@@ -190,16 +190,22 @@ them by title. Enriching that source is unclaimed work, not a Phase 6 debt.
 
 ## Phase 7 — Hardening & audit   · Owner: Both
 **Goal:** Close the drift gap; make the system survivable across gaps.
-**Actions:** complete RUNBOOK.md (cold start, Tailscale, key rotation); **backup: the
-local half landed early in Entry 33 — `scripts/backup_db.py`, WAL-consistent +
-integrity-checked, `backups/` keeping 10. Phase 7 owes the OFF-MACHINE copy and a
-schedule (nothing runs it automatically), plus a `data/library/` story**;
+**Actions:** complete RUNBOOK.md (cold start, Tailscale, key rotation, **plus: installing
+the scheduler, setting the spend cap, turning on off-machine backup**); **backup: DONE
+in Entry 37 — `pipeline/backup.py` (moved from scripts/ so the worker can drive it),
+off-machine copy verified at the destination but OFF by default and opt-in via Settings;
+scheduled by the worker loop on `backup_interval_s`. `data/library/` is deliberately NOT
+backed up — it is regenerable from the DB, the DB is not**;
 `/security-review` (server bound to Tailscale interface only; no key ever
 reaches the frontend); commission a fresh-session read-only audit re-deriving STATE claims
 from artifacts; fix or journal every finding. Also owed here: an independent
 `/code-review` pass — Entry 33's was Claude reviewing its own same-session code.
 **Gate:** audit report exists; every severe finding fixed or explicitly risk-accepted in
 JOURNAL; cold-start test from the runbook alone succeeds.
+**[IN PROGRESS]** Entry 37 landed the scheduler, spend cap and backup half. Still owed:
+RUNBOOK, independent `/code-review` (now ~1600 lines of same-session code across
+Entries 33–37), `/security-review`, fresh-session audit. Phase 6 also re-opened —
+its gate was run at batch 12, production is batch 40 (see STATE).
 > Prompt: *"Fresh session, read-only: audit horror_readaloud. Trust nothing in prose;
 > re-derive every STATE/TASKS claim from artifacts. Report gaps."*
 

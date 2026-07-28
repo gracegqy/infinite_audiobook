@@ -335,6 +335,48 @@ def effective_curation_model(conn) -> str:
     return get_setting(conn, "curation_model", config.CURATION_MODEL)
 
 
+# ---- settings-backed knobs (Entry 37) ----
+# Each of these is the SINGLE copy of "what is this knob actually set to".
+# Everything else — the worker loop, the budget check, the Settings screen —
+# asks here rather than reading config, so there is exactly one place where a
+# stored value beats a default, and a bad stored value can never crash a run.
+
+def effective_worker_interval_s(conn) -> int:
+    """Seconds between replenishment cycles. Re-read every cycle so a change in
+    Settings applies on the next tick. Clamped at WORKER_INTERVAL_MIN_S: a
+    hand-typed "10" would otherwise make the loop hot."""
+    raw = get_setting(conn, "worker_interval_s")
+    try:
+        return max(config.WORKER_INTERVAL_MIN_S, int(float(raw)))
+    except (TypeError, ValueError):
+        return config.DEFAULT_WORKER_INTERVAL_S
+
+
+def effective_backup_interval_s(conn) -> int:
+    """Seconds between automatic DB snapshots taken by the running worker.
+    0 disables them (the manual `python -m pipeline.backup` always works)."""
+    raw = get_setting(conn, "backup_interval_s")
+    try:
+        return max(0, int(float(raw)))
+    except (TypeError, ValueError):
+        return config.DEFAULT_BACKUP_INTERVAL_S
+
+
+def effective_spend_cap(conn) -> tuple[float, str]:
+    """(cap in USD, rolling period). A cap of 0 means unlimited — stored
+    explicitly rather than as an absent row, so "I turned the cap off" and "I
+    have never opened Settings" stay distinguishable."""
+    raw = get_setting(conn, "spend_cap_usd")
+    try:
+        cap = max(0.0, float(raw))
+    except (TypeError, ValueError):
+        cap = config.DEFAULT_SPEND_CAP_USD
+    period = get_setting(conn, "spend_cap_period", config.DEFAULT_SPEND_CAP_PERIOD)
+    if period not in config.SPEND_CAP_PERIOD_DAYS:
+        period = config.DEFAULT_SPEND_CAP_PERIOD
+    return cap, period
+
+
 def effective_voice(conn, language: str) -> str | None:
     """AMENDMENT_05 A: per-language default voice override (gallery voices
     only), else the TTS_BY_LANGUAGE default. None for unknown languages."""

@@ -18,7 +18,8 @@ from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import config, curate, db, renderjob, sources, tag, taste, worker
+from pipeline import (backup, budget, config, curate, db, renderjob, sources,
+                      tag, taste, worker)
 from pipeline.models import OffsetsManifest, StoryMeta
 
 # Settings copy for the curation modes. Kept beside the API rather than in the
@@ -587,6 +588,19 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
             "curation_modes": curation_mode_info(c),
             "default_voices": {lang: db.effective_voice(c, lang)
                                for lang in config.VOICE_OPTIONS},
+            # Entry 37: the operative values of both knobs, plus what has
+            # actually been spent in the window. Served from the pipeline so
+            # the screen can never show a different number than the guard
+            # enforces.
+            "worker_interval_s": db.effective_worker_interval_s(c),
+            "worker_interval_min_s": config.WORKER_INTERVAL_MIN_S,
+            # Entry 37: OFF unless Grace names a destination. The suggestion is
+            # a placeholder, never an applied default — an off-machine copy is
+            # data leaving the machine, so the path is hers to choose.
+            "backup_offsite_dir": db.get_setting(c, "backup_offsite_dir") or "",
+            "backup_offsite_suggestion": backup.OFFSITE_SUGGESTION,
+            "backup_interval_s": db.effective_backup_interval_s(c),
+            **budget.status(c),
             "quality_notice": (
                 f"{int(skip_rate * 100)}% of the last {len(recent)} stories "
                 "were skipped — consider changing the curation model below."
@@ -597,8 +611,51 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     def put_settings(curation_model: str | None = Body(default=None, embed=True),
                      curation_mode: str | None = Body(default=None, embed=True),
                      default_voices: dict[str, str] | None = Body(default=None,
-                                                                  embed=True)):
+                                                                  embed=True),
+                     worker_interval_s: int | None = Body(default=None,
+                                                          embed=True),
+                     spend_cap_usd: float | None = Body(default=None,
+                                                        embed=True),
+                     spend_cap_period: str | None = Body(default=None,
+                                                         embed=True),
+                     backup_offsite_dir: str | None = Body(default=None,
+                                                           embed=True),
+                     backup_interval_s: int | None = Body(default=None,
+                                                          embed=True)):
         c = conn()
+        if backup_offsite_dir is not None:
+            # Empty string is meaningful: it turns the off-machine copy OFF.
+            # Not validated for existence — the path may be an external disk or
+            # a network mount that is not attached right now, and refusing to
+            # save it then would be wrong.
+            db.set_setting(c, "backup_offsite_dir", backup_offsite_dir.strip())
+        if backup_interval_s is not None:
+            if backup_interval_s < 0:
+                raise HTTPException(422, "backup_interval_s cannot be negative "
+                                         "(0 disables automatic snapshots)")
+            db.set_setting(c, "backup_interval_s", str(int(backup_interval_s)))
+        # Entry 37. Validated HERE rather than trusted, then stored as the
+        # single source of truth — the worker and the budget guard both read
+        # the row back, so a value that lands here is the value that applies.
+        if worker_interval_s is not None:
+            if worker_interval_s < config.WORKER_INTERVAL_MIN_S:
+                raise HTTPException(
+                    422, f"worker_interval_s must be at least "
+                         f"{config.WORKER_INTERVAL_MIN_S}s — the loop fetches "
+                         f"and runs TTS, so a shorter cadence is a hot loop")
+            db.set_setting(c, "worker_interval_s", str(int(worker_interval_s)))
+        if spend_cap_usd is not None:
+            if spend_cap_usd < 0:
+                raise HTTPException(422, "spend_cap_usd cannot be negative "
+                                         "(0 means no cap)")
+            db.set_setting(c, "spend_cap_usd", f"{float(spend_cap_usd):.4f}")
+        if spend_cap_period is not None:
+            if spend_cap_period not in config.SPEND_CAP_PERIOD_DAYS:
+                raise HTTPException(
+                    422, f"unknown spend_cap_period {spend_cap_period} "
+                         f"(expected one of "
+                         f"{sorted(config.SPEND_CAP_PERIOD_DAYS)})")
+            db.set_setting(c, "spend_cap_period", spend_cap_period)
         if curation_mode is not None:
             if curation_mode not in db.CURATION_MODES:
                 raise HTTPException(

@@ -16,7 +16,7 @@ Never spends money on its own: an empty pool ends the cycle with a message.
 Refilling is Grace's explicit `run_story --build-pool` (AMENDMENT_04 A).
 
 Run: .venv/bin/python -m pipeline.worker            # one cycle
-     .venv/bin/python -m pipeline.worker --loop     # cycle every WORKER_INTERVAL_S
+     .venv/bin/python -m pipeline.worker --loop     # cycle on the Settings cadence
      .venv/bin/python -m pipeline.worker --acquire-only
 """
 import sys
@@ -140,13 +140,24 @@ def main(argv: list[str]) -> int:
     if "--loop" not in argv:
         cycle(conn, acquire_only=acquire_only)
         return 0
-    print(f"[worker] loop every {config.WORKER_INTERVAL_S}s — Ctrl-C to stop")
+    print(f"[worker] loop starting at {db.effective_worker_interval_s(conn)}s "
+          "— Ctrl-C to stop")
     while True:
         try:
             cycle(conn, acquire_only=acquire_only)
         except Exception as e:  # a bad cycle must not kill the loop
             print(f"[worker] cycle error: {e}")
-        time.sleep(config.WORKER_INTERVAL_S)
+        # Entry 37: the loop is the only thing that runs unattended, so it is
+        # also what carries the backup schedule Phase 7 owed. maybe_backup
+        # swallows its own failures for the same reason as the line above.
+        backup.maybe_backup(conn)
+        # Entry 37: re-read the interval EVERY cycle rather than capturing it
+        # once. This is what makes the cadence editable from Settings — a
+        # captured value would need a restart, and the scheduler keeps this
+        # process alive for weeks. It is also why the launchd job carries no
+        # interval of its own: its only job is to keep the loop running.
+        interval = db.effective_worker_interval_s(conn)
+        time.sleep(interval)
 
 
 if __name__ == "__main__":

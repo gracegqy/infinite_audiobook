@@ -369,6 +369,37 @@ def test_settings_roundtrip_and_validation(env):
                           json={"default_voices": {"en": "onyx"}}).status_code == 422
 
 
+def test_spend_cap_and_schedule_are_settings_not_constants(env):
+    """Entry 37: both knobs round-trip through the API, and the value the
+    screen reads back is the one the pipeline will enforce."""
+    from pipeline import budget, config, db as pdb
+
+    s = env.client.get("/api/settings").json()
+    assert s["spend_cap_usd"] == config.DEFAULT_SPEND_CAP_USD
+    assert s["worker_interval_s"] == config.DEFAULT_WORKER_INTERVAL_S
+    assert s["spent_in_period"] == 0.0
+
+    s = env.client.put("/api/settings", json={
+        "spend_cap_usd": 5.5, "spend_cap_period": "week",
+        "worker_interval_s": 1800}).json()
+    assert (s["spend_cap_usd"], s["spend_cap_period"]) == (5.5, "week")
+    assert s["worker_interval_s"] == 1800
+    # the pipeline side must agree with what the API just reported
+    assert pdb.effective_spend_cap(env.conn) == (5.5, "week")
+    assert pdb.effective_worker_interval_s(env.conn) == 1800
+    assert budget.status(env.conn)["spend_cap_usd"] == 5.5
+
+
+def test_spend_cap_rejects_nonsense(env):
+    assert env.client.put("/api/settings",
+                          json={"spend_cap_usd": -1}).status_code == 422
+    assert env.client.put("/api/settings",
+                          json={"spend_cap_period": "fortnight"}).status_code == 422
+    # below the floor: the loop does real work, so a 5s cadence is a hot loop
+    assert env.client.put("/api/settings",
+                          json={"worker_interval_s": 5}).status_code == 422
+
+
 def test_quality_notice_on_high_skip_rate(env):
     for i in range(4):
         env.add(f"s-skip{i}", "ready")

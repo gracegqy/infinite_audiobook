@@ -210,3 +210,21 @@ button.danger { color: var(--danger); }
 /* library: the failed group is an exclusion ledger, not listening material */
 .failed-note { color: var(--dim); font-size: 0.78rem; margin: 2px 0 6px; }
 .card.muted { opacity: 0.6; }
+
+/* settings: spend cap + schedule (Entry 37). Both knobs are numbers Grace
+   edits, so they need an explicit Apply — the row keeps label, field and
+   button on one line and wraps on the narrow phone breakpoint. */
+.card-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 6px; }
+.card-row label { display: flex; gap: 6px; align-items: center;
+  font-size: 0.85rem; color: var(--dim); }
+.card-row input { width: 6.5em; }
+.card-row input, .card-row select, .card-row button {
+  background: var(--card-now); color: var(--fg); border: 1px solid #333;
+  border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 0.85rem; }
+.card-row button:disabled { opacity: 0.5; }
+/* spend meter: a cap you cannot see the state of is a cap you will trip */
+.meter { height: 6px; border-radius: 3px; background: var(--card-now);
+  overflow: hidden; margin: 6px 0; }
+.meter span { display: block; height: 100%; background: var(--accent); }
+.card-row input.wide { width: 100%; flex: 1 1 220px; font-size: 0.78rem; }

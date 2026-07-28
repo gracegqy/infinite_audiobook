@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 36 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 37 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -13,8 +13,8 @@
 | 3 — Pipeline MVP | DONE | One story end-to-end, playable audio + offsets | Grace: "Phase 3 gate passed" (Entry 17); Yellow Wallpaper READY, 32 tests green, offsets 0 ms drift, spot-check OK (Entry 16) |
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
-| 6 — Preference adaptation | **DONE** | Curation demonstrably weighted by ratings | **GATE PASSED with a control** (Entry 35): noise (two no-profile runs) = 1 title; effect = 7–8 titles. Lovecraft picks 7/12 → **0/12** with the profile, replaced by ghost/gothic — matching `weird` 1.0/5 vs `gothic`/`19th-century` 5.0. Needed Grace's floor ruling first; Entry 34's even split had pinned the axis. 243 tests green |
-| 7 — Hardening | not started | Fresh-session audit + runbook complete | — |
+| 6 — Preference adaptation | **RE-OPENED** | Curation demonstrably weighted by ratings | Entry 35 passed a controlled A/A′/B **at batch 12** (noise 1 title, effect 7–8; Lovecraft 7/12 → 0/12). **Entry 37 showed that does not describe production**: the first real build at `POOL_BATCH_SIZE = 40` took **11 of 12** Lovecraft. Mechanism works at the top of the ranking, does not exclude at depth. Grace ruled: record + **re-gate at batch 40** (not yet done) |
+| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). Still owed: RUNBOOK, independent `/code-review`, `/security-review`, fresh-session audit |
 
 ## Confirmed findings
 
@@ -62,76 +62,81 @@
 
 ## Next actions
 
-Phases 0–6 are DONE. **Phase 7 (hardening & audit) is next** — nothing blocks it.
+Phase 7 is in progress; Phase 6 is re-opened (its gate does not describe
+production). Queue is healthy — 3/3 ready, 29 in the pool — so **nothing is
+time-sensitive.**
 
-**The one time-sensitive item:**
-
-1. **Refill the queue — 1 ready + 2 in_progress, pool empty.** One
-   `.venv/bin/python -m pipeline.run_story --build-pool` on `free_llm` (~$0.02).
-   The worker cannot do this itself (it never spends). This will be the first
-   build with the taste profile live, so it doubles as the production check on
-   Entry 35's sandboxed gate — worth eyeballing whether the picks skew ghost/
-   gothic over cosmic, which is what the gate predicts.
-
-**Then Phase 7, whose two biggest items are already named:**
-
-2. **An independent `/code-review`.** Entries 33, 34 and 35 each reviewed their
-   own same-session code — the weakest kind — and 34→35 is the worked example of
-   why it matters: a result that read as a clean pass until a control run showed
-   it was noise. ~900 lines have landed this way.
-3. **Off-machine backup.** `scripts/backup_db.py` is WAL-consistent and
-   integrity-checked but **same-machine only, and nothing schedules it**. Last
-   snapshot taken at Entry-36 close (18 stories, 6 ratings, integrity ok).
-
-**Open, needs a scope decision before any code:**
-
-4. **Self-heal + budget (Grace's proposal, assessed Entry 35).** Three
-   independent pieces — a scheduler, a spend cap, auto-refill. See Open
-   decisions; one part is recommended against.
+1. **An independent `/code-review`.** Still the top item, and now larger:
+   Entries 33–35 landed ~900 lines of same-session-reviewed code and Entry 37
+   added ~700 more (budget, backup rework, scheduler, settings API/UI). 34→35 is
+   the worked example of why it matters — a result that read as a clean pass
+   until a control run showed it was noise.
+2. **Re-gate Phase 6 at batch 40** (Grace's ruling, Entry 37). Same A/A′/B
+   design as Entry 35, run at `POOL_BATCH_SIZE`, sandboxed via `HR_DATA_DIR`.
+   ~$0.15. **Sequencing judgement to make first:** this measures the MECHANISM,
+   and the profile's CONTENT is known-wrong (see debt 1), so consider landing
+   the evidence floor before spending on the re-gate.
+3. **RUNBOOK.md** — cold start, Tailscale, key rotation, and now: how to install
+   the scheduler, set the spend cap, and turn on off-machine backup.
+4. `/security-review`, then the fresh-session audit. Both are Phase-7 gate items.
 
 **Standing debts (no deadline):**
 
-1. **Backups are same-machine only.** `scripts/backup_db.py` takes a
-   WAL-consistent, integrity-checked snapshot into `backups/` (gitignored,
-   keeps 10) — first one taken at Entry-33 close: 18 stories, 2 progress rows,
-   2 ratings. That covers corruption and bad migrations, **not losing the Mac**.
-   An off-machine copy is Phase 7. Nothing runs it on a schedule yet.
-2. Entry-16: edge-tts fallback granularity, vocab-genre coupling. (The
+1. **No per-tag evidence floor (Entry 37, Grace's correction).** Entry 34 floors
+   the number of rated STORIES at 3, but nothing floors n per TAG — so one
+   rating becomes a 1.0/5 verdict on a whole subgenre. Live example: `weird`
+   scored 1.0 from n=1 and **Grace says she likes cosmic horror**; that rating
+   was about one badly-made story. Deeper version of the same defect: a 1–5
+   rating conflates "badly made" with "not my kind of thing", and only the
+   second belongs in a taste profile. Until this is fixed the profile is
+   actively misleading, not merely thin.
+2. **Off-machine backup is OFF.** The code half landed (Entry 37,
+   `pipeline.backup`, verified at the destination) but it is **opt-in by
+   design** — nothing leaves the Mac until a path is set in Settings. Local
+   snapshots in `backups/` keep running and cover corruption and bad
+   migrations, **not losing the Mac**.
+3. **Nothing schedules the worker unless Grace installs it.**
+   `scripts/scheduler.sh install` exists and works (verified end-to-end: launchd
+   → loop → acquire → render, unbuffered log) but it **refuses to run
+   non-interactively** and Claude must never run it. Until Grace runs it, the
+   queue only advances when a worker is run by hand.
+4. Entry-16: edge-tts fallback granularity, vocab-genre coupling. (The
    source-class registry half is paid off — `pipeline/sources.py`, Entry 32.)
    Entry-21: two fuzzy title-match semantics (mark.py vs pool.find_candidate) —
    centralize on the third user; curation-prompt exclusion list grows with
    all-time history (an R11 cost lever, and now only on the `llm` path).
-3. Free-source residuals (Entries 29, 32): a Gutenberg collection with an
+5. Free-source residuals (Entries 29, 32): a Gutenberg collection with an
    innocent title ("The Parenticide Club") still passes the title and shelf
    filters — the length gate catches it at verify time, and `free_llm` now
    backfills from spares, so it costs a spare rather than a slot. Cheap next
    step if it recurs: a paragraph-count heuristic on the fetched text.
-4. Free-source reach: only `gutenberg-catalog` and `creepypasta-wiki` are
+6. Free-source reach: only `gutenberg-catalog` and `creepypasta-wiki` are
    registered. r/nosleep and non-English modern fiction need either `llm` mode
    or a new adapter. Supply is finite — 514 classics + 200 modern ≈ 240 worker
    cycles.
 
 ## Library
 
-18 story rows; 18 distinct titles (no all-time repeats). Re-derived from the DB
-at Entry-34 close — Grace listened through the session and finished two more
-(Smile Dog, The Backrooms):
+20 story rows; 20 distinct titles (no all-time repeats). Re-derived from the DB
+at Entry-37 close.
 
 - **read (9):** Yellow Wallpaper 32.2 (rated 5) · Monkey's Paw 21.5 (rated 5) ·
   Owl Creek Bridge 19.7 · Willows 107.1 · Russian Sleep Experiment 12.2
   (rated 2) · Ben Drowned 54.4 (rated 3) · Smile Dog 11.3 (rated 2) ·
   Squidward's Suicide 9.9 (rated 1) · The Backrooms 5.3
-- **in_progress (2):** Damned Thing 18.0 at 15:33 · The Rake 6.5 at 3:21
-- **ready (the queue, 1/3):** NoEnd House 24.0
+- **in_progress (2):** Damned Thing 18.0 at 15:33 · The Rake 6.5 at 4:17
+- **ready (the queue, 3/3):** NoEnd House 24.0 · The Fall of the House of Usher
+  39.2 · The Cask of Amontillado 12.9 (the last two acquired in Entry 37)
 - **failed (6):** Tell-Tale Heart · Candle Cove · Ted the Caver · Jeff the
   Killer · Yellow Sign · Music of Erich Zann. All re-verified live in Entry 34
   as correct rejections. **Do not delete them** — `pool.failed_refs` reads these
   rows to keep dead references out of curation; deleting would re-open Entry 16.
 
-**⚠ The queue is 1/3 and the pool is empty (0 candidates).** The worker cannot
-self-heal — it never spends — so the next refill needs an explicit
-`run_story --build-pool`. On `free_llm` that is ~$0.02 and the Entry-33 spend
-guard never fires.
+**Queue is healthy: 3/3 ready, 29 usable candidates in the pool** (Entry 37's
+build). The worker still never spends, so the refill after that stays an
+explicit `run_story --build-pool` — now also gated by the spend cap. **Read the
+pool order before trusting it:** ranks 5–15 are eleven consecutive Lovecraft
+titles, which is the Entry-37 finding, not a queue fault.
 
 **6 ratings, with real contrast** (1,2,2,3,5,5) — enough for the Phase 6 floor
 of 3. Unfinished ≠ disliked: the two in_progress are unrated because Grace
@@ -140,8 +145,12 @@ hasn't finished them, so they carry no Phase-6 signal (Entry 22).
 Voice gallery: 11 samples in data/voice_samples/. Settings rows in the DB:
 `default_voice.en` = am_adam · `curation_mode` = **`free_llm`** (Grace's choice,
 set 2026-07-28 via `PUT /api/settings`, verified through
-`db.effective_curation_mode`). `curation_model` has no stored row and resolves
-to the code default `claude-sonnet-5`.
+`db.effective_curation_mode`) · `spend_cap_usd` = **8.00** · `spend_cap_period`
+= month (both set Entry 37 — 8.00 not 2.00 because the rolling window already
+holds $4.86 of July's `llm` experiments; lower it after ~2026-08-27).
+`curation_model`, `worker_interval_s`, `backup_interval_s` and
+`backup_offsite_dir` have no stored rows and resolve to their code defaults
+(`claude-sonnet-5`, 900 s, 86400 s, and OFF respectively).
 
 ## Taste (Phase 6)
 
@@ -150,6 +159,12 @@ early-20th · folk · Gilman · Jacobs · descent-into-madness (all 5.0, n=1);
 **disliked** weird 1.0 · contemporary 2.0 (n=3) · found-footage 2.0 (n=3) ·
 creepypasta 2.0 (n=3). `language` and `origin` are correctly absent — one
 distinct value each across the rated set, so they express no preference.
+
+**⚠ `weird` 1.0/5 is known to be WRONG** (Grace, Entry 37): she likes cosmic
+horror, and that score came from one badly-made story at n=1. It is the live
+example of the missing per-tag evidence floor (standing debt 1). Until that
+lands, the quickest correction is a manual override from the Trends tab —
+a manual score is used verbatim and never shrunk.
 
 `taste_overrides` is **empty** — everything shown is computed. Grace can adjust
 any score, add a tag the ratings never produced, suppress one they did, or
@@ -176,38 +191,46 @@ fix + $0.0264 for the channel-edit A/B); Entry 34's first Phase-6 gate cost
 their `curation_runs` rows are in sandbox DBs, not this one. Recorded here
 rather than dropped — **$0.1757 of sandbox spend to date.**
 
-Per-batch cost by mode (measured, 2026-07-28): `free` $0 · `free_llm` **$0.0176**
-for 12 candidates · `llm` ~$2.40 at the coded batch of 40 (~$0.75 at 12).
+Per-batch cost by mode (measured, 2026-07-28): `free` $0 · `free_llm`
+**$0.0512 at the production batch of 40** (Entry 37 — this is the number that
+matters; the earlier $0.0176 was per-12 and is not what production runs) ·
+`llm` ~$2.40 at the coded batch of 40 (~$0.75 at 12).
+
+**A spend cap is now enforced** (Entry 37): rolling window over the
+`curation_runs` ledger, checked before every paid path including `free_llm`.
+Currently $8.00/month with $4.8562 spent and $3.1438 remaining. `pipeline
+.budget.status()` is the single source for both the readout and the guard.
 
 ## Open decisions
 
-**Scope of self-heal + budget** (Grace's proposal, assessed Entry 35). Nothing
-built; needs her scope call first. Three independent pieces, shippable
-separately:
+**Self-heal + budget: SETTLED and built** (Grace approved, Entry 37), with one
+binding constraint — **no hardcoded numbers**; every knob is a settings row she
+can change and apply at any time.
 
-- **(i) a scheduler.** Nothing runs the worker today — verified, no launchd job
-  and no crontab. `pipeline.worker --loop` exists but nothing invokes it. This
-  is the actual blocker: without it, "self-heal" is only "refill on demand".
-- **(ii) a spend cap** in settings + "spent since reset" readout, checked before
-  any paid call.
-- **(iii) auto `--build-pool`** when the pool empties, gated on (ii), with a
-  `.notice` banner when the cap trips (reuse the existing pattern — a worker
-  that stops silently is the failure mode, and a banner survives dismissal).
+- **(i) scheduler — built, NOT installed.** `scripts/scheduler.sh` writes a
+  launchd job whose only duty is keeping `worker --loop` alive; the cadence is
+  `worker_interval_s`, re-read every cycle, so changing it in Settings applies
+  on the next tick with no reinstall. Verified end-to-end (launchd → loop →
+  acquire → render, unbuffered log — `-u` is load-bearing or the log stays
+  empty for hours). **Grace installs it; Claude must not** — it refuses a
+  non-interactive install.
+- **(ii) spend cap — built and enforced.** `pipeline/budget.py`, rolling window,
+  checked before every paid path *including* `free_llm`. Verified refusing a
+  build (exit 4, $0 spent).
+- **(iii) auto `--build-pool` — NOT built, and needs an AMENDMENT, not a scope
+  call.** It contradicts AMENDMENT_04 A, which is BINDING: *"paid pool builds
+  are rare, large, and Grace-initiated only… never an automatic build."* The
+  honest path is AMENDMENT_07 superseding 04-A. Cheaper alternative that needs
+  no amendment: let the scheduler run `--build-pool` on a visible cadence Grace
+  sets, so the spend decision stays hers-by-schedule.
 
-Two corrections to the proposal as stated:
+Still standing from the original assessment:
 - **Recommended against: the API key in Settings.** DESIGN §10 forbids keys
   reaching the frontend; `data/app.db` is copied into `backups/` unencrypted, so
-  this turns every snapshot into a credential. `.env` already works and solves
-  the same problem.
-- **The budget cannot see her Anthropic balance** — only what this app spent.
-  "Replenish credits" is unverifiable from here, so build it as an honest local
-  cap and report a credit-exhausted API error as a separate condition.
-
-Sizing, so the cap is set knowingly: a `free_llm` batch of 12 costs ~$0.02 and
-feeds ~4 worker cycles, so **$1/month ≈ 50 batches ≈ 600 stories** — unreachable
-in practice. The cap's real job is containing the `llm` mode (~$2.40/batch) and
-runaway loops, which Entry 33's `--yes-spend` guard already half-covers. A low
-default (~$2/month) is a tripwire, not an allowance.
+  this turns every snapshot into a credential. `.env` already works. (This is
+  also why the Entry-37 iCloud snapshot carried no credentials.)
+- **The budget cannot see the Anthropic balance** — only what this app spent, so
+  a credit-exhausted API error stays a separate condition.
 
 Settled: the classics/modern quota is a **floor of `CLASS_FLOOR = 2`**, not an
 even split (Grace, Entry 35 — supersedes the Entry-32 round-robin).

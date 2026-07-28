@@ -486,6 +486,21 @@ def estimate_cost(model: str, batch: int) -> tuple[float, str]:
                    f"tokens scaled from run 4 for a batch of {batch}")
 
 
+def estimate_selection_cost(batch: int) -> tuple[float, str]:
+    """(estimated $, how it was derived) for one free_llm SELECTION call.
+
+    free_llm is cheap but not free, and the budget check needs a number before
+    the call the same way the paid path does. Scaled linearly from the only
+    measured build there is (Entry 37: $0.0512 for batch 40 over a 240-line
+    shortlist) — the shortlist grows with the batch, so the input side really
+    is roughly linear in `batch`.
+    """
+    per = config.FREE_SELECTION_COST_PER_CANDIDATE
+    total = per * max(1, batch)
+    return total, (f"~${per:.5f}/candidate x {batch}, scaled from the Entry-37 "
+                   f"measured build ($0.0512 at batch 40)")
+
+
 def confirm_spend(model: str, batch: int, approved: bool,
                   log=print) -> bool:
     """True when a paid build may proceed. Prints the estimate either way."""

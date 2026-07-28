@@ -17,9 +17,39 @@ INTERIM_DIR = DATA_DIR / "interim"
 ENV_PATH = ROOT / ".env"  # keys stay in the repo root, never copied into a sandbox
 
 QUEUE_DEPTH = 3  # AMENDMENT_02
-# Replenishment worker (Phase 5): how often --loop re-checks the queue. Long,
-# because the only thing that shortens the queue is Grace finishing a story.
-WORKER_INTERVAL_S = 900
+
+# ---- Settings-backed knobs (Entry 37) ----
+# DEFAULTS ONLY — first-run fallbacks for when the `settings` table has no row.
+# The OPERATIVE value of every knob below lives in `settings` so Grace can
+# change it from the app at any time and have it apply without a code edit or a
+# restart. Read them through the `db.effective_*` accessors, never by touching
+# these constants at a call site: a constant read directly is exactly the
+# hardcoding this section exists to prevent.
+#
+# Replenishment worker (Phase 5): how often --loop re-checks the queue. Long by
+# default, because the only thing that shortens the queue is Grace finishing a
+# story. Re-read every cycle, so a change in Settings takes effect on the next
+# tick rather than at the next restart.
+DEFAULT_WORKER_INTERVAL_S = 900
+# A floor, not a preference: the loop does real work (fetch + TTS), and an
+# interval below this turns a mis-typed "10" into a hot loop.
+WORKER_INTERVAL_MIN_S = 60
+
+# Spend cap (Entry 37, Grace's (ii)). An honest LOCAL cap on what THIS APP has
+# spent, summed from the curation_runs ledger — it cannot see the Anthropic
+# account balance, so a credit-exhausted API error stays a separate condition
+# (Entry 35). 0 means no cap.
+# How often the running worker takes a DB snapshot. Daily by default: the DB is
+# small (0.18 MB) so the snapshot is nearly free, and the thing being protected
+# — ratings and resume positions — changes at human speed.
+DEFAULT_BACKUP_INTERVAL_S = 86400
+
+DEFAULT_SPEND_CAP_USD = 2.00
+DEFAULT_SPEND_CAP_PERIOD = "month"
+SPEND_CAP_UNLIMITED = 0.0
+# Rolling windows, in days. Rolling rather than calendar-aligned so the answer
+# to "have I got room to build a pool?" never depends on the day of the month.
+SPEND_CAP_PERIOD_DAYS = {"day": 1, "week": 7, "month": 30}
 
 # Curation (DESIGN §5): Sonnet, capped searches, ≤$0.40/batch target. Never
 # auto-escalate the model (R14) — changes are Grace-initiated only.
@@ -43,6 +73,11 @@ def curation_search_budget(batch: int) -> int:
 
 
 CURATION_BATCH_SIZE = 8
+# Measured unit cost of a free_llm SELECTION call, for the budget estimate only
+# (Entry 37: $0.0512 for a batch of 40 over a 240-line shortlist). Not a knob —
+# it is an observation, and it should be re-derived if the shortlist multiplier
+# or the prompt changes materially.
+FREE_SELECTION_COST_PER_CANDIDATE = 0.0512 / 40
 # A paid build above this estimate needs an explicit --yes-spend (Entry 33).
 # `--build-pool` is already the opt-in to spending (AMENDMENT_04 A), but it does
 # not tell you HOW MUCH: at POOL_BATCH_SIZE=40 the search budget alone is $1.20,
