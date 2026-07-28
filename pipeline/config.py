@@ -24,14 +24,30 @@ WORKER_INTERVAL_S = 900
 # Curation (DESIGN §5): Sonnet, capped searches, ≤$0.40/batch target. Never
 # auto-escalate the model (R14) — changes are Grace-initiated only.
 CURATION_MODEL = "claude-sonnet-5"
-# Raised 6 → 25 (Entry 28). Prompt caching inverted the economics: search
-# RESULTS used to be re-read at full price on every pause turn, which made
-# searches the dominant cost; cached, they re-read at 0.1x, so a search now
-# costs about its $0.01 fee. Six was also too few to actually verify a batch —
-# the run that proved caching also ran out of searches mid-verification and
-# (correctly) refused to invent ebook ids rather than guess.
-CURATION_MAX_SEARCHES = 25
+# Search budget SCALES with the ask (Entry 29). Prompt caching inverted the
+# economics — cached search results re-read at 0.1x, so a search now costs about
+# its $0.01 fee — but a FLAT cap starves a large batch: verifying one candidate
+# takes ~3 searches (find the standalone edition, open its page, check the
+# reputation claim), so 25 fits a batch of 8 and would strand a batch of 40 the
+# same way 6 stranded run 4. The ceiling is a spend guard, not a target.
+CURATION_SEARCHES_PER_CANDIDATE = 3
+CURATION_MIN_SEARCHES = 10
+CURATION_MAX_SEARCHES = 150  # hard ceiling: ~$1.50 of search fees
+
+
+def curation_search_budget(batch: int) -> int:
+    """web_search max_uses for a batch of `batch` candidates — the single copy
+    of this scaling, so the pool build and a one-off run agree."""
+    return max(CURATION_MIN_SEARCHES,
+               min(CURATION_MAX_SEARCHES, batch * CURATION_SEARCHES_PER_CANDIDATE))
+
+
 CURATION_BATCH_SIZE = 8
+# Hard cap on pause_turn continuations (Entry 29). The loop used to be
+# `while True:` with the cost ledger written only AFTER it exited — so a run
+# that kept pausing spent money indefinitely AND invisibly. One run sat open 70
+# minutes with no ledger row before being killed. Never remove this cap.
+CURATION_MAX_TURNS = 12
 # Thinking depth for curation (Entry 28). Curation is search-and-list, not deep
 # reasoning, and adaptive thinking is ON BY DEFAULT on Sonnet 5 at `high` effort
 # — so leaving this unset was silently buying reasoning tokens this task doesn't

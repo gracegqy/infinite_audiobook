@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 28 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 29 · 2026-07-28
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -65,12 +65,15 @@
 1. **Grace: confirm the scrubber still drags on the phone.** The view lock
    (no zoom/pan, Entry 26) is the one change that could plausibly have hurt it.
    Everything else in her two UI reports is fixed and measured.
-2. **Grace: decide on the zero-API classics path.** Gutenberg's own catalog
-   (free, no key) gives 514 English horror/ghost/gothic texts with correct ebook
-   ids; paired with the existing free verifier that makes classics curation $0
-   and removes the id-guessing failure mode entirely. Tradeoff: reputation
-   evidence becomes catalog metadata + download rankings instead of
-   LLM-verified named lists (Entry 28). Not built — your call.
+2. **Grace: pick a curation mode in Settings.** Both now exist (Entry 29).
+   `catalog` = $0, no API call, ebook ids always correct, classics only, thin
+   reputation signal (expect obscure pulp beside the canon). `llm` = ~$0.2-0.5
+   per batch, verified named lists, covers creepypasta, can still get an ebook
+   id wrong. Defaults to `llm` — nothing changed without your say.
+3. **Owed: the Entry-28 prompt rebalance is still unverified end-to-end.** The
+   run that would have proven it is the one that exposed the unbounded-loop bug
+   and was killed at 70 minutes. Re-run `run_story --build-pool` in llm mode to
+   confirm the classics/modern mix actually comes back balanced.
 2. **Grace: phone gate for Phase 5** — highlight visibly tracking audio over
    Tailscale (the code ships; only the phone check is owed). Server at
    http://100.117.147.107:8123 (`scripts/serve.sh` to restart). The Russian
@@ -105,9 +108,12 @@ NoEnd House). Voice gallery:
 
 None. (AMENDMENT_05 A/B were flipped BINDING and implemented in Entry 21.)
 
-Curation cost (Entry 28): prompt caching serves ~93% of input from cache, so a
-batch runs ~$0.23 instead of ~$1.05; searches raised 6→25 because cached
-re-reads made them nearly free. All cost figures before Entry 28 are list-price
+Curation cost (Entries 28-29): prompt caching serves ~93% of input from cache, so
+a batch runs ~$0.23 instead of ~$1.05. Search budget scales with batch size
+(3/candidate, ceiling 150). Pause-turn loop is capped at 12 turns and records
+spend even when aborted — it was previously unbounded AND invisible. Batch API
+verified to work with web search + caching (50% discount available, but a paused
+batch cannot be resumed). Catalog mode costs $0. All cost figures before Entry 28 are list-price
 and ~32% high (Sonnet 5 intro pricing runs to 2026-08-31).
 
 Exclusion rule (Entry 24): a TITLE is excluded from future curation once we

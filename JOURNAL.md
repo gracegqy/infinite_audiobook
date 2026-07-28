@@ -968,3 +968,81 @@ journal is list-price and ~32% high** (Entries 17, 25, 27 included); actual
 billed spend to date is ~$3.11 + $0.23. The $/batch baseline is superseded
 outright — $1.55 uncached vs $0.23 cached is a different cost model, not a
 revision of the old one.
+
+## Entry 29 — 2026-07-28 — Batch size scaled, Batch API verified, free catalog curation mode; unbounded paid loop found and capped
+
+Grace: apply lever 1 (bigger batches), try lever 4 (Batch API), and build lever 3
+(the free Gutenberg catalog path) as a Settings mode against the paid one.
+
+### Correction to my own lever-1 claim
+
+I told her cost was "roughly fixed per batch, so ask for more." That was true
+only BEFORE caching. Post-caching, the fixed part (prompt, instructions,
+exclusions) amortizes, but **search fees and output tokens scale with candidate
+count** — verifying one candidate takes ~3 searches. Bigger batches still lower
+$/story, but modestly, not dramatically.
+
+Worse, a flat `CURATION_MAX_SEARCHES` actively breaks at size: 25 fits a batch of
+8 and would strand a batch of 40 exactly as 6 stranded run 4. So the budget now
+scales — `config.curation_search_budget(batch)` = 3/candidate, floor 10, ceiling
+150 (~$1.50 of fees as a spend guard).
+
+### Lever 4: Batch API WORKS (probe, ~$0.01)
+
+One-request probe with `web_search_20260209` + `cache_control` + `output_config`:
+accepted, ran 2 searches, **`stop_reason: end_turn`**, cache_read 12,467, correct
+answer (ebook 28731). So the 50% discount is available for curation in principle.
+
+The unresolved risk is `pause_turn`: a batch request is one-shot, and a real
+curation batch pauses repeatedly. There is no way to resume inside a batch, so
+a paused batch result is simply lost work. Implementing batch mode therefore
+needs a fallback path, which is why this entry verifies the mechanism without
+switching curation over to it.
+
+### Lever 3: catalog mode built and selectable
+
+`pipeline/catalog.py` + `curation_mode` setting (`catalog` | `llm`), exposed in
+Settings with the tradeoff written out. Defaults to `llm` so nothing changes
+silently. `run_story --build-pool` routes on the mode; catalog builds write the
+same `curation_runs` row shape with cost 0 and model `gutenberg-catalog`, so the
+R11 ledger still accounts for free builds and pool/verify/worker can't tell the
+paths apart.
+
+**First real run exposed the mode's weakness, and it was not the one I expected.**
+The length gate rejects a 500k-char Poe omnibus, but a four-story Bierce
+collection is ~60k chars and sailed through — so 3 of the 4 "usable" candidates
+were collections, not single stories. Titles announce them reliably and for free,
+so `looks_like_collection` rejects "Works of", "Collection", "and Other",
+"Volume", and bare plural "…Tales"/"…Stories" endings. Re-run: **9/12 usable,
+led by The Fall of the House of Usher.** The two filters are complementary —
+titles catch short collections, the length gate catches long ones. Residual: a
+collection with an innocent title ("The Parenticide Club") still gets through.
+
+Honest read on quality: catalog mode yields genuine public-domain short horror
+with always-correct ids, but the reputation signal is thin — the 9 usable
+included obscure pulp (Don Peterson, Benjamin Ferris) alongside Poe. That is the
+real tradeoff, and it is now stated in the Settings UI rather than buried.
+
+### The serious find: an unbounded paid loop
+
+The verification run for Entry 28's prompt sat open **70 minutes** and was
+killed. Diagnosing it found `run_curation`'s pause-turn loop was `while True:`
+with the cost ledger written only AFTER the loop exited. A model that keeps
+pausing therefore spends **indefinitely and invisibly** — no cap, and no ledger
+row until it finishes. That is the exact inverse of this project's cost
+governance, and it was there through every batch Grace has paid for.
+
+Fixed: `CURATION_MAX_TURNS = 12`, per-pause progress logging, and the ledger row
+is written with whatever was spent even when the cap trips or the response never
+parses. Regression test drives a fake model that pauses forever and asserts both
+the cap and that the aborted run still leaves a non-zero ledger row.
+
+Entry-28's prompt rebalance is therefore **still unverified end-to-end** — the
+run that would have proven it is the run that exposed this bug. Catalog mode is
+verified; the paid path's rebalance is not.
+
+150 tests green (26 new).
+
+Measurements invalidated: my "cost is fixed per batch" claim (Entry 28's lever 1)
+is corrected above — search fees and output scale with batch size. No prior
+recorded measurement changes.

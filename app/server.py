@@ -454,6 +454,9 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return {
             "curation_model": db.effective_curation_model(c),
             "curation_model_options": sorted(config.MODEL_PRICING),
+            # Entry 29: how the pool is built. Grace's choice, never automatic.
+            "curation_mode": db.effective_curation_mode(c),
+            "curation_mode_options": list(db.CURATION_MODES),
             "default_voices": {lang: db.effective_voice(c, lang)
                                for lang in config.VOICE_OPTIONS},
             "quality_notice": (
@@ -464,9 +467,16 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
 
     @app.put("/api/settings")
     def put_settings(curation_model: str | None = Body(default=None, embed=True),
+                     curation_mode: str | None = Body(default=None, embed=True),
                      default_voices: dict[str, str] | None = Body(default=None,
                                                                   embed=True)):
         c = conn()
+        if curation_mode is not None:
+            if curation_mode not in db.CURATION_MODES:
+                raise HTTPException(
+                    422, f"unknown curation_mode {curation_mode} "
+                         f"(expected one of {list(db.CURATION_MODES)})")
+            db.set_setting(c, "curation_mode", curation_mode)
         if curation_model is not None:
             if curation_model not in config.MODEL_PRICING:
                 raise HTTPException(422, f"unknown model {curation_model}")

@@ -66,6 +66,8 @@ Return ONLY a JSON array (no prose around it), each element:
   "license_class": "pd"|"modern_private",
   "evidence": [str, ...], "unverified": [str, ...]}}"""
 
+CURATION_BATCH_SIZE_DEFAULT = config.CURATION_BATCH_SIZE
+
 SOURCE_HINTS = {
     "en": "Project Gutenberg plain text (public domain) or creepypasta-wiki pages",
     "fr": "Project Gutenberg plain text (French-language public domain)",
@@ -109,7 +111,7 @@ def build_prompt(channel, known_titles: list[str],
     return prompt
 
 
-def parse_candidates(text: str) -> list[dict]:
+def parse_candidates(text: str, batch: int = CURATION_BATCH_SIZE_DEFAULT) -> list[dict]:
     """Extract the JSON array from the response (tolerates a ```json fence).
     The unfenced fallback anchors on "[{" ... "}]" so brackets in surrounding
     prose ("[NPR list]") can't poison the match."""
@@ -127,8 +129,8 @@ def parse_candidates(text: str) -> list[dict]:
             raise ValueError(
                 "curation returned prose, not JSON — the model appears to have "
                 "declined to guess rather than fabricate references (often the "
-                f"web-search cap, currently CURATION_MAX_SEARCHES="
-                f"{config.CURATION_MAX_SEARCHES}). Its own explanation is stored "
+                f"web-search budget, {config.curation_search_budget(batch)} for "
+                f"a batch of {batch}). Its own explanation is stored "
                 "in the curation_runs ledger row; read it before re-running.")
         raise ValueError("no JSON array in curation response")
     candidates = json.loads(m.group(1))
@@ -150,7 +152,9 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
     prompt = build_prompt(channel, db.known_titles(conn), batch)
     messages = [{"role": "user", "content": prompt}]
     searches = in_tok = out_tok = cache_read = cache_write = 0
-    while True:
+    turns = 0
+    response = None
+    for turns in range(1, config.CURATION_MAX_TURNS + 1):
         with client.messages.stream(
             model=model,
             max_tokens=16000,
@@ -168,7 +172,7 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
             # buying deep reasoning for a listing task.
             output_config={"effort": config.CURATION_EFFORT},
             tools=[{"type": "web_search_20260209", "name": "web_search",
-                    "max_uses": config.CURATION_MAX_SEARCHES}],
+                    "max_uses": config.curation_search_budget(batch)}],
             messages=messages,
         ) as stream:
             response = stream.get_final_message()
@@ -186,8 +190,16 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
                     list(response.content)
             else:
                 messages.append({"role": "assistant", "content": response.content})
+            print(f"[curate] pause {turns}/{config.CURATION_MAX_TURNS} "
+                  f"({searches} searches so far)")
             continue
         break
+    else:
+        # Cap reached while still pausing. The ledger row below still records
+        # every token spent — an aborted run must never be free-looking.
+        print(f"[curate] WARNING: hit CURATION_MAX_TURNS="
+              f"{config.CURATION_MAX_TURNS} and the model was still paused. "
+              "Spend is recorded; raise the cap or lower the batch size.")
 
     # ledger row FIRST (R11): the spend is real even if the response is
     # unparseable — parse failures must not make cost invisible
@@ -197,7 +209,8 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
             + cache_write / 1e6 * price_in * config.CACHE_WRITE_MULTIPLIER
             + out_tok / 1e6 * price_out
             + searches * config.WEB_SEARCH_COST)
-    text = "\n".join(b.text for b in response.content if b.type == "text")
+    text = "\n".join(b.text for b in (response.content if response else [])
+                     if b.type == "text")
     run_id = conn.execute(
         "INSERT INTO curation_runs(channel_id, model, cost_usd, searches, "
         "candidates_json, input_tokens, output_tokens, cache_read_tokens, "
@@ -207,7 +220,7 @@ def run_curation(conn, channel=None, batch: int = config.CURATION_BATCH_SIZE,
          in_tok, out_tok, cache_read, cache_write)).lastrowid
     conn.commit()
 
-    candidates = parse_candidates(text)
+    candidates = parse_candidates(text, batch)
     # Verify references mechanically before they reach the pool (Entry 25).
     # Free — HTTP only — and it runs the same fetch/clean gates the worker
     # will, so the pool never promises a story ingest would reject.

@@ -8,7 +8,7 @@ Run: .venv/bin/python -m pipeline.run_story                 # $0: consume pool
 """
 import sys
 
-from . import config, curate, db, fetch, ingest, pool
+from . import catalog, config, curate, db, fetch, ingest, pool
 
 
 def main(argv: list[str]) -> int:
@@ -18,15 +18,26 @@ def main(argv: list[str]) -> int:
           f"language={channel['language']})")
 
     if "--build-pool" in argv:
-        candidates = curate.run_curation(conn, channel,
-                                         batch=config.POOL_BATCH_SIZE)
+        # Entry 29: which builder runs is Grace's `curation_mode` setting —
+        # catalog is $0, llm is paid. Never chosen automatically.
+        mode = db.effective_curation_mode(conn)
+        print(f"[pool] curation_mode={mode}")
+        if mode == "catalog":
+            candidates = catalog.build_pool(conn, channel,
+                                            limit=config.POOL_BATCH_SIZE)
+        else:
+            candidates = curate.run_curation(conn, channel,
+                                             batch=config.POOL_BATCH_SIZE)
     else:
         candidates = pool.pool_candidates(conn)
         if not candidates:
+            mode = db.effective_curation_mode(conn)
+            cost = ("$0, no API call" if mode == "catalog"
+                    else f"PAID on {db.effective_curation_model(conn)}")
             print("Pool is empty. Refill with:  python -m pipeline.run_story "
-                  f"--build-pool  (PAID: ~{config.POOL_BATCH_SIZE} candidates on "
-                  f"{db.effective_curation_model(conn)}, expect a few dollars; "
-                  "recent batches ran $0.90-$2.13 for 8)")
+                  f"--build-pool  ({cost}; curation_mode={mode}, "
+                  f"~{config.POOL_BATCH_SIZE} candidates). Switch modes in the "
+                  "app's Settings tab.")
             return 1
         print(f"[pool] {len(candidates)} unconsumed candidate(s), $0 marginal")
 

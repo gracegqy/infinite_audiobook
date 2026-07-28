@@ -222,6 +222,20 @@ def set_setting(conn, key: str, value: str):
     conn.commit()
 
 
+# Entry 29: how the pool gets built. "catalog" = Gutenberg's own catalog, $0, no
+# API call, ebook ids are a field rather than a guess — but reputation evidence
+# is catalog metadata. "llm" = paid curation with web-verified named lists and
+# both source classes (creepypasta included). Grace's choice, never automatic.
+CURATION_MODES = ("catalog", "llm")
+
+
+def effective_curation_mode(conn) -> str:
+    """Grace's curation-mode setting, defaulting to the paid LLM path so this
+    never silently changes what an existing install does."""
+    mode = get_setting(conn, "curation_mode", "llm")
+    return mode if mode in CURATION_MODES else "llm"
+
+
 def effective_curation_model(conn) -> str:
     """R14: Grace-selected model or the config constant — the single copy of
     this precedence (curate stage + settings UI both read it)."""
