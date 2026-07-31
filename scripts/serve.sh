@@ -1,8 +1,10 @@
 #!/bin/zsh
 # One-command app server (TASKS Phase 4 output; RUNBOOK).
 # Binds the Tailscale interface ONLY (DESIGN §1 / negative spec §10) — resolves
-# the live IP via the tailscale CLI, falling back to the last-known address in
-# pipeline/config.py. Builds the frontend on first run if dist/ is missing.
+# the live IP via the tailscale CLI, falling back to $HR_TAILSCALE_IP. With
+# neither available it REFUSES to start: a wrong or empty bind address is how a
+# Tailscale-only service ends up on a public interface.
+# Builds the frontend on first run if dist/ is missing.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -14,7 +16,15 @@ elif [[ -x "$TS_BIN" ]]; then
 fi
 if [[ -z "${IP:-}" ]]; then
   IP="$(.venv/bin/python -c 'from pipeline import config; print(config.TAILSCALE_IP_FALLBACK)')"
-  echo "WARNING: tailscale CLI not found; using last-known IP $IP" >&2
+  if [[ -z "$IP" ]]; then
+    echo "ERROR: the tailscale CLI was not found and HR_TAILSCALE_IP is unset." >&2
+    echo "  Fix one of them, then re-run:" >&2
+    echo "    - sign in to Tailscale (preferred — the live IP is always correct), or" >&2
+    echo "    - export HR_TAILSCALE_IP=\"\$(tailscale ip -4 | head -1)\" on this machine." >&2
+    echo "  Refusing to start: guessing a bind address can expose the app beyond Tailscale." >&2
+    exit 2
+  fi
+  echo "WARNING: tailscale CLI not found; using HR_TAILSCALE_IP $IP — verify it is THIS machine's" >&2
 fi
 PORT="$(.venv/bin/python -c 'from pipeline import config; print(config.APP_PORT)')"
 

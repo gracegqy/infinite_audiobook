@@ -48,10 +48,23 @@ Then, in order:
 3. **Frontend.** `scripts/serve.sh` builds `app/frontend/dist/` on first run if it is
    missing (`npm install && npm run build`). Requires Node; nothing else does.
 4. **Tailscale.** Install and sign in on both Mac and phone. `scripts/serve.sh`
-   resolves the live IP via the `tailscale` CLI and falls back to
-   `config.TAILSCALE_IP_FALLBACK` (currently `100.117.147.107`) with a warning — **if
-   you see that warning on a new machine the IP is wrong**, since it is this Mac's.
+   resolves the live IP via the `tailscale` CLI. If that CLI is missing it falls back
+   to `$HR_TAILSCALE_IP` **with a warning**, and if that is unset too it **refuses to
+   start** (exit 2) rather than guess a bind address. The fallback is this machine's
+   address, so seeing the warning on a *new* machine means the IP is wrong.
 5. **Start it:** `scripts/serve.sh`, then open the printed URL on the phone.
+
+### Environment
+
+`.env` carries the two API keys (above). These optional variables are read from the
+process environment (`config.py`); each is machine-specific or personal, which is why
+none of them is a committed constant:
+
+| variable | effect when unset | notes |
+|---|---|---|
+| `HR_TAILSCALE_IP` | `serve.sh` exits 2 if the `tailscale` CLI is also missing | fallback bind address only; the live CLI value always wins |
+| `HR_CONTACT_EMAIL` | the outbound `User-Agent` drops its contact clause | politeness contact for Gutenberg / wiki fetches |
+| `HR_DATA_DIR` | state lives in `./data` | redirects db + library + interim at once; how sandboxed runs avoid the real library |
 
 `data/` is not in the repo, by design — no story text or audio is ever committed. A
 cold-started machine has an empty library and refills through the pool (below).
@@ -94,7 +107,8 @@ cold-started machine has an empty library and refills through the pool (below).
 
 - **App server:** `scripts/serve.sh` — binds the Tailscale interface **only**, never
   `0.0.0.0` (DESIGN §1 / negative spec §10). Prints `serving on http://<ip>:8123`.
-- **Phone:** Tailscale connected → `http://100.117.147.107:8123` in Safari, or the
+- **Phone:** Tailscale connected → `http://<mac-tailscale-ip>:8123` in Safari (the URL
+  `serve.sh` prints; `tailscale ip -4` on the Mac gives the same address), or the
   saved home-screen PWA. Phone-over-Tailscale is the definition of "working" for
   anything player-facing; desktop localhost does not count.
 - **Queue worker:** `.venv/bin/python -m pipeline.worker` runs one cycle;

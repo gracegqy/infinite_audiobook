@@ -206,11 +206,13 @@ VOICE_OPTIONS = {
 }
 VOICE_SAMPLES_DIR = DATA_DIR / "voice_samples"
 
-# App server (DESIGN §1): binds the Mac's Tailscale interface ONLY — never
-# 0.0.0.0. scripts/serve.sh resolves the live IP via `tailscale ip -4` and
-# falls back to this last-known value.
+# App server (DESIGN §1): binds the Tailscale interface ONLY — never 0.0.0.0.
+# scripts/serve.sh resolves the live IP via `tailscale ip -4`; this fallback is
+# used only when that CLI is missing. It is machine-specific network topology,
+# so it lives in the environment, not in a committed file — unset means
+# serve.sh refuses to start rather than guessing a bind address.
 APP_PORT = 8123
-TAILSCALE_IP_FALLBACK = "100.117.147.107"
+TAILSCALE_IP_FALLBACK = os.environ.get("HR_TAILSCALE_IP", "").strip()
 
 # clean-stage sanity bounds. Floor: deleted/empty wiki pages must be rejected
 # (probe 4). Ceiling: a Gutenberg ref can turn out to be a collection volume or
@@ -225,8 +227,14 @@ MAX_STORY_CHARS = 120_000  # ~20k words — generous novella ceiling
 MIN_PARAGRAPH_CHARS = 40
 HTML_SOURCE_CLASSES = ("creepypasta", "nosleep", "scp_cn")
 
-USER_AGENT = ("horror-readaloud/0.1 (personal library; "
-              "contact graceguqianying@uchicago.edu)")
+# Politeness convention for the sources we fetch (Gutenberg, wiki mirrors):
+# identify the client, and offer an operator contact so a source can complain to
+# a human instead of just blocking. The address is personal, so it comes from
+# the environment; unset simply drops the contact clause.
+_CONTACT_EMAIL = os.environ.get("HR_CONTACT_EMAIL", "").strip()
+USER_AGENT = ("horror-readaloud/0.1 (personal library"
+              + (f"; contact {_CONTACT_EMAIL}" if _CONTACT_EMAIL else "")
+              + ")")
 
 CONTROLLED_VOCAB = {
     "era": ["pre-1800", "19th-century", "early-20th", "mid-20th", "late-20th",
