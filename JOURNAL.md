@@ -5,6 +5,104 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 39 — 2026-07-30 — Public-readiness: README, MIT license, machine-specific values out of committed files; a numbers ledger, which immediately caught a bad number
+
+This session serves `internship_application/PORTFOLIO_TODO.md` **P0** (ship this repo
+public; target Aug 6, hard stop Aug 9 — the 006 SEE YOU DOLL packet needs the link).
+No pipeline or player behaviour changed. 267 tests pass throughout.
+
+### What landed
+
+- **`README.md`** — the gating artifact; the repo had none. Structure per PORTFOLIO_TODO
+  P0 #1: what it is · that it was built with Claude Code, stated in the second paragraph
+  rather than buried · **the measurement story as the centre** · architecture · tests ·
+  content rights · honest phase table · run instructions pointing at RUNBOOK cold start.
+- **`LICENSE`** — MIT (Grace's choice this session), with an appended clause stating that
+  it covers the code only and grants nothing in the fiction the pipeline fetches. The
+  license and the content-rights posture are two different things and a reader will
+  conflate them if we let them.
+- **`config.TAILSCALE_IP_FALLBACK` → `$HR_TAILSCALE_IP`** (PORTFOLIO_TODO P0 #5). The
+  hardcoded `100.117.147.107` is CGNAT (100.64/10), so not routable and never an
+  exposure — but it is machine-specific network topology in a file about to be public.
+  **`serve.sh` now exits 2 when neither the tailscale CLI nor the env var yields an
+  address**, instead of the old behaviour of warning and binding to a last-known value.
+  That is the stronger form: an empty or stale bind address on a service whose whole
+  security model is "Tailscale interface only" is the failure worth refusing.
+- **`config.USER_AGENT` contact → `$HR_CONTACT_EMAIL`** (not in PORTFOLIO_TODO; found
+  this session). The UA carried Grace's uchicago address as the politeness contact for
+  Gutenberg/wiki fetches. Clause is now dropped when unset. Grace's ruling: env var with
+  a generic committed default.
+- **`docs/RUNBOOK.md`** — cold-start step 4 rewritten for the new refusal behaviour, an
+  **Environment** table added (`HR_TAILSCALE_IP`, `HR_CONTACT_EMAIL`, `HR_DATA_DIR` with
+  their unset behaviour), phone URL de-hardcoded.
+- **`scripts/repo_stats.sh`** — committed derivation for every repo-scale number that
+  goes outward, including the `data/`+`.env` never-committed check (exits 1 on failure).
+
+Verified both env branches rather than reading them: unset → `ip=''`,
+`ua=horror-readaloud/0.1 (personal library)`; set → the values appear.
+`zsh -n scripts/serve.sh` clean. `.venv/bin/python -m pytest -q` → `267 passed`.
+
+### The part that matters: a numbers ledger, and what it caught
+
+`README.md` is this project's first **outbound** document, which puts every figure in it
+under `_META_working_knowledge/NUMBERS_PROTOCOL.md`. Seeded `docs/REPORTABLE_NUMBERS.md`
+with four rows — source LOC (RTR), tests (RTR), the never-committed check (RTR), and
+per-build curation cost (**seeded UNVERIFIED**: it is the most quotable number here —
+"cut curation cost 47×" — and therefore the most likely to travel by accident, so it gets
+a row whose job is to say no).
+
+**G4 reconciliation failed on a number already drafted into an application.**
+`PORTFOLIO_TODO.md` (2026-07-29) records **10,654 tracked LOC across 93 files**. The file
+count reproduces exactly. The line count does not: same commit `a681ec2`, same content, no
+commits in between, and the scripted definition yields **10,753** — a 99-line gap that no
+tested variation of the file set explains (excluding probes → 9,959; excluding `.html` →
+10,582; excluding `.css` → 10,523). The 2026-07-29 derivation was not scripted and cannot
+be re-run: NUMBERS_PROTOCOL §3 cause 3, verbatim. **10,654 is recorded SUPERSEDED.** Current
+canonical value: **10,836 at commit `575ab9a`** (probes 794, tests 3,171), and the movement
+from 10,753 reconciles exactly to this session's own commits.
+
+This is the second time on this project that a number looked fine until something re-derived
+it, and the first time it was caught *before* going outward rather than after.
+
+Consequence for `internship_application`: **PORTFOLIO_TODO item 9's X14 evidence is wrong
+in both directions.** It flags the drafted `3,408 LOC / 71 tests` as stale (correct) and
+proposes `10,654 LOC` as the correction (not reproducible). The bank intake must take the
+scripted figure with its as-of commit, not the 7/29 one.
+
+Three numbers were also cut from the README draft before commit because the ledger marks
+them unverified: the `llm` per-build cost, a "two orders of magnitude" cost-reduction
+claim, and `~6.9× realtime` for Kokoro. The README now says the cost figures exist and are
+unverified, and points at the ledger — which reads better than the claim would have.
+
+### Measurements invalidated by this change
+
+None. No pipeline, curation, TTS or player behaviour was touched; the spend ledger, taste
+profile, library and queue are untouched. `source-lines-total` moved by this session's own
+commits and is re-derivable at any time by `bash scripts/repo_stats.sh`.
+
+### Risk accepted, explicitly
+
+**`100.117.147.107` remains in `JOURNAL.md` (8 lines), `pre_design_probes/probe_results.txt`
+(6 lines), and in git history, and will be public when the repo flips.** JOURNAL is
+append-only and is not edited to make history tidier; the probes carry no authority.
+The address is CGNAT — not routable from the internet — so this is topology disclosure, not
+access. Accepted rather than papered over. STATE's two references were de-hardcoded because
+STATE is a current-state doc a reader actually consults.
+
+Likewise Grace ruled (this session) that the **24 of 39 commits authored as
+`graceguqianying@uchicago.edu`** stay as they are — a `.edu` address on a student portfolio
+repo is not a leak, and a history rewrite before publishing costs more than it buys.
+
+### Still owed before this repo can flip public
+
+Unchanged by this session, and all of it is Grace's by rule: `/security-review` and
+`/code-review` in a **fresh** session (both blocked *on* being a different session than the
+one that wrote the code), screenshots + a ~60s recording from the phone, then flip and
+verify from logged-out. The README ships a `<!-- SCREENSHOTS -->` block ready to uncomment.
+
+Re-run `bash scripts/repo_stats.sh` immediately before flipping — the never-committed check
+is the final gate and it is in the script for exactly that reason.
+
 ## Entry 38 — 2026-07-28 — The per-tag evidence floor; RUNBOOK completed; the floor makes the profile honest and much thinner
 
 Paid off standing debt 1, completed the RUNBOOK, and fixed two small things found

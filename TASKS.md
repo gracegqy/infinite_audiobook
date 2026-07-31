@@ -202,7 +202,12 @@ from artifacts; fix or journal every finding. Also owed here: an independent
 `/code-review` pass — Entry 33's was Claude reviewing its own same-session code.
 **Gate:** audit report exists; every severe finding fixed or explicitly risk-accepted in
 JOURNAL; cold-start test from the runbook alone succeeds.
-**[IN PROGRESS]** Entry 37 landed the scheduler, spend cap and backup half.
+**[IN PROGRESS]** Entry 39 landed the public-readiness work — README.md, MIT LICENSE,
+`$HR_TAILSCALE_IP`/`$HR_CONTACT_EMAIL` replacing committed machine-specific values,
+`scripts/repo_stats.sh`, and `docs/REPORTABLE_NUMBERS.md`. This does not advance the
+Phase 7 gate; it serves the Aug 9 publication deadline in
+`internship_application/PORTFOLIO_TODO.md` (see STATE next-actions).
+Entry 37 landed the scheduler, spend cap and backup half.
 **Entry 38 completed RUNBOOK.md** and paid off the per-tag evidence floor. Still owed:
 independent `/code-review` (now ~1750 lines of same-session code across Entries 33–38,
 and Grace must run it — it is blocked on being a fresh session), `/security-review`,

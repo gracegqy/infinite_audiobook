@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 38 · 2026-07-28
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 39 · 2026-07-30
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -40,8 +40,11 @@
   stage must unwrap lines within paragraphs. Grace re-listens to *_fixed.* files.
 - OpenAI TTS fallback confirmed working: $0.004/paragraph, ~$0.32/30-min story
   (probe 6, 2026-07-18).
-- Tailscale installed on Mac + iPhone; Mac Tailscale IP 100.117.147.107. Probe 5
-  server running on it (page 200, range 206 re-verified from Mac, Entry 9).
+- Tailscale installed on Mac + iPhone. The Mac's Tailscale IP is no longer a
+  committed constant (Entry 39) — `serve.sh` resolves it via `tailscale ip -4`,
+  falls back to `$HR_TAILSCALE_IP`, and **exits 2 rather than guess** if neither
+  is available. Probe 5 server ran on it (page 200, range 206 re-verified from
+  Mac, Entry 9).
 - iOS lock-screen/Media-Session controls work: title shows, skip buttons perform the
   handler's ±15s (icons cosmetically show Apple's default "10s"); playbackRate honored
   (R13 viable). Sustained ≥5-min backgrounding deferred w/ risk note to the Phase 4
@@ -63,8 +66,33 @@
 ## Next actions
 
 Phase 7 is in progress; Phase 6 is re-opened (its gate does not describe
-production). Queue is healthy — 3/3 ready, 29 in the pool — so **nothing is
-time-sensitive.**
+production). Queue is healthy — 3/3 ready, 29 in the pool — so **nothing in the
+build track is time-sensitive.**
+
+**But there is now a dated external track (Entry 39).** This repo is the P0 of
+`~/Code/ACTIVE/internship_application/PORTFOLIO_TODO.md`: it must be public, with
+a link delivered into the 006 SEE YOU DOLL application, by **Aug 9**. That file
+is the authority for the publication checklist; do not duplicate it here. Its
+Claude-able items are **done** (README, LICENSE, the env-var scrub, the numbers
+ledger). What remains is Grace's by rule and blocks the flip:
+
+- **`/security-review` and `/code-review`, each in a fresh session.** Both are
+  blocked *on* being a different session than the one that wrote the code, so no
+  session that has been writing here can discharge them. `/code-review` was
+  already next-action 1 below; publication makes `/security-review` equally
+  hard-blocking, since the app drives HTTP fetches, file writes and subprocess
+  TTS from model output.
+- **Screenshots + a ~60s screen recording from the phone.** Nobody can run this
+  repo, so visuals are the only evaluation a reader gets. `README.md` carries a
+  `<!-- SCREENSHOTS -->` block ready to uncomment; shot list is inside it.
+  Start the server first.
+- **Flip public, then verify from logged-out** — and re-run
+  `bash scripts/repo_stats.sh` as the final gate: its `never-committed` check is
+  the one that proves no story text, audio or `.env` was ever committed.
+
+**Any number leaving this project** — README, résumé, application — now goes
+through `docs/REPORTABLE_NUMBERS.md` first. Entry 39 seeded it and it immediately
+superseded a wrong LOC figure that had already been drafted into an application.
 
 1. **An independent `/code-review`.** Still the top item, and now larger:
    Entries 33–35 landed ~900 lines of same-session-reviewed code, Entry 37 added
@@ -154,10 +182,10 @@ now also gated by the spend cap. **Read the pool order before trusting it:**
 ranks 4–14 are eleven consecutive Lovecraft titles, which is the Entry-37
 finding, not a queue fault.
 
-**The server was NOT running at Entry-38 close** — no response on either
-`127.0.0.1:8123` or `100.117.147.107:8123`, and it was deliberately not started.
-Start it with `scripts/serve.sh`; the Trends tab (and so every manual taste
-override) needs it up.
+**The server was NOT running at Entry-38 close and was not started in Entry 39**
+— it was deliberately left down. Start it with `scripts/serve.sh` (it prints the
+URL); the Trends tab (and so every manual taste override) needs it up, as do the
+portfolio screenshots.
 
 **6 ratings, with real contrast** (1,2,2,3,5,5) — enough for the Phase 6 floor
 of 3. Unfinished ≠ disliked: the two in_progress are unrated because Grace
