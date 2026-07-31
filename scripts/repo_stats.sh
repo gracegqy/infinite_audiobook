@@ -35,10 +35,14 @@ echo "source-lines-total:$(( py + web + sh ))"
 echo "prose-lines-md:    $md   (governance + design docs; NOT source)"
 echo
 
-# Excludes pre_design_probes/ — throwaway scripts with no authority after
-# Phase 1 (CLAUDE.md), so counting them as source would inflate the figure.
-probe=$(git ls-files 'pre_design_probes/*.py' | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-echo "of-which-probes:   ${probe:-0}   (excluded from any 'source I wrote' claim)"
+# pre_design_probes/ is throwaway with no authority after Phase 1 (CLAUDE.md).
+# Counted with the SAME extension list as source-lines-total above, so this
+# figure subtracts from that one exactly — a probe count that used a narrower
+# glob would not reconcile, which is how ledger rows go wrong.
+probe=$(git ls-files 'pre_design_probes/*.py' 'pre_design_probes/*.jsx' \
+        'pre_design_probes/*.css' 'pre_design_probes/*.html' 'pre_design_probes/*.sh' \
+        | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+echo "of-which-probes:   ${probe:-0}   (subtract for a 'source I stand behind' claim)"
 echo "test-lines:        $(git ls-files 'tests/*.py' | xargs wc -l | tail -1 | awk '{print $1}')"
 echo
 
