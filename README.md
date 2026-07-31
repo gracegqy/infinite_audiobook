@@ -18,7 +18,8 @@ output. When a gate turned out to be wrong, it was re-opened rather than argued 
 [The measurement story](#the-measurement-story) below, which is the honest centre of this
 project. The governance stack is in the open: [`CLAUDE.md`](CLAUDE.md) (standing rules),
 [`STATE.md`](STATE.md) (pure current state, no history), [`JOURNAL.md`](JOURNAL.md)
-(append-only, reverse-chronological, 1,838 lines), [`TASKS.md`](TASKS.md), and
+(append-only and reverse-chronological — corrections are new entries, never edits),
+[`TASKS.md`](TASKS.md), and
 [`docs/AMENDMENT_*.md`](docs/) for scope changes that contradict a frozen design.
 
 ---
