@@ -136,8 +136,11 @@ superseded a wrong LOC figure that had already been drafted into an application.
 2. **Off-machine backup is OFF.** The code half landed (Entry 37,
    `pipeline.backup`, verified at the destination) but it is **opt-in by
    design** — nothing leaves the Mac until a path is set in Settings. Local
-   snapshots in `backups/` keep running and cover corruption and bad
-   migrations, **not losing the Mac**.
+   snapshots in `backups/` run **while a worker loop is running**, and cover
+   corruption and bad migrations, **not losing the Mac**. Nothing has kept a
+   loop alive (standing debt 3), and until Entry 40 the loop crashed on its
+   first iteration anyway, so no automatic snapshot has ever been taken:
+   every file in `backups/` is a hand-run one.
 3. **Nothing schedules the worker unless Grace installs it.**
    `scripts/scheduler.sh install` exists and works (verified end-to-end: launchd
    → loop → acquire → render, unbuffered log) but it **refuses to run
@@ -176,9 +179,12 @@ at Entry-37 close.
   rows to keep dead references out of curation; deleting would re-open Entry 16.
 
 **Queue is healthy: 3/3 ready, 29 usable candidates in the pool** (Entry 37's
-build; both re-derived from the DB at Entry-38 close). The worker still never
-spends, so the refill after that stays an explicit `run_story --build-pool` —
-now also gated by the spend cap. **Read the pool order before trusting it:**
+build; both re-derived from the DB at Entry-38 close). The worker never
+initiates *curation* spend, so the refill after that stays an explicit
+`run_story --build-pool` — now also gated by the spend cap. It is **not** a $0
+path: tag-at-ingest (~$0.01/story, DESIGN §5) and the OpenAI TTS fallback
+(~$0.32/story) are paid calls on the worker's path, and both sit outside the
+cap and outside the `curation_runs` ledger (Entry 40). **Read the pool order before trusting it:**
 ranks 4–14 are eleven consecutive Lovecraft titles, which is the Entry-37
 finding, not a queue fault.
 

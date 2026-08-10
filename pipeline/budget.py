@@ -83,9 +83,16 @@ def status(conn, now: datetime.datetime | None = None) -> dict:
 
 def check(conn, estimate_usd: float, now: datetime.datetime | None = None):
     """Raise CapExceeded if a build estimated at `estimate_usd` would breach the
-    cap. Called before EVERY paid path — including free_llm, which is cheap but
-    not free ($0.0512 measured at batch 40, Entry 37). A guard that only covers
-    the expensive path is how a cheap path becomes the leak.
+    cap. Called before every paid CURATION path — including free_llm, which is
+    cheap but not free ($0.0512 measured at batch 40, Entry 37). A guard that
+    only covers the expensive path is how a cheap path becomes the leak.
+
+    It does NOT cover every paid path in the project, and this docstring used to
+    claim it did (audit 2026-08-07, CLAIM-1). Tag-at-ingest and the OpenAI TTS
+    fallback both spend on the worker's path without passing through here or
+    through the `curation_runs` ledger, so `status()` understates true spend by
+    a small, unmeasured amount. Whether they should be brought inside is Grace's
+    open call, not an oversight to quietly fix.
     """
     cap, period = db.effective_spend_cap(conn)
     if cap <= config.SPEND_CAP_UNLIMITED:

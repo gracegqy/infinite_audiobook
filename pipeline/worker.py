@@ -12,8 +12,13 @@ Dedup is all-time: pool.pool_candidates excludes any title already in
 `stories` (any status — read, skipped, failed and pre-marked rows all count),
 and ingest re-checks the content dedup key after fetching. Nothing repeats.
 
-Never spends money on its own: an empty pool ends the cycle with a message.
-Refilling is Grace's explicit `run_story --build-pool` (AMENDMENT_04 A).
+Never initiates CURATION spend: an empty pool ends the cycle with a message,
+and refilling is Grace's explicit `run_story --build-pool` (AMENDMENT_04 A).
+It is not a $0 path, though, and this docstring used to say it was. Two paid
+calls sit on it — tag-at-ingest (a Haiku call, DESIGN §5 budgets ~$0.01/story)
+and the OpenAI TTS fallback (~$0.32/story, probe 6) — and NEITHER is checked
+against the spend cap or written to the `curation_runs` ledger; `budget.check`
+guards the pool build only (run_story.py). Audit 2026-08-07, CLAIM-1.
 
 Run: .venv/bin/python -m pipeline.worker            # one cycle
      .venv/bin/python -m pipeline.worker --loop     # cycle on the Settings cadence
