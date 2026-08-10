@@ -22,15 +22,16 @@ governance stack is in the open: [`CLAUDE.md`](CLAUDE.md) (standing rules),
 34–38 are the ones to read first), [`TASKS.md`](TASKS.md), and
 [`docs/AMENDMENT_*.md`](docs/) for scope changes that contradict a frozen design.
 
-<!-- SCREENSHOTS: drop 3–4 PNGs into docs/screenshots/ and uncomment. Shot list:
-     player with text-follow highlighting mid-story · queue at 3/3 · Trends/taste screen ·
-     channel editor. Plus a ~60s screen recording.
 ## Screenshots
+
+Everything below is the PWA on a phone, over Tailscale — the only target the app is
+defined to work on.
+
 | | |
 |---|---|
-| ![Player with synced text](docs/screenshots/player.png) | ![Queue at 3/3](docs/screenshots/queue.png) |
-| ![Taste profile](docs/screenshots/trends.png) | ![Channel editor](docs/screenshots/channels.png) |
--->
+| ![Player with the text scrolling in sync with the audio; the paragraph being narrated is highlighted](docs/screenshots/player.png)<br>**Player, text synced to audio.** The highlighted paragraph is the one being narrated — computed from the per-paragraph offsets manifest, not estimated from elapsed time. | ![Queue tab: now-playing card above the standing queue of unread stories](docs/screenshots/queue.png)<br>**Queue, refilling itself.** The now-playing card sits above the standing queue; removing a story triggers replenishment back to `config.QUEUE_DEPTH`. |
+| ![Library grouped into queued, ready and read, with star ratings on finished stories](docs/screenshots/library.png)<br>**Library by state.** Stories are grouped queued / ready / read; the 1–5 rating on a finished story is what feeds curation. | ![Trends tab showing liked and disliked tags with scores and the number of stories behind each](docs/screenshots/trends.png)<br>**Taste profile, and it is editable.** Scores are derived from ratings — `n` is how many stories back each one — and any score can be overridden by hand or reverted to automatic. |
+| ![Settings: a default voice per language and a rolling spend cap](docs/screenshots/settings.png)<br>**Voices and the spend cap.** A default voice per language (Kokoro for en/fr, edge-tts for zh) and the rolling cap enforced before every paid curation path. | |
 
 ## Architecture
 
