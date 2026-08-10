@@ -85,7 +85,7 @@ def curation_mode_info(conn) -> list[dict]:
 
 FRONTEND_DIST = config.ROOT / "app" / "frontend" / "dist"
 
-STORY_LIST_SQL = """
+STORY_LIST_SQL = f"""
 SELECT s.id, s.title, s.author, s.year, s.status, s.language, s.source_class,
        s.source_url, s.license_class, s.tts_engine, s.voice, s.duration_s,
        s.paragraph_count, s.created_at, s.ready_at, s.failure_note,
@@ -94,8 +94,10 @@ SELECT s.id, s.title, s.author, s.year, s.status, s.language, s.source_class,
 FROM stories s
 LEFT JOIN progress p ON p.story_id = s.id
 LEFT JOIN ratings  r ON r.story_id = s.id
-ORDER BY s.rowid
-"""  # acquisition order = queue + autoplay order (db.ACQUISITION_ORDER)
+ORDER BY s.{db.ACQUISITION_ORDER}
+"""  # acquisition order = queue + autoplay order — ONE copy, in db.py, because
+# the queue order, the autoplay order and the worker's render order have to
+# agree and a hand-copied ORDER BY is how they stop agreeing (audit, DEBT-1).
 
 
 def default_rerender_runner(story_id: str, voice: str) -> None:
