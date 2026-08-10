@@ -1,4 +1,4 @@
-# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 40 · 2026-08-09
+# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 42 · 2026-08-09
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -14,7 +14,7 @@
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
 | 6 — Preference adaptation | **RE-OPENED** | Curation demonstrably weighted by ratings | Entry 35 passed a controlled A/A′/B **at batch 12** (noise 1 title, effect 7–8; Lovecraft 7/12 → 0/12). **Entry 37 showed that does not describe production**: the first real build at `POOL_BATCH_SIZE = 40` took **11 of 12** Lovecraft. Mechanism works at the top of the ranking, does not exclude at depth. Grace ruled: record + **re-gate at batch 40** (not yet done) |
-| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). **Fresh-session audit DONE 2026-08-07** (`_META_working_knowledge/project_reports/8.7.26_horror_readaloud/`); its FIXES executed Entry 40 — 4 of 5 closed, FIX-5 is a decision on Grace. Still owed: independent `/code-review`, `/security-review`, cold-start test |
+| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). **Fresh-session audit DONE 2026-08-07** (`_META_working_knowledge/project_reports/8.7.26_horror_readaloud/`); its FIXES executed Entry 40 — 4 of 5 closed, FIX-5 is a decision on Grace. **Independent code review DONE 2026-08-09** (Entry 42 — fresh session, review completed before any writes; its own fixes, commit `f1394e9`, are the only unreviewed remainder: small, test-covered). Still owed: `/security-review`, cold-start test |
 
 ## Confirmed findings
 
@@ -23,10 +23,11 @@
   (interview, docs/BRIEF_VERBATIM.md).
 - Pipeline is channel-driven (editable genre/language/topic criteria), not
   horror-hardcoded (docs/AMENDMENT_01).
-- Git identity/remote conventions: personal repos use account `gracegqy`, identity
-  Grace / graceguqianying@uchicago.edu (verified across ACTIVE repos, `git config` +
-  `git remote -v`). GitHub credential present in macOS keychain (`git credential fill`
-  returned a password for github.com).
+- Git identity/remote conventions: personal repos use account `gracegqy`, commit
+  identity Grace / gracegumails@gmail.com (this repo's `git config user.email`,
+  verified 2026-08-09; the 24 commits from 2026-07 carry graceguqianying@uchicago.edu —
+  accepted for publication, Entry 39). GitHub credential present in macOS keychain
+  (`git credential fill` returned a password for github.com).
 - Kokoro runs locally at ~6.9x realtime (probe 1, 2026-07-18); per-paragraph
   synthesis + concat gives exact offsets (probe 2, energy-check verified). Quality
   verdict pending Grace's listen.
@@ -46,8 +47,8 @@
   is available. Probe 5 server ran on it (page 200, range 206 re-verified from
   Mac, Entry 9).
 - iOS lock-screen/Media-Session controls work: title shows, skip buttons perform the
-  handler's ±15s (icons cosmetically show Apple's default "10s"); playbackRate honored
-  (R13 viable). Sustained ≥5-min backgrounding deferred w/ risk note to the Phase 4
+  handler's ±10s (AMENDMENT_05 C1 aligned the handler with Apple's default lock-screen
+  icons, superseding the probe-era ±15s); playbackRate honored (R13 viable). Sustained ≥5-min backgrounding deferred w/ risk note to the Phase 4
   gate (Entry 11).
 - iOS resume works on the real target: kill Safari + reopen resumes at saved position,
   scrubbing works (Grace retest, Entry 9). Design rules: apply resume seeks
@@ -71,17 +72,18 @@ build track is time-sensitive.**
 
 **But there is now a dated external track (Entry 39).** This repo is the P0 of
 `~/Code/ACTIVE/internship_application/PORTFOLIO_TODO.md`: it must be public, with
-a link delivered into the 006 SEE YOU DOLL application, by **Aug 9**. That file
-is the authority for the publication checklist; do not duplicate it here. Its
-Claude-able items are **done** (README, LICENSE, the env-var scrub, the numbers
-ledger). What remains is Grace's by rule and blocks the flip:
+a link delivered into a dated application packet by **Aug 9** (which packet: that
+file — the codename stays out of this soon-public doc; Entry 39 still names it,
+which is Grace's append-only ruling to make). That file is the authority for the
+publication checklist; do not duplicate it here. Its Claude-able items are
+**done** (README, LICENSE, the env-var scrub, the numbers ledger; Entry 42 added
+the independent code review + fixes and the README restructure). What remains is
+Grace's by rule and blocks the flip:
 
-- **`/security-review` and `/code-review`, each in a fresh session.** Both are
-  blocked *on* being a different session than the one that wrote the code, so no
-  session that has been writing here can discharge them. `/code-review` was
-  already next-action 1 below; publication makes `/security-review` equally
-  hard-blocking, since the app drives HTTP fetches, file writes and subprocess
-  TTS from model output.
+- **`/security-review`, in a fresh session** — the app drives HTTP fetches, file
+  writes and subprocess TTS from model output, and no review has covered that
+  surface (Entry 42's swept secrets, history and binding only). The independent
+  `/code-review` half is DONE (Entry 42).
 - **Screenshots + a ~60s screen recording from the phone.** Nobody can run this
   repo, so visuals are the only evaluation a reader gets. `README.md` carries a
   `<!-- SCREENSHOTS -->` block ready to uncomment; shot list is inside it.
@@ -94,28 +96,22 @@ ledger). What remains is Grace's by rule and blocks the flip:
 through `docs/REPORTABLE_NUMBERS.md` first. Entry 39 seeded it and it immediately
 superseded a wrong LOC figure that had already been drafted into an application.
 
-1. **An independent `/code-review`.** Still the top item, and now larger:
-   Entries 33–35 landed ~900 lines of same-session-reviewed code, Entry 37 added
-   ~700 more (budget, backup rework, scheduler, settings API/UI) and Entry 38
-   another ~150 (taste floor, Trends section, RUNBOOK). 34→35 is the worked
-   example of why it matters — a result that read as a clean pass until a
-   control run showed it was noise. **Grace runs this in a fresh session**; it
-   is blocked *on* being a different session, so Claude cannot discharge it.
-2. **RULE ON THE THIN PROFILE (Entry 38).** The evidence floor fixed `weird` but
+1. **RULE ON THE THIN PROFILE (Entry 38).** The evidence floor fixed `weird` but
    cut the profile from 16 reported tags to 5, and the liked side from 8 to
    **one** (`supernatural`, n=4). It is now nearly dislike-only. Options:
    (a) state the real preferences by hand from Trends — gothic, cosmic horror —
    which bypass the floor and are used verbatim; (b) rate more stories and let
    it refill; (c) lower `TASTE_MIN_N_PER_TAG`, which re-admits the defect.
-   **(a) is the recommendation, and it gates item 3.**
-3. **Re-gate Phase 6 at batch 40** (Grace's ruling, Entry 37). Same A/A′/B
+   **(a) is the recommendation, and it gates item 2.**
+2. **Re-gate Phase 6 at batch 40** (Grace's ruling, Entry 37). Same A/A′/B
    design as Entry 35, run at `POOL_BATCH_SIZE`, sandboxed via `HR_DATA_DIR`.
-   ~$0.15. **Do item 2 first** — re-gating a nearly-dislike-only profile
+   ~$0.15. **Do item 1 first** — re-gating a nearly-dislike-only profile
    measures a weaker instrument than Entry 35 used and would not be comparable.
-4. `/security-review`, then the **cold-start test from the RUNBOOK alone** —
+3. `/security-review`, then the **cold-start test from the RUNBOOK alone** —
    that last one is the literal Phase 7 gate and has never been run. (The
-   fresh-session audit is DONE, 2026-08-07, and its fixes are executed.)
-5. **RULE ON FIX-5 (Entry 40).** Tag-at-ingest (~$0.01/story) and the OpenAI
+   fresh-session audit is DONE, 2026-08-07, and its fixes are executed; the
+   independent code review is DONE, Entry 42.)
+4. **RULE ON FIX-5 (Entry 40).** Tag-at-ingest (~$0.01/story) and the OpenAI
    TTS fallback (~$0.32/story) spend on the worker's path without passing
    through `budget.check` or the `curation_runs` ledger. Options: (a) leave
    them documented-but-outside, which Entry 40's wording edits already do;
@@ -123,18 +119,21 @@ superseded a wrong LOC figure that had already been drafted into an application.
    which needs a ruling on what a cap-exhausted TTS fallback does to a
    renderable story. B/C need a JOURNAL spec first and possibly an AMENDMENT.
    The task text is in `FIXES_HORROR_READALOUD.md`.
-6. **Decide where snapshots live (Entry 40).** `backup.BACKUP_DIR` is rooted at
+5. **Decide where snapshots live (Entry 40).** `backup.BACKUP_DIR` is rooted at
    the repo, not under `DATA_DIR`, so `HR_DATA_DIR` does not redirect it — a
    sandboxed `worker --loop` now writes sandbox snapshots into the real
    `backups/`. Unfixed on purpose: it is a judgement call whether snapshots
    belong to the machine or to the dataset.
-7. **Open ruling: the profile displays the raw average, and the model reads the
+6. **Open ruling: the profile displays the raw average, and the model reads the
    display** (Entry 38). Shrinkage protects the ranking only, so a lone 1 still
    arrives looking like the strongest dislike. Fixing it means rendering the
    shrunk figure — which contradicts FROZEN DESIGN §8 ("display the raw one")
    and therefore needs an AMENDMENT, not a scope call. The evidence floor
    mitigates it (surviving tags have small raw-vs-shrunk gaps) but does not
    remove it.
+
+(The former item 1, the independent `/code-review`, is DONE — Entry 42; items
+renumbered.)
 
 **Standing debts (no deadline):**
 
@@ -201,11 +200,13 @@ cap and outside the `curation_runs` ledger (Entry 40). **Read the pool order bef
 ranks 4–14 are eleven consecutive Lovecraft titles, which is the Entry-37
 finding, not a queue fault.
 
-**The server IS running** as of Entry 40 (`lsof -i :8123` → LISTEN on
-100.117.147.107) — Grace started it after Entry 39, which had left it down. No
-live listener though: `progress` has not been written since 2026-07-28 06:04
-(sampled twice, 45 s apart, Entry 40). The Trends tab (and so every manual taste
-override) needs it up, as do the portfolio screenshots.
+**The server IS running** as of Entry 42 (`lsof -i :8123` → LISTEN on the
+Tailscale IP, re-checked 2026-08-09 evening) — but it predates the Entry-42
+server.py changes and the Player.jsx fixes, so **restart it (and rebuild the
+frontend) before the portfolio screenshots**. No live listener at the Entry-40
+check: `progress` unwritten since 2026-07-28 06:04 (sampled twice, 45 s apart).
+The Trends tab (and so every manual taste override) needs the server up, as do
+the screenshots.
 
 **Newest DB snapshot: `backups/app-20260809-190545.db`** (Entry 40, hand-run,
 local only — 20 stories / 2 progress / 6 ratings, integrity ok). Before it the

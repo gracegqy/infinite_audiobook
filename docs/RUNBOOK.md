@@ -71,9 +71,10 @@ cold-started machine has an empty library and refills through the pool (below).
 
 ## Accounts & identity
 
-- Repo: private, `https://github.com/gracegqy/infinite_audiobook` (personal account
-  `gracegqy`; commit identity Grace / graceguqianying@uchicago.edu; HTTPS + macOS
-  keychain credential).
+- Repo: `https://github.com/gracegqy/infinite_audiobook` (personal account `gracegqy`;
+  commit identity Grace / gracegumails@gmail.com — the 2026-07 commits carry the
+  uchicago address, accepted in Entry 39; HTTPS + macOS keychain credential). Visibility
+  is whatever GitHub says, not what this line remembers.
 - **Claude Code's filesystem sandbox blocks `git push`** — `credential.helper` is
   `osxkeychain` and keychain reads are denied, so the helper returns nothing and git
   tries to prompt on a non-TTY ("could not read Username… Device not configured").

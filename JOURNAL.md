@@ -1,9 +1,107 @@
-# JOURNAL — horror_readaloud (append-only; corrections are new entries, never edits)
+# JOURNAL — infinite_audiobook (append-only; corrections are new entries, never edits)
 
 > **REVERSE CHRONOLOGICAL — newest entry at the TOP.** New entries are PREPENDED
 > directly below this line, never appended to the bottom. Entry numbers still
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
+
+## Entry 42 — 2026-08-09 — Pre-publication review (independent) and its fixes; README rebuilt around the case study
+
+Grace commissioned a full pre-flip review of this repo as a portfolio piece — code and
+narrative — then instructed that the findings be fixed. Deviation stated openly: the
+audit protocol separates reviewing from fixing across sessions; here the review ran to
+completion and was reported **before a single write**, and Grace's explicit instruction
+("implement all the fixes") is the authority for doing both in one session. The review's
+independence rests on that ordering.
+
+### Verified rather than read
+
+History clean, independently re-derived: all 99 paths ever added, on all branches,
+checked against `data/` / `.env` / audio / DB patterns — none (agrees with
+`repo_stats.sh`). No secrets, IPs, or machine paths in tracked files (pattern sweep);
+the uchicago addresses and the CGNAT IP stand exactly as Entry 39 ruled. 282 tests
+passed at session start. `serve.sh` genuinely refuses to start without a Tailscale
+address; `repo_stats.sh` derives what the README says it derives.
+
+### The finding that mattered: the README contradicted the artifacts in four places
+
+The exact failure class this repo exists to prevent, sitting in its front door:
+**"267 tests"** (the suite was 282; R2 had been re-gated that morning and the README
+missed it — it also froze the number three lines above the sentence explaining why
+numbers are not frozen); **"spend cap before every paid path"** (budget.py's own
+docstring, post-CLAIM-1, says it does NOT cover every path — the audit scrubbed that
+absolute from three files and the README kept it); **"seven phases"** against an
+eight-row phase table; and this file still titled *horror_readaloud*, with the rename
+itself journal-less (Entry 41 backfills it). All four fixed. The README now quotes the
+test count with its as-of commit beside the derivation script, and says "every paid
+**curation** path" with the two out-of-cap calls named.
+
+### Code fixes (commit `f1394e9`; tests 282 → 285)
+
+server.py: per-request SQLite connections become a FastAPI dependency with yield,
+closed when the response is done (they were opened ad hoc and left to the GC);
+channel create/update with a missing or non-string name now 422s instead of 500ing;
+`_control`'s always-default `expect_active` parameter removed; evidence-JSON decode
+centralized and made null-over-crash like its offsets/meta siblings. curate.py:
+`SOURCE_HINTS` deleted — passed as a format kwarg with no matching placeholder, so it
+never reached any prompt. synthesize.py: the whole-story-PCM-in-memory trade-off is now
+stated where it lives (~6 MB/audio-minute; the 107-min story peaked over 1 GB).
+Player.jsx: lock-screen album was the last "Readaloud"; skip/bookmark/voice-pick api
+calls now catch instead of surfacing unhandled rejections offline. repo_stats.sh:
+binary PNGs out of `tracked-lines-all` (not a ledger figure; `source-lines-total` is
+extension-scoped and unchanged in definition).
+
+### Narrative restructure
+
+README rebuilt: screenshots block moved above the fold (still commented — the shots are
+owed); the measurement story compressed ~47 → ~27 lines, retitled **"Case study: the
+gate that caught its own false pass"**, moved after Architecture and Tests, every figure
+keeping its entry citation and past tense per the ledger's HISTORY rule; a
+start-with-Entries-34–38 pointer added for this file. Docs reconciled: identity lines in
+CLAUDE/STATE/RUNBOOK now state the gracegumails convention (Entry 40 flagged them
+stale); STATE's probe-era ±15s corrected to the AMENDMENT_05 C1 ±10s; the
+application-packet codename is out of STATE (Entry 39 still names it — append-only, so
+whether it stays for the flip is Grace's ruling); RUNBOOK no longer freezes repo
+visibility into a word that goes stale on publish day.
+
+### Measurements invalidated by this change
+
+R1 and R2 moved and were re-gated at `f1394e9`: **11,153** source LOC (probes 794, tests
+3,440) and **285/285** tests. Movement reconciled to zero: +151/−105 = +46 against
+`2210f7f` over R1's extension list (Entry-42 fixes + the rename commit's line-neutral
+touches), tests component +28. R3 re-passed at `f1394e9` and remains, as always, owed a
+final run at the flip itself.
+
+### Between here and public (Grace's, by rule)
+
+`/security-review` in a fresh session — model output drives HTTP fetches, file writes
+and subprocess TTS, and no review has covered that surface (this one swept secrets,
+history and binding). Screenshots + the ~60s recording (rebuild the frontend and
+restart the server first — both changed this session). The Entry-39 codename ruling for
+this file. Then the final `repo_stats.sh`, the flip, and the logged-out verification.
+
+---
+
+## Entry 41 — 2026-08-09 — Backfill: the rename commit had no journal entry
+
+Commit `e58b34a` (20:05, previous session) renamed the project horror_readaloud →
+infinite_audiobook — local dir, GitHub repo, remote URL, live docs, FastAPI app title,
+HTTP User-Agent, launchd label, iCloud backup-dir constant, both frontend manifests. It
+landed after Entry 40's close with no entry recording it, against CLAUDE.md's
+every-scope-change-lands-here rule; the commit message was the only record. This entry
+corrects the omission and records the decisions inside it: historical records keep the
+old name deliberately (JOURNAL entries, TASKS' quoted gate evidence, pointers into
+`project_reports/8.7.26_horror_readaloud/` — that folder is unrenamed, so the pointers
+still resolve), and the `HR_` env-var prefix stays (it is an interface; renaming it
+breaks every shell that sets it). This file's own title line still read
+"JOURNAL — horror_readaloud"; retitled in the Entry-42 session — the header block is
+live furniture, not an entry, so editing it does not breach append-only.
+
+**Measurements invalidated by this change:** none — no file in R1's extension list
+changed meaningfully (`server.py` ±1 line for the app title; net zero), and the rename
+commit's movement is folded into the Entry-42 R1 reconciliation.
+
+---
 
 ## Entry 40 — 2026-08-09 — Executing the 2026-08-07 audit's FIXES: the unattended path was never unattended-safe
 

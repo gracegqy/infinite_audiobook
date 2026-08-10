@@ -26,8 +26,9 @@ Tailscale. Private, personal-use only.
 - Content rights posture: classics = public domain; modern web fiction = author-owned,
   stored for private listening only. Never deploy content publicly; never commit story
   text or audio to git.
-- API keys live in `.env` (gitignored). Remote: private repo `gracegqy/infinite_audiobook`,
-  identity Grace / graceguqianying@uchicago.edu.
+- API keys live in `.env` (gitignored). Remote: `gracegqy/infinite_audiobook`; commit
+  identity Grace / gracegumails@gmail.com (the personal-repo convention — the 2026-07
+  commits carry the uchicago address, accepted for publication in Entry 39).
 
 ## Folder map
 

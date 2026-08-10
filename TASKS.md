@@ -212,7 +212,11 @@ Entry 37 landed the scheduler, spend cap and backup half.
 independent `/code-review` (now ~1750 lines of same-session code across Entries 33–38,
 and Grace must run it — it is blocked on being a fresh session), `/security-review`,
 fresh-session audit, and **the cold-start test from the runbook alone — the literal
-gate, never run**. Phase 6 also re-opened: its gate ran at batch 12, production is
+gate, never run**.
+**Status update 2026-08-09 (Entries 40–42):** fresh-session audit DONE 2026-08-07
+(`project_reports/8.7.26_horror_readaloud/`; FIXES executed, Entry 40) · independent
+`/code-review` DONE (Entry 42 — fresh session, review completed before any writes;
+fixes at `f1394e9`) · still owed: `/security-review` and the cold-start test. Phase 6 also re-opened: its gate ran at batch 12, production is
 batch 40, and Entry 38's floor changed the profile the re-gate would measure (see
 STATE next-action 2 — Grace rules before any re-gate spend).
 > Prompt: *"Fresh session, read-only: audit horror_readaloud. Trust nothing in prose;
