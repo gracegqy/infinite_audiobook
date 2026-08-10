@@ -79,6 +79,20 @@ def test_list_stories(env):
     assert by_id["s2-text"]["voice"] is None
 
 
+def test_malformed_evidence_json_degrades_to_empty_list(env):
+    """One bad curation_evidence_json row must not 500 the whole library
+    screen — null-over-crash, same policy as the offsets/meta decodes
+    (review 2026-08-09, Entry 42)."""
+    env.conn.execute("UPDATE stories SET curation_evidence_json='{not json' "
+                     "WHERE id='s1-ready'")
+    env.conn.commit()
+    r = env.client.get("/api/stories")
+    assert r.status_code == 200
+    by_id = {s["id"]: s for s in r.json()["stories"]}
+    assert by_id["s1-ready"]["evidence"] == []
+    assert env.client.get("/api/stories/s1-ready").status_code == 200
+
+
 def test_detail_has_text_offsets_bookmarks(env):
     r = env.client.get("/api/stories/s1-ready")
     assert r.status_code == 200

@@ -124,7 +124,13 @@ def _render_story(engine, paragraphs: list[str],
     """checkpoint(done, total) runs at every paragraph boundary: it reports
     progress, may BLOCK (AMENDMENT_06 pause), and may raise AbortRender (skip,
     voice change, or Grace's cancel). One paragraph is the control granularity
-    — a paragraph render is not interruptible."""
+    — a paragraph render is not interruptible.
+
+    The whole story's PCM is held in memory (~6 MB per audio minute, mono
+    float32 at 24 kHz, ~2x transiently at the final concatenate — the longest
+    story so far, 107 min, peaked over 1 GB). Deliberate: it is what makes a
+    pause free and the sample-count offsets exact, and short fiction on this
+    Mac fits. Streaming to disk is the change if the ceiling is ever hit."""
     parts, durations, sr = [], [], None
     for i, p in enumerate(paragraphs):
         if checkpoint:

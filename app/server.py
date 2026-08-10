@@ -14,7 +14,7 @@ import sqlite3
 import subprocess
 import sys
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -100,6 +100,18 @@ ORDER BY s.{db.ACQUISITION_ORDER}
 # agree and a hand-copied ORDER BY is how they stop agreeing (audit, DEBT-1).
 
 
+def _evidence_list(raw: str | None) -> list:
+    """curation_evidence_json → list, null-over-crash like the offsets/meta
+    decodes in story_detail: the column is pipeline-written, but one malformed
+    row must degrade to [] rather than 500 the whole library screen. The single
+    copy — list and detail both read it."""
+    try:
+        out = json.loads(raw or "[]")
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return out if isinstance(out, list) else []
+
+
 def default_rerender_runner(story_id: str, voice: str) -> None:
     """Spawn the $0 background re-render (AMENDMENT_04 D3) — detached, logged,
     never blocking playback of the existing audio."""
@@ -120,11 +132,17 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     app = FastAPI(title="infinite_audiobook")
     db.connect(db_path).close()  # schema + default channel, once
 
-    def conn():
+    def get_conn():
         # one fresh connection per request (schema skipped): SQLite objects
         # are thread-bound and uvicorn dispatches across threads; WAL keeps
-        # cross-process reads/writes with the pipeline safe
-        return db.connect(db_path, init=False)
+        # cross-process reads/writes with the pipeline safe. Yielded so
+        # FastAPI closes it when the response is done — endpoints used to
+        # open ad-hoc connections and leave them to the GC.
+        c = db.connect(db_path, init=False)
+        try:
+            yield c
+        finally:
+            c.close()
 
     def story_or_404(c, sid: str):
         row = c.execute("SELECT * FROM stories WHERE id=?", (sid,)).fetchone()
@@ -135,21 +153,19 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     # ---- library ----
 
     @app.get("/api/stories")
-    def list_stories():
-        c = conn()
+    def list_stories(c=Depends(get_conn)):
         out = []
         for r in c.execute(STORY_LIST_SQL):
             d = dict(r)
-            d["evidence"] = json.loads(d.pop("curation_evidence_json") or "[]")
+            d["evidence"] = _evidence_list(d.pop("curation_evidence_json"))
             out.append(d)
         return {"stories": out, "queue_depth": config.QUEUE_DEPTH}
 
     @app.get("/api/stories/{sid}")
-    def story_detail(sid: str):
-        c = conn()
+    def story_detail(sid: str, c=Depends(get_conn)):
         row = story_or_404(c, sid)
         d = dict(row)
-        d["evidence"] = json.loads(d.pop("curation_evidence_json") or "[]")
+        d["evidence"] = _evidence_list(d.pop("curation_evidence_json"))
         story_dir = library_dir / sid
         # files exist only from text_ready/ready on — null over crash
         d["paragraphs"] = None
@@ -176,8 +192,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return d
 
     @app.get("/api/stories/{sid}/audio")
-    def story_audio(sid: str):
-        c = conn()
+    def story_audio(sid: str, c=Depends(get_conn)):
         story_or_404(c, sid)
         path = library_dir / sid / "audio.m4a"
         if not path.exists():
@@ -187,8 +202,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     # ---- progress (iOS rules §6) ----
 
     @app.get("/api/progress/{sid}")
-    def get_progress(sid: str):
-        c = conn()
+    def get_progress(sid: str, c=Depends(get_conn)):
         story_or_404(c, sid)
         row = c.execute("SELECT position_s, updated_at FROM progress "
                         "WHERE story_id=?", (sid,)).fetchone()
@@ -196,8 +210,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
                 "updated_at": row["updated_at"] if row else None}
 
     @app.put("/api/progress/{sid}")
-    def put_progress(sid: str, position_s: float = Body(embed=True)):
-        c = conn()
+    def put_progress(sid: str, position_s: float = Body(embed=True),
+                     c=Depends(get_conn)):
         row = story_or_404(c, sid)
         if row["status"] in ("read", "skipped"):
             # a late keepalive save racing the /ended (or /skip) call must not
@@ -220,8 +234,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         c.commit()
         return {"position_s": pos}
 
-    def _mark_read(sid: str):
-        c = conn()
+    def _mark_read(c, sid: str):
         story_or_404(c, sid)
         c.execute("DELETE FROM progress WHERE story_id=?", (sid,))
         c.execute("UPDATE stories SET status='read' WHERE id=?", (sid,))
@@ -229,23 +242,22 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return {"status": "read"}
 
     @app.post("/api/stories/{sid}/ended")
-    def story_ended(sid: str):
+    def story_ended(sid: str, c=Depends(get_conn)):
         """iOS rule 2 (binding): on `ended`, clear the progress row + mark
         read — end-of-file is never a resume point."""
-        return _mark_read(sid)
+        return _mark_read(c, sid)
 
     @app.post("/api/stories/{sid}/read")
-    def story_read(sid: str):
+    def story_read(sid: str, c=Depends(get_conn)):
         """AMENDMENT_05 C3: 'already read' from the skip menu — same semantics
         as ended, distinct intent (read ≠ dislike for Phase 6 adaptation)."""
-        return _mark_read(sid)
+        return _mark_read(c, sid)
 
     @app.post("/api/stories/{sid}/unskip")
-    def story_unskip(sid: str):
+    def story_unskip(sid: str, c=Depends(get_conn)):
         """AMENDMENT_05 C4 (misclick recovery): Grace's explicit revoke.
         Status is re-derived from artifacts, not remembered — the record on
         disk is the truth."""
-        c = conn()
         row = story_or_404(c, sid)
         if row["status"] != "skipped":
             raise HTTPException(409, f"story is {row['status']}, not skipped")
@@ -262,11 +274,10 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return {"status": new}
 
     @app.post("/api/stories/{sid}/skip")
-    def story_skip(sid: str):
+    def story_skip(sid: str, c=Depends(get_conn)):
         """AMENDMENT_02: skip is permanent history (never re-proposed). Mid-
         render skips abort synthesis via the pipeline's checkpoint poll.
         Replenishment trigger arrives with the Phase 5 worker."""
-        c = conn()
         row = story_or_404(c, sid)
         if row["status"] == "read":
             raise HTTPException(409, "story already read — not skippable")
@@ -278,8 +289,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     # ---- ratings + bookmarks ----
 
     @app.put("/api/ratings/{sid}")
-    def put_rating(sid: str, score: int = Body(embed=True)):
-        c = conn()
+    def put_rating(sid: str, score: int = Body(embed=True),
+                   c=Depends(get_conn)):
         story_or_404(c, sid)
         if not 1 <= int(score) <= 5:
             raise HTTPException(422, "score must be 1..5")
@@ -291,9 +302,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return {"score": int(score)}
 
     @app.delete("/api/ratings/{sid}")
-    def delete_rating(sid: str):
+    def delete_rating(sid: str, c=Depends(get_conn)):
         """Misclick recovery for ratings (Grace, 2026-07-18, item 3)."""
-        c = conn()
         story_or_404(c, sid)
         c.execute("DELETE FROM ratings WHERE story_id=?", (sid,))
         c.commit()
@@ -302,7 +312,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     # ---- taste / trends (Phase 6, DESIGN §8) ----
 
     @app.get("/api/taste")
-    def get_taste():
+    def get_taste(c=Depends(get_conn)):
         """The Trends screen. Returns `taste.summary` for the ACTIVE channel,
         plus the profile text verbatim — the screen shows the same string the
         curation prompt is given, so 'what does the pipeline think I like' and
@@ -313,7 +323,6 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         A trends screen that implied otherwise would be lying about the
         listener's ratings changing anything.
         """
-        c = conn()
         try:
             channel = db.active_channel(c)
             channel_id, channel_name = channel["id"], channel["name"]
@@ -331,7 +340,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     @app.put("/api/taste/{kind}/{value}")
     def put_taste_override(kind: str, value: str,
                            score: float | None = Body(default=None, embed=True),
-                           suppress: bool = Body(default=False, embed=True)):
+                           suppress: bool = Body(default=False, embed=True),
+                           c=Depends(get_conn)):
         """Manual steering (Grace, Entry 35). `score` sets a preference the
         ratings did not produce (or overrides one they did); `suppress: true`
         drops a tag from the profile. Persists until cleared — it applies to
@@ -340,7 +350,6 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
             raise HTTPException(422, "give a score, or suppress: true")
         if score is not None and not 1 <= score <= 5:
             raise HTTPException(422, "score must be 1..5")
-        c = conn()
         # normalized the same way tags are, so a hand-typed "Ghost Stories"
         # lands on the same key the tagger would have written
         norm = tag.free_value_norm(value)
@@ -352,9 +361,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
                 "score": None if suppress else float(score)}
 
     @app.delete("/api/taste/{kind}/{value}")
-    def delete_taste_override(kind: str, value: str):
+    def delete_taste_override(kind: str, value: str, c=Depends(get_conn)):
         """Revert one tag to the automatically computed value."""
-        c = conn()
         if not taste.clear_override(c, kind.strip().lower(),
                                     tag.free_value_norm(value)):
             raise HTTPException(404, "no manual override for that tag")
@@ -362,8 +370,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
 
     @app.post("/api/stories/{sid}/bookmarks")
     def add_bookmark(sid: str, position_s: float = Body(embed=True),
-                     note: str | None = Body(default=None, embed=True)):
-        c = conn()
+                     note: str | None = Body(default=None, embed=True),
+                     c=Depends(get_conn)):
         story_or_404(c, sid)
         cur = c.execute("INSERT INTO bookmarks(story_id, position_s, note) "
                         "VALUES(?,?,?)", (sid, max(0.0, float(position_s)), note))
@@ -371,8 +379,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return {"id": cur.lastrowid}
 
     @app.delete("/api/bookmarks/{bid}")
-    def delete_bookmark(bid: int):
-        c = conn()
+    def delete_bookmark(bid: int, c=Depends(get_conn)):
         cur = c.execute("DELETE FROM bookmarks WHERE id=?", (bid,))
         c.commit()
         if cur.rowcount == 0:
@@ -405,8 +412,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return FileResponse(path, media_type="audio/mp4")
 
     @app.post("/api/stories/{sid}/voice")
-    def set_voice(sid: str, voice: str = Body(embed=True)):
-        c = conn()
+    def set_voice(sid: str, voice: str = Body(embed=True),
+                  c=Depends(get_conn)):
         row = story_or_404(c, sid)
         if voice not in config.VOICE_OPTIONS.get(row["language"], []):
             raise HTTPException(422,
@@ -446,25 +453,29 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return d
 
     @app.get("/api/channels")
-    def list_channels():
-        c = conn()
+    def list_channels(c=Depends(get_conn)):
         return {"channels": [_channel_dict(c, r) for r in c.execute(
             "SELECT * FROM channels ORDER BY id")],
             "queue_depth": config.QUEUE_DEPTH,
             "languages": sorted(config.VOICE_OPTIONS)}
 
-    def _validate(language: str | None, name: str | None):
+    def _validate(language: str | None, name):
         if language is not None and language not in config.VOICE_OPTIONS:
             raise HTTPException(
                 422, f"language {language} has no TTS config "
                      f"(available: {sorted(config.VOICE_OPTIONS)})")
-        if name is not None and not name.strip():
+        # isinstance, not just truthiness: a non-string name would otherwise
+        # survive to .strip() below and turn a bad request into a 500
+        if name is not None and (not isinstance(name, str) or not name.strip()):
             raise HTTPException(422, "channel name cannot be empty")
 
     @app.post("/api/channels")
-    def create_channel(body: dict = Body(...)):
-        c = conn()
-        _validate(body.get("language", "en"), body.get("name"))
+    def create_channel(body: dict = Body(...), c=Depends(get_conn)):
+        if not isinstance(body.get("name"), str) or not body["name"].strip():
+            # name is required on create; _validate treats None as "not being
+            # edited", which is only right for updates
+            raise HTTPException(422, "channel name is required")
+        _validate(body.get("language", "en"), body["name"])
         cols = {"name": body["name"].strip(),
                 "genre": body.get("genre"),
                 "language": body.get("language", "en"),
@@ -484,8 +495,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         return _channel_dict(c, row)
 
     @app.put("/api/channels/{cid}")
-    def update_channel(cid: int, body: dict = Body(...)):
-        c = conn()
+    def update_channel(cid: int, body: dict = Body(...), c=Depends(get_conn)):
         row = c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone()
         if row is None:
             raise HTTPException(404, f"no channel {cid}")
@@ -511,11 +521,10 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
             c, c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone())
 
     @app.post("/api/channels/{cid}/activate")
-    def activate_channel(cid: int):
+    def activate_channel(cid: int, c=Depends(get_conn)):
         """Switching channels re-targets replenishment (DESIGN §7). Other
         channels' unread stories stay in the library but stop counting toward
         the queue — nothing is deleted."""
-        c = conn()
         if c.execute("SELECT 1 FROM channels WHERE id=?", (cid,)).fetchone() is None:
             raise HTTPException(404, f"no channel {cid}")
         c.execute("UPDATE channels SET is_active=(id=?)", (cid,))
@@ -526,48 +535,45 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     # ---- render jobs (AMENDMENT_06: progress bar + pause/cancel) ----
 
     @app.get("/api/renders")
-    def list_renders():
+    def list_renders(c=Depends(get_conn)):
         """Active renders, newest walk state. Dead-process rows are reaped by
         renderjob.active(), so a bar on screen always means a live render."""
-        c = conn()
         return {"renders": [j.as_dict() for j in renderjob.active(c)],
                 "poll_ms": 2000}
 
-    def _control(sid: str, control: str, expect_active: bool = True):
-        c = conn()
+    def _control(c, sid: str, control: str):
         story_or_404(c, sid)
         job = renderjob.get(c, sid)
         if job is None or not renderjob.pid_alive(job.pid) or \
                 job.state not in ("running", "paused"):
             raise HTTPException(409, f"no render in flight for {sid}")
-        if expect_active:
-            renderjob.set_control(c, sid, control)
+        renderjob.set_control(c, sid, control)
         return renderjob.get(c, sid).as_dict()
 
     @app.post("/api/renders/{sid}/pause")
-    def pause_render(sid: str):
+    def pause_render(sid: str, c=Depends(get_conn)):
         """Holds the render at the next paragraph boundary — the process stays
         alive with the TTS model loaded, so resume is immediate. Work already
         rendered is kept in memory; nothing is written until the last
         paragraph, so a pause costs nothing but time."""
-        return _control(sid, "pause")
+        return _control(c, sid, "pause")
 
     @app.post("/api/renders/{sid}/resume")
-    def resume_render(sid: str):
-        return _control(sid, "run")
+    def resume_render(sid: str, c=Depends(get_conn)):
+        return _control(c, sid, "run")
 
     @app.post("/api/renders/{sid}/cancel")
-    def cancel_render(sid: str):
+    def cancel_render(sid: str, c=Depends(get_conn)):
         """Stops the render and puts the story back exactly as it was — the
         existing audio is untouched (the m4a is written only after the final
         paragraph) and the pre-render status is restored by the pipeline."""
-        return _control(sid, "cancel")
+        return _control(c, sid, "cancel")
 
     # ---- settings (AMENDMENT_05 A, BINDING) ----
 
-    @app.get("/api/settings")
-    def get_settings():
-        c = conn()
+    def _settings_payload(c) -> dict:
+        # Shared by GET and PUT (which returns the post-write state) so the
+        # two can never disagree about what the screen shows.
         # R14 quality notice: skip-rate over the most recent decided stories.
         # Never auto-switches anything — it only prompts Grace toward the
         # model setting (DESIGN §5 policy).
@@ -609,6 +615,10 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
                 if skip_rate >= 0.5 and len(recent) >= 5 else None),
         }
 
+    @app.get("/api/settings")
+    def get_settings(c=Depends(get_conn)):
+        return _settings_payload(c)
+
     @app.put("/api/settings")
     def put_settings(curation_model: str | None = Body(default=None, embed=True),
                      curation_mode: str | None = Body(default=None, embed=True),
@@ -623,8 +633,8 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
                      backup_offsite_dir: str | None = Body(default=None,
                                                            embed=True),
                      backup_interval_s: int | None = Body(default=None,
-                                                          embed=True)):
-        c = conn()
+                                                          embed=True),
+                     c=Depends(get_conn)):
         if backup_offsite_dir is not None:
             # Empty string is meaningful: it turns the off-machine copy OFF.
             # Not validated for existence — the path may be an external disk or
@@ -672,7 +682,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
             if v not in config.VOICE_OPTIONS.get(lang, []):
                 raise HTTPException(422, f"voice {v} not offered for {lang}")
             db.set_setting(c, f"default_voice.{lang}", v)
-        return get_settings()
+        return _settings_payload(c)
 
     # ---- PWA static (mounted last so /api keeps precedence) ----
 

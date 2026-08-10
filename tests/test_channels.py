@@ -97,6 +97,20 @@ def test_empty_name_rejected(client):
     assert tc.post("/api/channels", json={"name": "   "}).status_code == 422
 
 
+def test_missing_name_rejected_not_500(client):
+    """A create with no name at all used to KeyError into a 500; a bad
+    request must come back 422 (review 2026-08-09, Entry 42)."""
+    tc, _ = client
+    assert tc.post("/api/channels", json={}).status_code == 422
+
+
+def test_nonstring_name_rejected_not_500(client):
+    """Same class: a non-string name used to AttributeError on .strip()."""
+    tc, _ = client
+    assert tc.post("/api/channels", json={"name": 3}).status_code == 422
+    assert tc.put("/api/channels/1", json={"name": 3}).status_code == 422
+
+
 def test_activate_switches_exactly_one_channel(client):
     tc, c = client
     made = tc.post("/api/channels", json={"name": "scifi"}).json()

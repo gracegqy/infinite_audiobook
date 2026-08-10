@@ -143,7 +143,7 @@ export default function Player({ story, detail, voices, autoplay, job,
     navigator.mediaSession.metadata = new MediaMetadata({
       title: story.title,
       artist: story.author || "unknown",
-      album: "Readaloud",
+      album: "Infinite Audiobook",
     });
     const move = (d) => () => {
       audio.currentTime = Math.max(
@@ -182,23 +182,29 @@ export default function Player({ story, detail, voices, autoplay, job,
     if (audio) audio.currentTime = t;
   };
 
+  // the api calls below catch: an offline tap must fail quietly (retryable,
+  // nothing to roll back), not surface as an unhandled rejection
   async function skipAs(kind) {
     setSkipMenu(false);
-    if (kind === "skip") {
-      await api.skipStory(story.id);
-      onSkipped(story.id);
-    } else if (kind === "read") {
-      await api.markRead(story.id);
-      onReadMarked(story.id);
-    }
+    try {
+      if (kind === "skip") {
+        await api.skipStory(story.id);
+        onSkipped(story.id);
+      } else if (kind === "read") {
+        await api.markRead(story.id);
+        onReadMarked(story.id);
+      }
+    } catch { /* story stays in place; tap again when back on Tailscale */ }
   }
 
   async function onBookmark() {
     const note = window.prompt("Bookmark note (optional):") ?? null;
-    const { id } = await api.addBookmark(story.id, now, note || null);
-    setBookmarks((b) =>
-      [...b, { id, position_s: now, note }].sort(
-        (x, y) => x.position_s - y.position_s));
+    try {
+      const { id } = await api.addBookmark(story.id, now, note || null);
+      setBookmarks((b) =>
+        [...b, { id, position_s: now, note }].sort(
+          (x, y) => x.position_s - y.position_s));
+    } catch { /* bookmark not saved — the list not updating says so */ }
   }
 
   // voice re-render (AMENDMENT_05 C6), always behind a confirmation popup
@@ -209,10 +215,12 @@ export default function Player({ story, detail, voices, autoplay, job,
     if (!window.confirm(
       `Re-render "${story.title}" with ${v}? $0, ~${mins} min in the ` +
       "background; current audio keeps playing until it's replaced.")) return;
-    await api.setVoice(story.id, v);
-    setRerenderNote(`re-rendering with ${v} (~${mins} min) — this audio keeps ` +
-      "playing; the new voice appears when the story shows ready again");
-    onVoiceChanged(story.id, v);
+    try {
+      await api.setVoice(story.id, v);
+      setRerenderNote(`re-rendering with ${v} (~${mins} min) — this audio keeps ` +
+        "playing; the new voice appears when the story shows ready again");
+      onVoiceChanged(story.id, v);
+    } catch { /* no re-render started — no note, picker stays on the old voice */ }
   }
 
   return (

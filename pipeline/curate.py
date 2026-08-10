@@ -104,13 +104,6 @@ BALANCE: the list mixes {classes}. Rank good picks from EACH kind — the pipeli
 enforces the final split itself, so ranking only one kind just wastes your picks.
 """
 
-SOURCE_HINTS = {
-    "en": "Project Gutenberg plain text (public domain) or creepypasta-wiki pages",
-    "fr": "Project Gutenberg plain text (French-language public domain)",
-    "zh": "Project Gutenberg plain text (Chinese-language public domain)",
-}
-
-
 def channel_list_field(channel, key: str) -> list[str]:
     """topics_json / exclusions_json → list. Stored as JSON so the editor can
     round-trip them; tolerant of nulls and of a plain string typed by hand."""
@@ -139,7 +132,6 @@ def build_prompt(channel, known_titles: list[str],
         era=channel["era"] or "any",
         avoid=", ".join(channel_list_field(channel, "exclusions_json")) or "nothing",
         extra=channel["extra_criteria"] or "none",
-        source_hint=SOURCE_HINTS.get(channel["language"], SOURCE_HINTS["en"]),
         exclusions="\n".join(f"- {t}" for t in known_titles) or "(none yet)",
     )
     if taste_profile:  # Phase 6

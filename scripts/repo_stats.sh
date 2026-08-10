@@ -17,9 +17,11 @@ echo "clean-worktree:    $([[ -z "$(git status --porcelain)" ]] && echo yes || e
 echo
 
 # Grain: files tracked by git at HEAD. Excludes data/, .venv/, node_modules/,
-# dist/ (all gitignored), so this is the repo as a reader clones it.
+# dist/ (all gitignored), so this is the repo as a reader clones it. Binary
+# icons are excluded from the line total — `wc -l` over a PNG is noise, not
+# lines (the extension-scoped figures below never counted them).
 echo "tracked-files:     $(git ls-files | wc -l | tr -d ' ')"
-echo "tracked-lines-all: $(git ls-files | xargs wc -l | tail -1 | awk '{print $1}')"
+echo "tracked-lines-all: $(git ls-files | grep -vE '\.png$' | xargs wc -l | tail -1 | awk '{print $1}')"
 echo
 
 # Source vs prose, split because "LOC" that silently includes a 1,800-line
