@@ -19,7 +19,7 @@ import sys
 import urllib.request
 
 OUT = pathlib.Path(__file__).resolve().parents[1] / "data" / "interim" / "probe4"
-UA = {"User-Agent": "horror-readaloud-probe/0.1 (personal research; contact graceguqianying@uchicago.edu)"}
+UA = {"User-Agent": "infinite-audiobook-probe/0.1 (personal research; contact graceguqianying@uchicago.edu)"}
 
 def get(url, timeout=30):
     req = urllib.request.Request(url, headers=UA)

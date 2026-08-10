@@ -57,11 +57,11 @@ DEFAULT_KEEP = 10
 # entirely, and the local snapshot in backups/ still runs.
 #
 # Suggested value, shown as the placeholder in Settings rather than applied:
-#   ~/Library/Mobile Documents/com~apple~CloudDocs/horror_readaloud_backups
+#   ~/Library/Mobile Documents/com~apple~CloudDocs/infinite_audiobook_backups
 # Any path works — an external disk or a NAS mount avoids cloud storage
 # altogether.
 OFFSITE_SUGGESTION = ("~/Library/Mobile Documents/com~apple~CloudDocs/"
-                      "horror_readaloud_backups")
+                      "infinite_audiobook_backups")
 
 
 def offsite_dir(conn=None) -> pathlib.Path | None:

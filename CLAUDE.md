@@ -1,4 +1,4 @@
-# CLAUDE.md — horror_readaloud
+# CLAUDE.md — infinite_audiobook
 
 At session start, read STATE.md and JOURNAL.md, then the current phase in TASKS.md, before
 acting.
@@ -26,7 +26,7 @@ Tailscale. Private, personal-use only.
 - Content rights posture: classics = public domain; modern web fiction = author-owned,
   stored for private listening only. Never deploy content publicly; never commit story
   text or audio to git.
-- API keys live in `.env` (gitignored). Remote: private repo `gracegqy/horror_readaloud`,
+- API keys live in `.env` (gitignored). Remote: private repo `gracegqy/infinite_audiobook`,
   identity Grace / graceguqianying@uchicago.edu.
 
 ## Folder map

@@ -1,4 +1,4 @@
-# DESIGN — horror_readaloud
+# DESIGN — infinite_audiobook
 
 > **STATUS: FROZEN v1.0 (2026-07-18)** — Grace signed off v0.3 in session ("I sign off
 > DESIGN v0.3", JOURNAL Entry 15). Changes from here happen via amendment docs +

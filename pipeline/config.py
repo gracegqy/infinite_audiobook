@@ -232,7 +232,7 @@ HTML_SOURCE_CLASSES = ("creepypasta", "nosleep", "scp_cn")
 # a human instead of just blocking. The address is personal, so it comes from
 # the environment; unset simply drops the contact clause.
 _CONTACT_EMAIL = os.environ.get("HR_CONTACT_EMAIL", "").strip()
-USER_AGENT = ("horror-readaloud/0.1 (personal library"
+USER_AGENT = ("infinite-audiobook/0.1 (personal library"
               + (f"; contact {_CONTACT_EMAIL}" if _CONTACT_EMAIL else "")
               + ")")
 

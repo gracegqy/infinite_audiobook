@@ -33,7 +33,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # it from $HOME got a ModuleNotFoundError. Every other path below is absolute,
 # so this is safe for all subcommands.
 cd "$ROOT"
-LABEL="com.gracegu.horror-readaloud.worker"
+LABEL="com.gracegu.infinite-audiobook.worker"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 PY="$ROOT/.venv/bin/python"
 LOG="$ROOT/data/interim/worker_loop.log"

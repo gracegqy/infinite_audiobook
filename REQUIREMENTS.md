@@ -1,4 +1,4 @@
-# REQUIREMENTS — horror_readaloud (working checklist)
+# REQUIREMENTS — infinite_audiobook (working checklist)
 
 > **Authority: derivative.** `docs/BRIEF_VERBATIM.md` + numbered amendments win; this file
 > is *wrong* on any conflict. Changing any STATUS requires a JOURNAL entry. ⚠️ (rescoped)

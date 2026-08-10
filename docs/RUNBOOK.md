@@ -1,4 +1,4 @@
-# RUNBOOK — horror_readaloud
+# RUNBOOK — infinite_audiobook
 
 Operating manual for the running system.
 
@@ -9,7 +9,7 @@ test is itself the Phase 7 gate, and it is still owed.
 
 ## Resume prompt (paste into any new session)
 
-> Resume horror_readaloud (~/Code/ACTIVE/horror_readaloud). Before acting, read STATE.md,
+> Resume infinite_audiobook (~/Code/ACTIVE/infinite_audiobook). Before acting, read STATE.md,
 > the latest JOURNAL.md entries, and the current phase in TASKS.md. Trust artifacts over
 > prose: re-inspect anything marked [IN PROGRESS], and re-verify any status lacking
 > recorded evidence by running its check. Then continue from STATE's "Next actions"
@@ -26,8 +26,8 @@ prompt in TASKS.md.
 The gate for Phase 7 is that this section alone gets a working system.
 
 ```
-git clone https://github.com/gracegqy/horror_readaloud.git
-cd horror_readaloud
+git clone https://github.com/gracegqy/infinite_audiobook.git
+cd infinite_audiobook
 python3 -m venv .venv                       # built and verified on Python 3.12
 .venv/bin/pip install -r requirements.txt   # kokoro pulls torch — several minutes, ~2 GB
 ```
@@ -71,7 +71,7 @@ cold-started machine has an empty library and refills through the pool (below).
 
 ## Accounts & identity
 
-- Repo: private, `https://github.com/gracegqy/horror_readaloud` (personal account
+- Repo: private, `https://github.com/gracegqy/infinite_audiobook` (personal account
   `gracegqy`; commit identity Grace / graceguqianying@uchicago.edu; HTTPS + macOS
   keychain credential).
 - **Claude Code's filesystem sandbox blocks `git push`** — `credential.helper` is
@@ -93,7 +93,7 @@ cold-started machine has an empty library and refills through the pool (below).
    read `.env` at process start, so a running process keeps the old key. If the
    scheduler is installed, bounce the loop too — `scripts/scheduler.sh uninstall`
    then `install` is the path this runbook can vouch for. (`launchctl kickstart -k
-   gui/$UID/com.gracegu.horror-readaloud.worker` should also work but is untested,
+   gui/$UID/com.gracegu.infinite-audiobook.worker` should also work but is untested,
    since the job has never been installed.)
 4. Verify before revoking: a `$0` re-render proves the OpenAI path
    (`-m pipeline.retry <id>` only calls OpenAI on fallback), and

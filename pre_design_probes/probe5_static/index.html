@@ -134,7 +134,7 @@ if ("mediaSession" in navigator) {
   navigator.mediaSession.metadata = new MediaMetadata({
     title: "The Fall of the House of Usher",
     artist: "Edgar Allan Poe — Kokoro af_heart",
-    album: "horror_readaloud probe 5",
+    album: "infinite_audiobook probe 5",
   });
   navigator.mediaSession.setActionHandler("seekbackward", () => { audio.currentTime -= 15; });
   navigator.mediaSession.setActionHandler("seekforward", () => { audio.currentTime += 15; });

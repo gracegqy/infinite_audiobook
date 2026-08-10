@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 40 · 2026-08-09
+# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 40 · 2026-08-09
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.

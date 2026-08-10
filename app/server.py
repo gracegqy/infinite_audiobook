@@ -117,7 +117,7 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
     against a temp DB/library and never spawn a real render."""
     library_dir = library_dir or config.LIBRARY_DIR
     samples_dir = samples_dir or config.VOICE_SAMPLES_DIR
-    app = FastAPI(title="horror_readaloud")
+    app = FastAPI(title="infinite_audiobook")
     db.connect(db_path).close()  # schema + default channel, once
 
     def conn():

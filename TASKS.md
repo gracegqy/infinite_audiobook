@@ -1,4 +1,4 @@
-# TASKS — horror_readaloud
+# TASKS — infinite_audiobook
 
 Phase blocks with artifact-checkable gates. A gate that can't be answered gets redesigned,
 never skipped. Statuses: `not started · [IN PROGRESS] · DONE (evidence)` — a DONE without

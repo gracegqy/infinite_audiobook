@@ -1,4 +1,4 @@
-# horror_readaloud
+# infinite_audiobook
 
 A self-hosted read-aloud fiction library, built for one listener.
 
