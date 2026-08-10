@@ -20,10 +20,10 @@
 | | |
 |---|---|
 | **Quantity** | Lines in git-tracked source files (`.py`, `.jsx`, `.css`, `.html`, `.sh`) at HEAD. Grain = physical lines incl. blanks and comments; denominator = files tracked by git, so gitignored `data/`, `.venv/`, `node_modules/`, `dist/` are excluded. **Includes** `pre_design_probes/` (794) and `tests/` (3,171). |
-| **Value** | **11,107** at commit `b9b8704` (of which probes 794, tests 3,412) |
+| **Value** | **11,107** at commit `2210f7f` (of which probes 794, tests 3,412) |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `source-lines-total` |
-| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-09 at commit `b9b8704`, saw `source-lines-total:11107`, `of-which-probes:   794`, `test-lines:        3412`, `clean-worktree:    yes` |
+| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-09 at commit `2210f7f`, saw `source-lines-total:11107`, `of-which-probes:   794`, `test-lines:        3412`, `clean-worktree:    yes` |
 | **Invalidated by** | any commit that adds or removes source files (i.e. constantly). Re-run before every quote. |
 | **Last sent** | never |
 | **Status** | **RTR 2026-08-09** — as-of-commit must be stated with the figure |
@@ -44,12 +44,19 @@ derivation was not scripted, so it cannot be re-run — NUMBERS_PROTOCOL §3 cau
 committed script, is canonical.
 
 **Movement since the 2026-07-30 gate reconciles exactly (G4).** 10,836 at `575ab9a` →
-**11,107** at `b9b8704`. `git diff --numstat 575ab9a HEAD` over this row's extension list
+**11,107** at `2210f7f`. `git diff --numstat 575ab9a HEAD` over this row's extension list
 gives **+296 / −25 = +271**, which is the whole difference and nothing else: `test_backup.py`
 +182, `test_worker.py` +60/−1, `worker.py` +39/−18, `budget.py` +10/−3, `server.py` +5/−3 —
 the four fix commits of 2026-08-09. The tests component moves +241 by the same arithmetic
-(3,171 → 3,412). The three intervening commits (`268d4cb`, `73325c2`, `e40bdd4`) touched only
-`.md` files, which this row excludes by definition. Worktree clean at the gate run.
+(3,171 → 3,412). The four other commits in the range (`268d4cb`, `73325c2`, `e40bdd4`, and
+Grace's `f10fad0`) touched only `.md` files, which this row excludes by definition. Worktree
+clean at the gate run.
+
+**Note on the hashes:** the 2026-08-09 commits were rebased onto Grace's `f10fad0` (pushed
+2026-08-07, README wording, no source files) before pushing, so their first hashes are dead
+and every citation in this file, JOURNAL Entry 40 and the FIXES file was rewritten to the
+post-rebase ones. The gate above was re-run at the rebased HEAD rather than carried over —
+identical figures, but a figure whose as-of-commit does not exist is not a gated figure.
 
 The 2026-07-30 movement, retained: **10,753** at `a681ec2` (session start) →
 **10,836** at `575ab9a`, the difference being this session's own commits (the env-var scrub,
@@ -63,7 +70,7 @@ and therefore excluded from `source-lines-total` by definition; the figure is un
 | | |
 |---|---|
 | **Quantity** | Test cases collected and passing under `pytest` at repo root. Grain = pytest test items (parametrized cases count individually), not test functions or files. |
-| **Value** | **282 collected, 282 passing** at commit `b9b8704` |
+| **Value** | **282 collected, 282 passing** at commit `2210f7f` |
 | **Class** | MEASUREMENT |
 | **Derivation** | `.venv/bin/python -m pytest -q` (count also in `scripts/repo_stats.sh` → `tests-collected`) |
 | **Gate evidence** | ran `.venv/bin/python -m pytest -q` 2026-08-09, saw `282 passed, 1 warning in 20.30s`; `repo_stats.sh` agrees at `tests-collected:     282` |
@@ -88,7 +95,7 @@ a claim that the system works end to end.
 | **Value** | **CONFIRMED — none, ever** |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `never-committed` (script exits 1 if it ever fails) |
-| **Gate evidence** | re-passed 2026-08-09 at commit `b9b8704` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. First passed 2026-07-30. |
+| **Gate evidence** | re-passed 2026-08-09 at commit `2210f7f` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. First passed 2026-07-30. |
 | **Invalidated by** | any commit that adds such a path; any history rewrite |
 | **Last sent** | never |
 | **Status** | **RTR 2026-08-09** — this row is *invalidated by every subsequent commit*, so today's pass does **not** discharge the pre-flip run: **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |

@@ -11,11 +11,16 @@ Fixes session, not an audit — ran
 `_META_working_knowledge/project_reports/8.7.26_horror_readaloud/FIXES_HORROR_READALOUD.md`
 in a session separate from the one that wrote it, per its own preamble. Four of five
 tasks closed; FIX-5 is a `[PAUSE]` on Grace and is untouched. Tests 267 → **282**, all
-green. Commits `f98c3d1`, `3fbd256`, `b9b8704` (+ this close).
+green. Commits `673c5db`, `af65421`, `37c13e1` (+ this close). All four were rebased onto
+Grace's `f10fad0` (pushed 2026-08-07, README wording only) before pushing — the remote had
+moved, so their original hashes are dead and every citation here, in
+`docs/REPORTABLE_NUMBERS.md` and in the FIXES file was rewritten to match. The R1/R2/R3
+gates were re-run at the rebased HEAD, not carried over: a figure whose as-of-commit no
+longer exists is not a gated figure.
 
 **Measurements invalidated by this change:** none — the only behaviour change is an
 import that was always intended. R1 (source LOC) and R2 (test count) in
-`docs/REPORTABLE_NUMBERS.md` moved and were re-gated this session at commit `b9b8704`:
+`docs/REPORTABLE_NUMBERS.md` moved and were re-gated this session at commit `2210f7f`:
 **11,107** LOC and **282** tests, with the movement reconciled to zero against
 `git diff --numstat` (+296/−25 = +271, exactly this session's four commits; the three
 intervening commits were `.md`-only). R3 (never-committed) re-passed today, which does
