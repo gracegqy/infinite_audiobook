@@ -10,8 +10,8 @@ killing the browser, and 1–5 ratings that feed back into what gets curated nex
 standing queue of three unread stories and refills itself. It runs on one Mac and is reached
 from a phone over Tailscale — it is not a hosted service and there is no demo.
 
-**Built with Claude Code, under a phase-gated process.** Directing a model and then verifying
-what it produced is the work; the interesting part of this repo is the machinery that makes
+**Built with Claude Code, under a phase-gated process. Directing a model and then verifying
+what it produced is the work**; the interesting part of this repo is the machinery that makes
 the verification real. Every phase has a written gate, and a phase does not close until the
 gate is answered with a command and its output. When a gate turned out to be wrong, it was
 re-opened rather than argued away — the worked example is
