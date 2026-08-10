@@ -22,7 +22,7 @@ Run: .venv/bin/python -m pipeline.worker            # one cycle
 import sys
 import time
 
-from . import config, db, fetch, ingest, pool, synthesize
+from . import backup, config, db, fetch, ingest, pool, synthesize
 
 # Acquired-but-not-started. `in_progress` is started, so it does not count
 # toward the unread queue; read/skipped/failed are history.
@@ -134,6 +134,36 @@ def cycle(conn, log=print, acquire_only: bool = False) -> dict:
     return out
 
 
+def loop_iteration(conn, log=print, acquire_only: bool = False,
+                   backup_fn=None, sleep_fn=None) -> int:
+    """One turn of the `--loop` body, extracted so a test can execute every
+    statement in it and returning the interval it waited.
+
+    Why it is a function at all (audit 2026-08-07, BUG-1): the backup line below
+    called a module that was never imported, so `--loop` died with a NameError
+    on its FIRST iteration — the backup schedule Entry 37 believed it had
+    shipped has never once run. Nothing caught it because the loop lived inside
+    `main` and `main` had no test. The invariant this function exists to hold:
+    **every statement inside the loop runs in at least one test.**
+    """
+    try:
+        cycle(conn, log=log, acquire_only=acquire_only)
+    except Exception as e:  # a bad cycle must not kill the loop
+        log(f"[worker] cycle error: {e}")
+    # Entry 37: the loop is the only thing that runs unattended, so it is
+    # also what carries the backup schedule Phase 7 owed. maybe_backup
+    # swallows its own failures for the same reason as the line above.
+    (backup_fn or backup.maybe_backup)(conn)
+    # Entry 37: re-read the interval EVERY cycle rather than capturing it
+    # once. This is what makes the cadence editable from Settings — a
+    # captured value would need a restart, and the scheduler keeps this
+    # process alive for weeks. It is also why the launchd job carries no
+    # interval of its own: its only job is to keep the loop running.
+    interval = db.effective_worker_interval_s(conn)
+    (sleep_fn or time.sleep)(interval)
+    return interval
+
+
 def main(argv: list[str]) -> int:
     conn = db.connect()
     acquire_only = "--acquire-only" in argv
@@ -143,21 +173,7 @@ def main(argv: list[str]) -> int:
     print(f"[worker] loop starting at {db.effective_worker_interval_s(conn)}s "
           "— Ctrl-C to stop")
     while True:
-        try:
-            cycle(conn, acquire_only=acquire_only)
-        except Exception as e:  # a bad cycle must not kill the loop
-            print(f"[worker] cycle error: {e}")
-        # Entry 37: the loop is the only thing that runs unattended, so it is
-        # also what carries the backup schedule Phase 7 owed. maybe_backup
-        # swallows its own failures for the same reason as the line above.
-        backup.maybe_backup(conn)
-        # Entry 37: re-read the interval EVERY cycle rather than capturing it
-        # once. This is what makes the cadence editable from Settings — a
-        # captured value would need a restart, and the scheduler keeps this
-        # process alive for weeks. It is also why the launchd job carries no
-        # interval of its own: its only job is to keep the loop running.
-        interval = db.effective_worker_interval_s(conn)
-        time.sleep(interval)
+        loop_iteration(conn, acquire_only=acquire_only)
 
 
 if __name__ == "__main__":

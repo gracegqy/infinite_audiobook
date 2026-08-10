@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from pipeline import config, db, fetch, ingest, pool, worker
+from pipeline import backup, config, db, fetch, ingest, pool, worker
 
 
 @pytest.fixture()
@@ -242,6 +242,65 @@ def test_worker_targets_the_active_channel_only(conn, fake_pipeline):
     assert {r["title"] for r in conn.execute(
         "SELECT title FROM stories WHERE channel_id=2")} \
         == {"SF One", "SF Two", "SF Three"}
+
+
+# ---- the --loop body (BUG-1, audit 2026-08-07) ----
+#
+# `--loop` is the only thing that ever runs unattended, and until this section
+# existed not one statement inside it was tested — which is how an unimported
+# `backup` shipped and killed every loop on its first iteration. The rule these
+# three tests enforce together: every statement in worker.loop_iteration runs
+# in at least one of them, INCLUDING the default backup call, whose module
+# reference is the thing that was broken.
+
+def test_loop_iteration_runs_a_cycle_backs_up_and_re_reads_the_interval(
+        conn, fake_pipeline):
+    add_run(conn, ["One", "Two", "Three"])
+    db.set_setting(conn, "worker_interval_s", "1200")
+    backed_up, slept = [], []
+
+    interval = worker.loop_iteration(conn, log=lambda *a: None,
+                                     backup_fn=backed_up.append,
+                                     sleep_fn=slept.append)
+
+    assert backed_up == [conn]   # the backup schedule actually fires
+    assert interval == 1200 and slept == [1200]  # ...and the interval is re-read
+    assert worker.unread_count(conn, 1) == config.QUEUE_DEPTH  # the cycle ran
+
+
+def test_loop_iteration_uses_the_real_backup_module_by_default(conn, monkeypatch,
+                                                               tmp_path):
+    """The regression guard for BUG-1 itself. An injected backup_fn short-
+    circuits the `backup.maybe_backup` reference, so it would NOT catch a
+    missing import — this test resolves it for real. `backup_interval_s = 0`
+    makes maybe_backup a no-op, so nothing is written anywhere; BACKUP_DIR is
+    redirected as a second guard because it is rooted at the repo, not at
+    HR_DATA_DIR."""
+    monkeypatch.setattr(backup, "BACKUP_DIR", tmp_path / "backups")
+    db.set_setting(conn, "backup_interval_s", "0")
+    slept = []
+
+    worker.loop_iteration(conn, log=lambda *a: None, sleep_fn=slept.append)
+
+    assert slept == [config.DEFAULT_WORKER_INTERVAL_S]
+    assert not (tmp_path / "backups").exists()  # disabled means disabled
+
+
+def test_loop_iteration_survives_a_failing_cycle_and_still_backs_up(conn,
+                                                                    monkeypatch):
+    """A cycle that raises must not stop the backup or the sleep — otherwise one
+    bad fetch takes the unattended snapshot schedule down with it."""
+    def boom(*a, **k):
+        raise RuntimeError("fetch exploded")
+
+    monkeypatch.setattr(worker, "cycle", boom)
+    logs, backed_up, slept = [], [], []
+
+    worker.loop_iteration(conn, log=logs.append, backup_fn=backed_up.append,
+                          sleep_fn=slept.append)
+
+    assert any("cycle error: fetch exploded" in m for m in logs)
+    assert backed_up == [conn] and slept == [config.DEFAULT_WORKER_INTERVAL_S]
 
 
 # ---- reference vs. story failures (Entry 24) ----
