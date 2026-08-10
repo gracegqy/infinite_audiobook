@@ -5,6 +5,99 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 40 — 2026-08-09 — Executing the 2026-08-07 audit's FIXES: the unattended path was never unattended-safe
+
+Fixes session, not an audit — ran
+`_META_working_knowledge/project_reports/8.7.26_horror_readaloud/FIXES_HORROR_READALOUD.md`
+in a session separate from the one that wrote it, per its own preamble. Four of five
+tasks closed; FIX-5 is a `[PAUSE]` on Grace and is untouched. Tests 267 → **282**, all
+green. Commits `f98c3d1`, `3fbd256`, `b9b8704` (+ this close).
+
+**Measurements invalidated by this change:** none — the only behaviour change is an
+import that was always intended. R1 (source LOC) and R2 (test count) in
+`docs/REPORTABLE_NUMBERS.md` moved and were re-gated this session at commit `b9b8704`:
+**11,107** LOC and **282** tests, with the movement reconciled to zero against
+`git diff --numstat` (+296/−25 = +271, exactly this session's four commits; the three
+intervening commits were `.md`-only). R3 (never-committed) re-passed today, which does
+**not** discharge the pre-flip run — that row is invalidated by every later commit.
+
+### FIX-1 (BUG-1, HIGH) — `--loop` has never completed one iteration
+
+`worker.py` called `backup.maybe_backup(conn)` inside the `--loop` while and never
+imported `backup`. Reproduced first, exactly as the audit cited: cycle output, then
+`NameError: name 'backup' is not defined`.
+
+**What that means, and it is worse than a missing import.** Entry 37 recorded the backup
+schedule as landed and verified. It has never run once. Nothing has scheduled the worker
+either (standing debt 3), so the two failures hid each other: the loop nobody starts is
+also the loop that would have crashed. **Every file in `backups/` is hand-run**, and the
+newest before today was 2026-07-28.
+
+The import is one line; the reason this took a commit is that the loop lived inside
+`main()`, where no test could reach it — the only code path in the project that runs
+unattended was also the only one with no test at all. Extracted it to
+`loop_iteration(conn, log, acquire_only, backup_fn, sleep_fn)` — sleep injected too, or
+`time.sleep` would be the one statement no test could execute — and added three tests
+that between them run every statement in it. The invariant to keep: **every statement
+inside the `--loop` body executes in at least one test.**
+
+One of the three deliberately does *not* inject a backup double. `backup_fn or
+backup.maybe_backup` short-circuits, so a test that passes a fake never resolves the
+module name and would have sailed straight past BUG-1. That test resolves the real
+reference with `backup_interval_s = 0`; confirmed it reproduces the original `NameError`
+when `worker.backup` is deleted. **A double that stands in for the thing that was broken
+tests nothing** — worth remembering the next time a fix comes with a mock.
+
+### FIX-2 (RISK-2) — snapshot taken, and STATE was wrong about the server
+
+`backups/app-20260809-190545.db`, 180,224 B, self-verified `integrity ok`: 20 stories,
+2 progress rows, 6 ratings — reconciles with STATE's library section exactly. Local only;
+the off-machine destination stays Grace's call (standing debt 2).
+
+STATE said the server was left down. `lsof -i :8123` showed it **LISTENing** — started
+since Entry 39. So the live-client check fell to its second branch: sampled `progress`
+twice 45 s apart through a **read-only** URI connection (not `db.connect`, which runs
+migrations), both identical, newest write 2026-07-28 06:04. No live listener, safe to
+proceed. The Entry-26 rule earned its keep again; and a STATE line about a running
+process is a claim with a short shelf life.
+
+### FIX-3 (CLAIM-1) — three absolutes the artifacts contradict
+
+`worker.py` "Never spends money on its own", `budget.check` "Called before EVERY paid
+path", STATE "Local snapshots in `backups/` keep running". The load-bearing check:
+`budget.check` has **exactly one call site in the project** (`run_story.py:41`, the pool
+build). Tag-at-ingest and the OpenAI TTS fallback are paid calls on the worker's own path
+and pass through neither the cap nor the `curation_runs` ledger, so `budget.status()`
+understates true spend by a small unmeasured amount. Wording only, written as descriptions
+of current behaviour rather than promises, because whether those paths should come inside
+the cap is FIX-5 and Grace's to rule on.
+
+### FIX-4 (DEBT-1/2) — one ORDER BY, and backup.py's first tests
+
+`STORY_LIST_SQL` now f-strings `db.ACQUISITION_ORDER` instead of hand-copying
+`ORDER BY s.rowid`; verified it renders the identical clause. `tests/test_backup.py`, 12
+tests: the snapshot really is readable and carries the same rows, pruning keeps the newest,
+`keep=0` disables, the cadence honours the injected `now`, `maybe_backup` never raises into
+the loop, and the off-machine copy stays OFF until a destination is set.
+
+### The asymmetry both fixes tripped over
+
+`backup.BACKUP_DIR` is `config.ROOT / "backups"` — **not** under `DATA_DIR`, so
+`HR_DATA_DIR` does not move it. Everything else in the project redirects with that one
+env var; backups do not. Now that BUG-1 is fixed and `maybe_backup` actually runs, a
+sandboxed `worker --loop` will snapshot the *sandbox* DB into the *real* `backups/`,
+where it is indistinguishable by name from a real snapshot. Worked around in both places
+(`backup_interval_s = 0` in the sandbox; explicit `monkeypatch` in the test fixture)
+rather than fixed — it is outside the FIXES scope and it is a judgement call whether
+snapshots belong to the machine or to the dataset. **Flagged for Grace, unfixed.**
+
+Also noted, unfixed: CLAUDE.md and STATE record the git identity as
+`graceguqianying@uchicago.edu`, but this repo's local `user.email` is
+`gracegumails@gmail.com` — which is the correct current convention for personal repos, so
+the docs are what is stale.
+
+---
+
 ## Entry 39 — 2026-07-30 — Public-readiness: README, MIT license, machine-specific values out of committed files; a numbers ledger, which immediately caught a bad number
 
 This session serves `internship_application/PORTFOLIO_TODO.md` **P0** (ship this repo

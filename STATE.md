@@ -1,4 +1,4 @@
-# STATE — horror_readaloud        Reconciled through JOURNAL Entry 39 · 2026-07-30
+# STATE — horror_readaloud        Reconciled through JOURNAL Entry 40 · 2026-08-09
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -14,7 +14,7 @@
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
 | 6 — Preference adaptation | **RE-OPENED** | Curation demonstrably weighted by ratings | Entry 35 passed a controlled A/A′/B **at batch 12** (noise 1 title, effect 7–8; Lovecraft 7/12 → 0/12). **Entry 37 showed that does not describe production**: the first real build at `POOL_BATCH_SIZE = 40` took **11 of 12** Lovecraft. Mechanism works at the top of the ranking, does not exclude at depth. Grace ruled: record + **re-gate at batch 40** (not yet done) |
-| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). Still owed: independent `/code-review`, `/security-review`, fresh-session audit, cold-start test |
+| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). **Fresh-session audit DONE 2026-08-07** (`_META_working_knowledge/project_reports/8.7.26_horror_readaloud/`); its FIXES executed Entry 40 — 4 of 5 closed, FIX-5 is a decision on Grace. Still owed: independent `/code-review`, `/security-review`, cold-start test |
 
 ## Confirmed findings
 
@@ -112,10 +112,23 @@ superseded a wrong LOC figure that had already been drafted into an application.
    design as Entry 35, run at `POOL_BATCH_SIZE`, sandboxed via `HR_DATA_DIR`.
    ~$0.15. **Do item 2 first** — re-gating a nearly-dislike-only profile
    measures a weaker instrument than Entry 35 used and would not be comparable.
-4. `/security-review`, then the fresh-session audit, then the **cold-start test
-   from the RUNBOOK alone** — that last one is the literal Phase 7 gate and has
-   never been run.
-5. **Open ruling: the profile displays the raw average, and the model reads the
+4. `/security-review`, then the **cold-start test from the RUNBOOK alone** —
+   that last one is the literal Phase 7 gate and has never been run. (The
+   fresh-session audit is DONE, 2026-08-07, and its fixes are executed.)
+5. **RULE ON FIX-5 (Entry 40).** Tag-at-ingest (~$0.01/story) and the OpenAI
+   TTS fallback (~$0.32/story) spend on the worker's path without passing
+   through `budget.check` or the `curation_runs` ledger. Options: (a) leave
+   them documented-but-outside, which Entry 40's wording edits already do;
+   (b) ledger-only, so spend is visible but not gated; (c) full cap coverage,
+   which needs a ruling on what a cap-exhausted TTS fallback does to a
+   renderable story. B/C need a JOURNAL spec first and possibly an AMENDMENT.
+   The task text is in `FIXES_HORROR_READALOUD.md`.
+6. **Decide where snapshots live (Entry 40).** `backup.BACKUP_DIR` is rooted at
+   the repo, not under `DATA_DIR`, so `HR_DATA_DIR` does not redirect it — a
+   sandboxed `worker --loop` now writes sandbox snapshots into the real
+   `backups/`. Unfixed on purpose: it is a judgement call whether snapshots
+   belong to the machine or to the dataset.
+7. **Open ruling: the profile displays the raw average, and the model reads the
    display** (Entry 38). Shrinkage protects the ranking only, so a lone 1 still
    arrives looking like the strongest dislike. Fixing it means rendering the
    shrunk figure — which contradicts FROZEN DESIGN §8 ("display the raw one")
@@ -188,10 +201,15 @@ cap and outside the `curation_runs` ledger (Entry 40). **Read the pool order bef
 ranks 4–14 are eleven consecutive Lovecraft titles, which is the Entry-37
 finding, not a queue fault.
 
-**The server was NOT running at Entry-38 close and was not started in Entry 39**
-— it was deliberately left down. Start it with `scripts/serve.sh` (it prints the
-URL); the Trends tab (and so every manual taste override) needs it up, as do the
-portfolio screenshots.
+**The server IS running** as of Entry 40 (`lsof -i :8123` → LISTEN on
+100.117.147.107) — Grace started it after Entry 39, which had left it down. No
+live listener though: `progress` has not been written since 2026-07-28 06:04
+(sampled twice, 45 s apart, Entry 40). The Trends tab (and so every manual taste
+override) needs it up, as do the portfolio screenshots.
+
+**Newest DB snapshot: `backups/app-20260809-190545.db`** (Entry 40, hand-run,
+local only — 20 stories / 2 progress / 6 ratings, integrity ok). Before it the
+newest was 2026-07-28.
 
 **6 ratings, with real contrast** (1,2,2,3,5,5) — enough for the Phase 6 floor
 of 3. Unfinished ≠ disliked: the two in_progress are unrated because Grace

@@ -20,13 +20,13 @@
 | | |
 |---|---|
 | **Quantity** | Lines in git-tracked source files (`.py`, `.jsx`, `.css`, `.html`, `.sh`) at HEAD. Grain = physical lines incl. blanks and comments; denominator = files tracked by git, so gitignored `data/`, `.venv/`, `node_modules/`, `dist/` are excluded. **Includes** `pre_design_probes/` (794) and `tests/` (3,171). |
-| **Value** | **10,836** at commit `575ab9a` (of which probes 794, tests 3,171) |
+| **Value** | **11,107** at commit `b9b8704` (of which probes 794, tests 3,412) |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `source-lines-total` |
-| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-07-30 at commit `575ab9a`, saw `source-lines-total:10836`, `of-which-probes:   794`, `test-lines:        3171` |
+| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-09 at commit `b9b8704`, saw `source-lines-total:11107`, `of-which-probes:   794`, `test-lines:        3412`, `clean-worktree:    yes` |
 | **Invalidated by** | any commit that adds or removes source files (i.e. constantly). Re-run before every quote. |
 | **Last sent** | never |
-| **Status** | **RTR 2026-07-30** — as-of-commit must be stated with the figure |
+| **Status** | **RTR 2026-08-09** — as-of-commit must be stated with the figure |
 
 **Conditioning (G5):** LOC is a size signal, not a quality one, and this figure is
 *generous* to itself — it counts throwaway probe scripts and blank lines. Quote it with its
@@ -43,7 +43,15 @@ derivation was not scripted, so it cannot be re-run — NUMBERS_PROTOCOL §3 cau
 **Therefore: 10,654 is SUPERSEDED and must not be quoted.** This row's value, from the
 committed script, is canonical.
 
-The within-session movement reconciles exactly: **10,753** at `a681ec2` (session start) →
+**Movement since the 2026-07-30 gate reconciles exactly (G4).** 10,836 at `575ab9a` →
+**11,107** at `b9b8704`. `git diff --numstat 575ab9a HEAD` over this row's extension list
+gives **+296 / −25 = +271**, which is the whole difference and nothing else: `test_backup.py`
++182, `test_worker.py` +60/−1, `worker.py` +39/−18, `budget.py` +10/−3, `server.py` +5/−3 —
+the four fix commits of 2026-08-09. The tests component moves +241 by the same arithmetic
+(3,171 → 3,412). The three intervening commits (`268d4cb`, `73325c2`, `e40bdd4`) touched only
+`.md` files, which this row excludes by definition. Worktree clean at the gate run.
+
+The 2026-07-30 movement, retained: **10,753** at `a681ec2` (session start) →
 **10,836** at `575ab9a`, the difference being this session's own commits (the env-var scrub,
 `README.md`, `LICENSE`, and `repo_stats.sh`; only the `.sh` and `.py` changes enter this
 figure — `.md` files do not). At the moment the script was run for the gate evidence above,
@@ -55,13 +63,16 @@ and therefore excluded from `source-lines-total` by definition; the figure is un
 | | |
 |---|---|
 | **Quantity** | Test cases collected and passing under `pytest` at repo root. Grain = pytest test items (parametrized cases count individually), not test functions or files. |
-| **Value** | **267 collected, 267 passing** |
+| **Value** | **282 collected, 282 passing** at commit `b9b8704` |
 | **Class** | MEASUREMENT |
 | **Derivation** | `.venv/bin/python -m pytest -q` (count also in `scripts/repo_stats.sh` → `tests-collected`) |
-| **Gate evidence** | ran `.venv/bin/python -m pytest -q` 2026-07-30, saw `267 passed, 1 warning in 15.93s` |
+| **Gate evidence** | ran `.venv/bin/python -m pytest -q` 2026-08-09, saw `282 passed, 1 warning in 20.30s`; `repo_stats.sh` agrees at `tests-collected:     282` |
 | **Invalidated by** | any test added/removed; any dependency bump that changes collection |
 | **Last sent** | never |
-| **Status** | **RTR 2026-07-30** |
+| **Status** | **RTR 2026-08-09** — as-of-commit must be stated with the figure |
+
+**Movement (G4):** 267 → 282 = the 15 tests added on 2026-08-09 (3 in `test_worker.py`
+covering the `--loop` body, 12 in the new `test_backup.py`). No test was removed or renamed.
 
 **Conditioning (G5):** these are unit and round-trip tests over pure logic (offset math, queue
 replenishment, resume/progress, rating aggregation, serialization) plus FastAPI route tests.
@@ -77,10 +88,10 @@ a claim that the system works end to end.
 | **Value** | **CONFIRMED — none, ever** |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `never-committed` (script exits 1 if it ever fails) |
-| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-07-30, saw `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch` |
+| **Gate evidence** | re-passed 2026-08-09 at commit `b9b8704` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. First passed 2026-07-30. |
 | **Invalidated by** | any commit that adds such a path; any history rewrite |
 | **Last sent** | never |
-| **Status** | **RTR 2026-07-30** — **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |
+| **Status** | **RTR 2026-08-09** — this row is *invalidated by every subsequent commit*, so today's pass does **not** discharge the pre-flip run: **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |
 
 **Conditioning (G5):** this checks *paths*, not content. It proves `data/` and `.env` were
 never added; it does not prove no secret was ever pasted into some other file. That is the
