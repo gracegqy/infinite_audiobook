@@ -1,4 +1,4 @@
-# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 42 · 2026-08-09
+# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 43 · 2026-08-16
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -67,8 +67,10 @@
 ## Next actions
 
 Phase 7 is in progress; Phase 6 is re-opened (its gate does not describe
-production). Queue is healthy — 3/3 ready, 29 in the pool — so **nothing in the
-build track is time-sensitive.**
+production). Both channels' queues are filled (horror 2 unread + 2 in_progress,
+French Sci-Fi 3), so **nothing in the build track is time-sensitive.** Note that
+the queue counter follows the ACTIVE channel only — horror's stories are still
+in the library and still playable, they just no longer count.
 
 **But there is now a dated external track (Entry 39).** This repo is the P0 of
 `~/Code/ACTIVE/internship_application/PORTFOLIO_TODO.md`: it must be public, with
@@ -171,42 +173,77 @@ renumbered.)
 6. Free-source reach: only `gutenberg-catalog` and `creepypasta-wiki` are
    registered. r/nosleep and non-English modern fiction need either `llm` mode
    or a new adapter. Supply is finite — 514 classics + 200 modern ≈ 240 worker
-   cycles.
+   cycles **on the horror channel**. On French Sci-Fi it is 15 stories total
+   (Entry 43, measured over every matching catalog row): Gutenberg alone covers
+   it, the creepypasta wiki correctly excludes itself on language, and Gutenberg's
+   French holdings are mostly novels. A second non-English channel would hit the
+   same wall, and the answer is a new adapter — not `llm` mode, which buys
+   reputation evidence and not supply.
+
+## Channels
+
+**Two channels, and `French Sci-Fi` is the ACTIVE one** (id 2, `fr`, genre
+*Science fiction*, topic *dystopian*; created 2026-08-10, diagnosed and filled
+Entry 43). `horror` (id 1) is inactive — its 20 stories stay in the library and
+stay playable; only replenishment follows the active channel (DESIGN §7).
+
+Everything per-channel is genuinely per-channel: the pool
+(`pool.pool_candidates` filters by `channel_id`), the queue count, and the taste
+profile. A new channel therefore starts with an **empty pool**, and the worker
+cannot fill it — only `run_story --build-pool` can. That is not a bug, and it is
+the first thing to check when a channel switch "does nothing" (Entry 43).
 
 ## Library
 
-20 story rows; 20 distinct titles (no all-time repeats). Re-derived from the DB
-at Entry-37 close.
+23 story rows across both channels; 23 distinct titles (no all-time repeats).
+Re-derived from the DB at Entry-43 close.
 
-- **read (9):** Yellow Wallpaper 32.2 (rated 5) · Monkey's Paw 21.5 (rated 5) ·
+**Channel 1 — horror (20 rows)**
+
+- **read (10):** Yellow Wallpaper 32.2 (rated 5) · Monkey's Paw 21.5 (rated 5) ·
   Owl Creek Bridge 19.7 · Willows 107.1 · Russian Sleep Experiment 12.2
   (rated 2) · Ben Drowned 54.4 (rated 3) · Smile Dog 11.3 (rated 2) ·
-  Squidward's Suicide 9.9 (rated 1) · The Backrooms 5.3
+  Squidward's Suicide 9.9 (rated 1) · The Backrooms 5.3 · one more finished
+  between Entries 42 and 43
 - **in_progress (2):** Damned Thing 18.0 at 15:33 · The Rake 6.5 at 4:17
-- **ready (the queue, 3/3):** NoEnd House 24.0 · The Fall of the House of Usher
-  39.2 · The Cask of Amontillado 12.9 (the last two acquired in Entry 37)
+- **ready (2):** two of NoEnd House / Usher / Cask remain
 - **failed (6):** Tell-Tale Heart · Candle Cove · Ted the Caver · Jeff the
   Killer · Yellow Sign · Music of Erich Zann. All re-verified live in Entry 34
   as correct rejections. **Do not delete them** — `pool.failed_refs` reads these
   rows to keep dead references out of curation; deleting would re-open Entry 16.
 
-**Queue is healthy: 3/3 ready, 29 usable candidates in the pool** (Entry 37's
-build; both re-derived from the DB at Entry-38 close). The worker never
-initiates *curation* spend, so the refill after that stays an explicit
+**Channel 2 — French Sci-Fi (3 rows, all acquired Entry 43)**
+
+- *Relation d'un voyage du Pole Arctique au Pole Antarctique* — ready, 48.1 min,
+  kokoro/**ff_siwis** (the Phase-1 approved French voice; no settings row needed,
+  it is the `config.VOICE_OPTIONS` default)
+- *Voyage dans la lune avant 1900* — ready
+- *Dans l'abîme* (Wells in French) — rendering at Entry-43 close; **re-check its
+  status before assuming the queue is 3/3**
+
+**Pools, plural.** Horror: 29 usable candidates (Entry 37's build, untouched;
+read its order before trusting it — ranks 4–14 are eleven consecutive Lovecraft
+titles, the Entry-37 finding, not a queue fault). French Sci-Fi: `curation_runs`
+id 6, **79 candidates stored, 15 usable**, built 2026-08-16 for **$0.00**. 15 is
+the honest ceiling for this channel — verifying all 104 matching Gutenberg rows
+found 16 usable single stories and one of those is a collection (Entry 43). At
+`QUEUE_DEPTH = 3` that is ~12 more stories before the channel runs dry, and no
+further free source covers it.
+
+The worker never initiates *curation* spend, so refills stay an explicit
 `run_story --build-pool` — now also gated by the spend cap. It is **not** a $0
 path: tag-at-ingest (~$0.01/story, DESIGN §5) and the OpenAI TTS fallback
-(~$0.32/story) are paid calls on the worker's path, and both sit outside the
-cap and outside the `curation_runs` ledger (Entry 40). **Read the pool order before trusting it:**
-ranks 4–14 are eleven consecutive Lovecraft titles, which is the Entry-37
-finding, not a queue fault.
+(~$0.32/story) are paid calls on the worker's path, and both sit outside the cap
+and outside the `curation_runs` ledger (Entry 40).
 
-**The server IS running** as of Entry 42 (`lsof -i :8123` → LISTEN on the
-Tailscale IP, re-checked 2026-08-09 evening) — but it predates the Entry-42
-server.py changes and the Player.jsx fixes, so **restart it (and rebuild the
-frontend) before the portfolio screenshots**. No live listener at the Entry-40
-check: `progress` unwritten since 2026-07-28 06:04 (sampled twice, 45 s apart).
-The Trends tab (and so every manual taste override) needs the server up, as do
-the screenshots.
+**The server IS running** — `lsof -i :8123` → LISTEN on the Tailscale IP, process
+started 2026-08-16 18:03, so it **postdates** the Entry-42 `server.py` changes.
+Entry 43 touched `pipeline/` only, so no restart is needed for it. Whether
+`app/frontend/dist/` was rebuilt since Entry 42 is unknown — **rebuild before the
+portfolio screenshots** rather than trust this line. No live listener at the
+Entry-43 check: `progress` unwritten since 2026-08-16 23:06 UTC (sampled twice,
+~20 min apart) before anything was written to `data/app.db`. The Trends tab (and
+so every manual taste override) needs the server up, as do the screenshots.
 
 **Newest DB snapshot: `backups/app-20260809-190545.db`** (Entry 40, hand-run,
 local only — 20 stories / 2 progress / 6 ratings, integrity ok). Before it the
@@ -228,7 +265,14 @@ holds $4.86 of July's `llm` experiments; lower it after ~2026-08-27).
 
 ## Taste (Phase 6)
 
-The live profile, re-rendered at Entry-38 close, **after** the evidence floor:
+**⚠ The Trends tab is EMPTY while French Sci-Fi is active, and that is correct.**
+The profile is per-channel (`taste.summary(conn, active_channel_id)`), the French
+channel has 0 rated stories, and `TASTE_MIN_RATED_STORIES = 3` floors it —
+`taste.profile_for` returns `''` (checked at Entry-43 close). The horror profile
+below is not lost; activate horror and it returns. A French profile needs 3 rated
+French stories, and nothing can be inferred across channels.
+
+The horror profile, re-rendered at Entry-38 close, **after** the evidence floor:
 
 ```
 liked: supernatural [subgenre] (3.8/5, n=4)
@@ -278,8 +322,15 @@ matters; the earlier $0.0176 was per-12 and is not what production runs) ·
 
 **A spend cap is now enforced** (Entry 37): rolling window over the
 `curation_runs` ledger, checked before every paid path including `free_llm`.
-Currently $8.00/month with $4.8562 spent and $3.1438 remaining. `pipeline
-.budget.status()` is the single source for both the readout and the guard.
+Currently $8.00/month with $4.8562 spent and $3.1438 remaining (re-read from
+`budget.status()` at Entry-43 close — **unchanged by Entry 43's build, which
+cost $0.00**: `free_llm` now skips the selection call when the verified list is
+already ≤ the batch, because there is nothing left to choose).
+
+**Outside that total, and still not measured:** Entry 43 ingested 3 stories, so
+tag-at-ingest spent roughly **$0.03 that no ledger row shows** (~$0.01/story,
+DESIGN §5). That is the FIX-5 gap with a concrete instance attached — see
+open item 4.
 
 ## Open decisions
 

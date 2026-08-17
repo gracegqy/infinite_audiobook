@@ -20,13 +20,13 @@
 | | |
 |---|---|
 | **Quantity** | Lines in git-tracked source files (`.py`, `.jsx`, `.css`, `.html`, `.sh`) at HEAD. Grain = physical lines incl. blanks and comments; denominator = files tracked by git, so gitignored `data/`, `.venv/`, `node_modules/`, `dist/` are excluded. **Includes** `pre_design_probes/` (794) and `tests/` (3,171). |
-| **Value** | **11,153** at commit `f1394e9` (of which probes 794, tests 3,440) |
+| **Value** | **11,418** at commit `7361812` (of which probes 794, tests 3,603) |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `source-lines-total` |
-| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-09 at commit `f1394e9`, saw `source-lines-total:11153`, `of-which-probes:   794`, `test-lines:        3440`, `clean-worktree:    yes` |
+| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-16 at commit `7361812`, saw `source-lines-total:11418`, `of-which-probes:   794`, `test-lines:        3603`, `clean-worktree:    yes` |
 | **Invalidated by** | any commit that adds or removes source files (i.e. constantly). Re-run before every quote. |
 | **Last sent** | never |
-| **Status** | **RTR 2026-08-09** — as-of-commit must be stated with the figure |
+| **Status** | **RTR 2026-08-16** — as-of-commit must be stated with the figure |
 
 **Conditioning (G5):** LOC is a size signal, not a quality one, and this figure is
 *generous* to itself — it counts throwaway probe scripts and blank lines. Quote it with its
@@ -43,7 +43,14 @@ derivation was not scripted, so it cannot be re-run — NUMBERS_PROTOCOL §3 cau
 **Therefore: 10,654 is SUPERSEDED and must not be quoted.** This row's value, from the
 committed script, is canonical.
 
-**Movement since the prior gate reconciles exactly (G4).** 11,107 at `2210f7f` → **11,153**
+**Movement since the prior gate reconciles exactly (G4).** 11,153 at `f1394e9` → **11,418**
+at `7361812`, the Entry-43 commit. `git diff --numstat f1394e9 7361812` over this row's
+extension list gives **+317 / −52 = +265**, which is the whole difference: `catalog.py`
++56/−15, `freepool.py` +38/−18, `verify.py` +41 (the new `fill`), and the three test files
++182/−19. The tests component moves +163 by the same arithmetic (3,440 → 3,603). One
+session, one commit, no `.md` files in scope. Worktree clean at the gate run.
+
+Prior movement, retained: 11,107 at `2210f7f` → **11,153**
 at `f1394e9`. `git diff --numstat 2210f7f f1394e9` over this row's extension list gives
 **+151 / −105 = +46**, which is the whole difference and nothing else: the Entry-42 review
 fixes (`server.py` +82/−72, `Player.jsx` +24/−16, `curate.py` −8, `synthesize.py` +7/−1,
@@ -81,15 +88,24 @@ and therefore excluded from `source-lines-total` by definition; the figure is un
 | | |
 |---|---|
 | **Quantity** | Test cases collected and passing under `pytest` at repo root. Grain = pytest test items (parametrized cases count individually), not test functions or files. |
-| **Value** | **285 collected, 285 passing** at commit `f1394e9` |
+| **Value** | **308 collected, 308 passing** at commit `7361812` |
 | **Class** | MEASUREMENT |
 | **Derivation** | `.venv/bin/python -m pytest -q` (count also in `scripts/repo_stats.sh` → `tests-collected`) |
-| **Gate evidence** | ran `.venv/bin/python -m pytest -q` 2026-08-09, saw `285 passed, 1 warning in 18.04s`; `repo_stats.sh` agrees at `tests-collected:   285` |
+| **Gate evidence** | ran `.venv/bin/python -m pytest -q` 2026-08-16, saw `308 passed, 1 warning in 24.84s`; `repo_stats.sh` agrees at `tests-collected:   308` |
 | **Invalidated by** | any test added/removed; any dependency bump that changes collection |
 | **Last sent** | never |
-| **Status** | **RTR 2026-08-09** — as-of-commit must be stated with the figure |
+| **Status** | **RTR 2026-08-16** — as-of-commit must be stated with the figure |
 
-**Movement (G4):** 282 → 285 = the 3 tests added in the Entry-42 review session (2 in
+**Movement (G4):** 285 → 308 = **+24 added, 1 removed**, all in Entry 43. Added: 10 in
+`test_catalog.py` (6 French collection titles, 2 French single-story titles rejected as
+collections, language scoping, unknown-language fallback — parametrized cases count
+individually) plus the new `test_novel_shelf_demotes_but_no_longer_excludes`; 5 in
+`test_verify.py` for `verify.fill`; 4 in `test_freepool.py` (rejects never reach the model,
+rejects stay in the ledger, a thin source is walked further, a batch that takes everything
+buys no selection call). Removed: `test_rejected_picks_are_replaced_from_spares`, whose
+behaviour no longer exists — verification moved ahead of the pick, so a reject cannot cost a
+spare. `test_select_skips_novels_wrong_language_and_non_text` was renamed and narrowed
+rather than removed. Prior: 282 → 285 = the 3 tests added in the Entry-42 review session (2 in
 `test_channels.py` — missing/non-string channel name must 422, not 500; 1 in
 `test_app_api.py` — a malformed evidence row must not 500 the library). No test was removed
 or renamed. Prior: 267 → 282 = the 15 tests added earlier on 2026-08-09 (3 in
@@ -109,10 +125,10 @@ a claim that the system works end to end.
 | **Value** | **CONFIRMED — none, ever** |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `never-committed` (script exits 1 if it ever fails) |
-| **Gate evidence** | re-passed 2026-08-09 at commit `f1394e9` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. Independently re-derived the same day (Entry 42): all 99 paths ever added, on all branches, checked against `data/`, `.env`, audio and DB patterns — none. First passed 2026-07-30. |
+| **Gate evidence** | re-passed 2026-08-16 at commit `7361812` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. Previously re-passed 2026-08-09 at `f1394e9`, and independently re-derived that day (Entry 42): all 99 paths ever added, on all branches, checked against `data/`, `.env`, audio and DB patterns — none. First passed 2026-07-30. |
 | **Invalidated by** | any commit that adds such a path; any history rewrite |
 | **Last sent** | never |
-| **Status** | **RTR 2026-08-09** — this row is *invalidated by every subsequent commit*, so today's pass does **not** discharge the pre-flip run: **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |
+| **Status** | **RTR 2026-08-16** — this row is *invalidated by every subsequent commit*, so today's pass does **not** discharge the pre-flip run: **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |
 
 **Conditioning (G5):** this checks *paths*, not content. It proves `data/` and `.env` were
 never added; it does not prove no secret was ever pasted into some other file. That is the
@@ -134,6 +150,15 @@ never added; it does not prove no secret was ever pasted into some other file. T
 **Why it is here while unverified:** cost-per-batch is the most quotable number in the project
 ("cut curation cost 47× by replacing a paid search path with a free source registry") and is
 therefore the most likely to travel by accident. It gets a row so the row can say *no*.
+
+**Entry 43 made `free_llm` a RANGE, not a figure.** A build now skips the paid selection call
+whenever the verified candidate list is already ≤ the batch — there is nothing to choose, so
+there is nothing to pay for. The first French Sci-Fi build took that path and cost **$0.00**
+(`curation_runs` id 6, model `free-sources`, 2026-08-16). So `free_llm` costs $0.0512 on a
+channel with more supply than the batch and $0 on a thin one, and **the single figure above is
+now wrong in a way that flatters the project** — a "$0.05 per build" claim quoted today would
+be quoting the expensive end as if it were the only end. The row was already UNVERIFIED and
+stays that way; whoever scripts it must report both ends and say which channel produced which.
 
 ### Historical experimental figures (the class the README quotes most)
 

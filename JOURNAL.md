@@ -5,6 +5,101 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 43 — 2026-08-16 — "I added a French Sci-Fi channel and nothing happened": three causes, only one a defect
+
+Grace created a second channel (French Sci-Fi — `fr`, genre *Science fiction*, topic
+*dystopian*) on 2026-08-10 and activated it. Nothing visibly changed. Diagnosis first,
+then the fix she authorised.
+
+### The channel edit was fine. Three things sat behind it
+
+1. **The pool is per-channel, and a new channel starts empty.** `pool.pool_candidates`
+   filters by `channel_id`; all 29 remaining candidates belonged to channel 1. The worker
+   never initiates curation spend (AMENDMENT_04 A), so it cannot fill a new channel by
+   itself — it logged `pool exhausted — 0/3 unread` and stopped. Working as designed.
+2. **Nothing was running.** No `pipeline.worker` process, no launchd job (standing debt 3
+   — the scheduler is built, never installed). Only the app server was up. `worker_interval_s`
+   had been set to 60 the same night, which only a `--loop` reads.
+3. **The library screen is not channel-filtered** (by design — other channels' stories
+   stay visible), so a channel switch changes nothing on screen until stories arrive.
+
+The first three minutes of this session were spent proving 1–3 rather than assuming them:
+the worker cycle was run against a **copy** of the DB in a sandbox, never the live one.
+
+### The actual defect: the free path could see 5 of 16
+
+Before spending anything on a build, the question was whether the channel was even viable.
+Verifying **every** French catalog row matching the channel's keywords (104 of them, HTTP
+only, no API spend) found **16 usable single stories**. A production build found **5**.
+Three separate causes, and the third is the one worth remembering:
+
+- `looks_like_collection` took **English markers only**. "Contes bruns", "Histoires
+  extraordinaires", "Les fleurs animées - Tome 1" all read as single stories. Markers are
+  now keyed by the channel's language (en/fr/zh) over a shared cross-language set. AMENDMENT_01
+  says the pipeline is channel-driven; a filter that speaks one language is the same defect
+  as a hardcoded genre, and it hid until the first non-English channel existed.
+- **Dropping records shelved `Category: Novels` cost 11 of the 16.** Gutenberg files
+  novellas and single short stories there outside English — Rosny's *Les Xipéhuz*, Wells's
+  *Dans l'abîme*, Sand's *L'Orco*. That shelf now **demotes** in the ranking instead of
+  excluding, so the record stays reachable when the top of the list runs out.
+- Neither is sufficient, because **the catalog carries no length field at all.** Whether a
+  record is one story or a 400-page novel is knowable only by fetching it, and ranking by
+  reputation puts the famous novels first: with both filters fixed and nothing else changed,
+  a 40-slot build filled with Verne, Swift and Wells and still yielded 4. So verification
+  now runs **before** the model picks and **walks the ranked list until the batch is full**
+  (`verify.fill`) instead of checking a fixed slice. Fetching is free; guessing harder from
+  metadata that does not carry the answer is not. `free` mode gathers the wide shortlist too
+  — a list exactly `limit` long leaves nowhere to walk.
+- Consequence worth its own line: **a pick that cannot cut anything is no longer bought.**
+  When the verified list is already ≤ the batch, `free_llm` skips the selection call. The
+  model was also being asked to avoid a trap it cannot see — nothing in a shortlist says how
+  long a text is — which is why verification belongs ahead of it, not after.
+
+### Verified, not assumed
+
+- French Sci-Fi, `free` mode, batch 40, sandbox: **15 usable after checking 79** (the 16th,
+  *Contes pour les satyres*, is a genuine collection the new French markers correctly catch).
+  Was 5.
+- Horror, batch 12, sandbox: **12/12 usable after 15 checks** — unregressed, and still stops
+  early rather than fetching the whole batch.
+- Tests **285 → 308**, all passing. One test was removed
+  (`test_rejected_picks_are_replaced_from_spares`): with verification ahead of the pick, a
+  reject cannot cost a spare, so the behaviour it pinned no longer exists.
+- The real build then ran on live data: `curation_runs` id 6, **$0.00**, 79 candidates
+  stored (15 usable), no model call. Grace had authorised ~$0.05; the skip-the-pointless-call
+  guard meant it cost nothing.
+- Queue: three French stories acquired, first rendered at **48.1 min, kokoro/ff_siwis**
+  (`Relation d'un voyage du Pole Arctique…`), the other two rendering at the time of writing.
+  No listener was live at either sample (`progress.updated_at` unchanged 20 minutes apart)
+  before anything wrote to `data/app.db`.
+
+**Unrecorded spend, per the standing FIX-5 gap:** tag-at-ingest is a paid Haiku call outside
+the cap and outside the ledger (~$0.01/story, DESIGN §5), so ingesting 3 stories spent
+roughly **$0.03 that no ledger row shows**. Estimated, not measured — which is exactly the
+complaint FIX-5 records, now with a concrete instance.
+
+### Measurements invalidated by this change
+
+- **R1 and R2 re-gated at `7361812`:** **11,418** source LOC (probes 794, tests 3,603) and
+  **308/308** tests. Movement reconciles to zero: +317/−52 = +265 over R1's extension list,
+  tests component +163. R3 re-passed at the same commit and still owes its run at the flip.
+  README's frozen test count updated with its as-of commit.
+- **R4 (`free_llm` cost per build) is now a range, not a figure.** $0.0512 on a channel with
+  more supply than the batch, $0 on a thin one. The row was UNVERIFIED already and stays so,
+  with the range recorded — a "$0.05 per build" claim would now quote the expensive end as if
+  it were the only end.
+- **Pool composition figures in STATE are superseded**: the horror pool's 29 candidates are
+  untouched, but "the pool" is now two pools, and the French one is the new build.
+- **Not invalidated:** every Phase 5/6 measurement. They ran on the horror channel, whose
+  selection is unchanged — the demotion only reorders records that were previously excluded
+  outright, and no horror candidate was.
+
+### Still owed (unchanged by this session)
+
+`/security-review` in a fresh session, the screenshots/recording, and the cold-start test —
+the Phase 7 gate. The scheduler is still uninstalled and still Grace's to install: until she
+does, the French queue advances only when a worker is run by hand.
+
 ## Entry 42 — 2026-08-09 — Pre-publication review (independent) and its fixes; README rebuilt around the case study
 
 Grace commissioned a full pre-flip review of this repo as a portfolio piece — code and
