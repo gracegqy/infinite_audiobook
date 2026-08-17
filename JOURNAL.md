@@ -5,6 +5,80 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 44 — 2026-08-17 — Pool builds from the app: the notice the amendment already required, and the button it always allowed
+
+Grace, after Entry 43: *"is there a way to make this process smoother? i.e., start the
+acquisition process immediately after adding any new channel (and have the ui tell me that
+something is happening), without needing to run a whole session"*.
+
+### The governance question, answered from the text rather than from memory
+
+AMENDMENT_04 A (BINDING) says paid pool builds are **"Grace-initiated only"** and that an
+empty pool **"produces a notice with the cost estimate, never an automatic API call."**
+Reading it rather than recalling it split her request cleanly in three:
+
+1. **The notice is already owed.** The CLI prints it; the app printed nothing, so a channel
+   with no candidates and a full one were indistinguishable on the phone. That is not a
+   feature request — it is the screen half of a binding requirement, missing since the
+   channel editor shipped.
+2. **A button is an initiation.** The amendment names `--build-pool` as the mechanism, but
+   the principle it states is no-*silent*-spend. A press, with the cost on the button, is the
+   same act as typing the command — from the room she is actually in. No amendment needed.
+3. **Auto-build on channel creation is what the amendment forbids** ("never an automatic API
+   call"), and it stays unbuilt. Recorded as open decision (iii), unchanged.
+
+Grace chose 1 + 2 after asking the right question about the boundary — whether the button
+costs more human action per acquisition than auto-build would. It does not: the press is
+per POOL BUILD (40 candidates, ~15 stories on the French channel), and acquisition is the
+worker's $0 path either way. The delta between the tiers is roughly one press a month.
+
+### Built
+
+`pool_jobs` + `pipeline/pooljob.py` mirror `render_jobs`/`renderjob` deliberately, down to
+the pid rule: liveness is derived from the process, never trusted from the row, so a bar on
+screen always means a build that is actually walking. Differences, each for a reason: the
+unit is a CHANNEL (a build is what happens before any story exists — precisely the window
+that looked like nothing); only `verifying` reports a fraction, and it measures the **walk**
+rather than the goal, because the walk is what takes the minutes and it stops early when the
+batch fills; and there is **no pause** — a paused render holds a finished file, a paused
+build holds open HTTP walks against Gutenberg.
+
+`pipeline/buildpool.py` is the detached driver. It re-checks coverage, the cap and the
+approval that `app/server.py` already checked before spawning it, so neither entry point is
+the only guard. A cancel is read before each fetch (pressing stop does not buy one more
+round trip), keeps what was already verified, and — the one moment a stopped build could
+still spend — skips the paid selection call. A successful build continues into one worker
+acquire cycle, then hands off: the renders open their own `render_jobs` rows, so the
+existing RenderBar takes over and the pool bar does not sit at 100% for the half hour a
+render takes.
+
+### Verified, not assumed
+
+The unit tests mock the subprocess, so they could not prove the chain. Ran it end to end
+against a sandbox French channel with a watcher thread polling the job row: `gathering` →
+`verifying` 0…79 with `usable` climbing to 15 → `acquiring` → `done, acquired 3 story(ies)`,
+three stories at `text_ready`. 81 distinct job states observed. Tests **308 → 344**.
+
+**That run cost ~$0.03 I did not intend.** Real acquisition means real tag-at-ingest calls
+(~$0.01/story, outside the cap and outside the ledger — the FIX-5 gap). The stages should
+have been stubbed; stubbing them is what the unit tests already do. Recorded because an
+unrecorded $0.03 is exactly what FIX-5 is about.
+
+### Measurements invalidated by this change
+
+R1 and R2 re-gated at `5250eb1`: **12,383** source LOC (probes 794, tests 3,985) and
+**344/344** tests. Movement reconciles exactly: +975/−10 = +965. R3 re-passed at the same
+commit and still owes its run at the flip. README's frozen test count moved with it.
+
+### Correction to Entry 43's close
+
+Entry 43 reported the app server "died mid-session" and restarted it. Today's session found
+two uvicorn processes and I read the second as a collision I had caused. It was not: Grace's
+process is on **port 8124** (`--factory`), a deliberate second instance, and the two never
+contended. What Entry 43 got right is that the 18:03 process on 8123 was gone; what it could
+not establish, and still cannot, is why. The 8123 server was restarted again today after this
+session's changes, and it is mine — killing it is how she takes it back.
+
 ## Entry 43 — 2026-08-16 — "I added a French Sci-Fi channel and nothing happened": three causes, only one a defect
 
 Grace created a second channel (French Sci-Fi — `fr`, genre *Science fiction*, topic

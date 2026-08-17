@@ -1,4 +1,4 @@
-# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 43 · 2026-08-16
+# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 44 · 2026-08-17
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -190,8 +190,22 @@ stay playable; only replenishment follows the active channel (DESIGN §7).
 Everything per-channel is genuinely per-channel: the pool
 (`pool.pool_candidates` filters by `channel_id`), the queue count, and the taste
 profile. A new channel therefore starts with an **empty pool**, and the worker
-cannot fill it — only `run_story --build-pool` can. That is not a bug, and it is
-the first thing to check when a channel switch "does nothing" (Entry 43).
+cannot fill it — only a pool build can. That is not a bug, and it is the first
+thing to check when a channel switch "does nothing" (Entry 43).
+
+**Since Entry 44 the Channels tab says so itself**, and can fix it: each channel
+shows its candidate count, the sources covering it (or why none do), and a
+**build pool** button carrying the current mode's cost estimate. A build shows a
+live bar (checking candidates 12/79 · 4 usable so far) with a **stop**, and rolls
+straight into acquisition, so a press ends with stories rendering rather than
+with a full pool and an empty queue. Builds still refuse exactly as the CLI does
+— no covering source, a breached cap, and an explicit approval above
+`CURATION_SPEND_CONFIRM_USD` — and those checks run **before** the process is
+spawned as well as inside it.
+
+**Auto-build on channel creation is still NOT built** and still needs an
+amendment; see Open decisions (iii). What Entry 44 removed was the invisibility,
+not the ruling.
 
 ## Library
 
@@ -229,7 +243,9 @@ verdict is Grace's and is not implied by `status='ready'`.
 **Pools, plural.** Horror: 29 usable candidates (Entry 37's build, untouched;
 read its order before trusting it — ranks 4–14 are eleven consecutive Lovecraft
 titles, the Entry-37 finding, not a queue fault). French Sci-Fi: `curation_runs`
-id 6, **79 candidates stored, 15 usable**, built 2026-08-16 for **$0.00**. 15 is
+id 6, **79 candidates stored, 15 usable**, built 2026-08-16 for **$0.00** — 3 of
+those have been acquired, so **12 candidates remain** (the figure the Channels
+tab now shows). 15 is
 the honest ceiling for this channel — verifying all 104 matching Gutenberg rows
 found 16 usable single stories and one of those is a collection (Entry 43). At
 `QUEUE_DEPTH = 3` that is ~12 more stories before the channel runs dry, and no
@@ -249,6 +265,13 @@ portfolio screenshots** rather than trust this line. No live listener at the
 Entry-43 check: `progress` unwritten since 2026-08-16 23:06 UTC (sampled twice,
 ~20 min apart) before anything was written to `data/app.db`. The Trends tab (and
 so every manual taste override) needs the server up, as do the screenshots.
+
+**Superseded 2026-08-17 (Entry 44): the running server is Claude's.** Restarted
+via `scripts/serve.sh` at the Entry-44 close, on :8123, serving the new build
+endpoints and a freshly rebuilt `app/frontend/dist/`. To take it back, kill that
+process and run `scripts/serve.sh` yourself. **A second instance of Grace's runs
+on :8124** (`--factory`, started 10:01) — the two do not contend, but 8124 is on
+the old code until restarted, so the build button 404s there.
 
 **Newest DB snapshot: `backups/app-20260809-190545.db`** (Entry 40, hand-run,
 local only — 20 stories / 2 progress / 6 ratings, integrity ok). Before it the
@@ -332,10 +355,11 @@ Currently $8.00/month with $4.8562 spent and $3.1438 remaining (re-read from
 cost $0.00**: `free_llm` now skips the selection call when the verified list is
 already ≤ the batch, because there is nothing left to choose).
 
-**Outside that total, and still not measured:** Entry 43 ingested 3 stories, so
-tag-at-ingest spent roughly **$0.03 that no ledger row shows** (~$0.01/story,
-DESIGN §5). That is the FIX-5 gap with a concrete instance attached — see
-open item 4.
+**Outside that total, and still not measured:** Entry 43 ingested 3 stories and
+Entry 44's end-to-end test ingested 3 more into a sandbox, so tag-at-ingest spent
+roughly **$0.06 that no ledger row shows** (~$0.01/story, DESIGN §5). Entry 44's
+half was avoidable — the test should have stubbed the acquire stage. That is the
+FIX-5 gap with two concrete instances attached — see open item 4.
 
 ## Open decisions
 
@@ -354,7 +378,12 @@ can change and apply at any time.
   checked before every paid path *including* `free_llm`. Verified refusing a
   build (exit 4, $0 spent).
 - **(iii) auto `--build-pool` — NOT built, and needs an AMENDMENT, not a scope
-  call.** It contradicts AMENDMENT_04 A, which is BINDING: *"paid pool builds
+  call.** *(Entry 44 narrowed what is left: the notice and the in-app button are
+  built and needed no amendment — a press IS the "Grace-initiated" build A always
+  allowed. Only the AUTOMATIC build is still outstanding, and if it is ever
+  written it must cover pool EXHAUSTION, not just channel creation, or it will
+  not help the second time. Rule on FIX-5 first: auto-acquisition spends
+  tag-at-ingest outside both the cap and the ledger.)* It contradicts AMENDMENT_04 A, which is BINDING: *"paid pool builds
   are rare, large, and Grace-initiated only… never an automatic build."* The
   honest path is AMENDMENT_07 superseding 04-A. Cheaper alternative that needs
   no amendment: let the scheduler run `--build-pool` on a visible cadence Grace
