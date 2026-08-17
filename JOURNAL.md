@@ -80,7 +80,7 @@ complaint FIX-5 records, now with a concrete instance.
 
 ### Measurements invalidated by this change
 
-- **R1 and R2 re-gated at `7361812`:** **11,418** source LOC (probes 794, tests 3,603) and
+- **R1 and R2 re-gated at `7b87028`:** **11,418** source LOC (probes 794, tests 3,603) and
   **308/308** tests. Movement reconciles to zero: +317/−52 = +265 over R1's extension list,
   tests component +163. R3 re-passed at the same commit and still owes its run at the flip.
   README's frozen test count updated with its as-of commit.

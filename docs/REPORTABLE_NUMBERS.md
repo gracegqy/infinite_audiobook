@@ -20,10 +20,10 @@
 | | |
 |---|---|
 | **Quantity** | Lines in git-tracked source files (`.py`, `.jsx`, `.css`, `.html`, `.sh`) at HEAD. Grain = physical lines incl. blanks and comments; denominator = files tracked by git, so gitignored `data/`, `.venv/`, `node_modules/`, `dist/` are excluded. **Includes** `pre_design_probes/` (794) and `tests/` (3,171). |
-| **Value** | **11,418** at commit `7361812` (of which probes 794, tests 3,603) |
+| **Value** | **11,418** at commit `7b87028` (of which probes 794, tests 3,603) |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `source-lines-total` |
-| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-16 at commit `7361812`, saw `source-lines-total:11418`, `of-which-probes:   794`, `test-lines:        3603`, `clean-worktree:    yes` |
+| **Gate evidence** | ran `bash scripts/repo_stats.sh` 2026-08-16 at commit `7b87028`, saw `source-lines-total:11418`, `of-which-probes:   794`, `test-lines:        3603`, `clean-worktree:    yes` |
 | **Invalidated by** | any commit that adds or removes source files (i.e. constantly). Re-run before every quote. |
 | **Last sent** | never |
 | **Status** | **RTR 2026-08-16** — as-of-commit must be stated with the figure |
@@ -44,7 +44,7 @@ derivation was not scripted, so it cannot be re-run — NUMBERS_PROTOCOL §3 cau
 committed script, is canonical.
 
 **Movement since the prior gate reconciles exactly (G4).** 11,153 at `f1394e9` → **11,418**
-at `7361812`, the Entry-43 commit. `git diff --numstat f1394e9 7361812` over this row's
+at `7b87028`, the Entry-43 commit. `git diff --numstat f1394e9 7b87028` over this row's
 extension list gives **+317 / −52 = +265**, which is the whole difference: `catalog.py`
 +56/−15, `freepool.py` +38/−18, `verify.py` +41 (the new `fill`), and the three test files
 +182/−19. The tests component moves +163 by the same arithmetic (3,440 → 3,603). One
@@ -69,6 +69,14 @@ component moved +241 (3,171 → 3,412). The four other commits in that range (`2
 `73325c2`, `e40bdd4`, and Grace's `f10fad0`) touched only `.md` files, which this row
 excludes by definition.
 
+**Note on the hashes (2026-08-16, the same thing again):** Entry 43's two commits were rebased
+onto Grace's `10f779f` (a README formatting fix she pushed while this session was running), so
+their pre-rebase hashes — `7361812`, `ae3d607` — are dead and every citation here, in
+`README.md` and in JOURNAL Entry 43 was rewritten to the post-rebase ones. The R1/R2/R3 gates
+were **re-run at the rebased `7b87028`**, not carried over: `+317/−52 = +265` reproduces
+across the rebased range, and the figures are identical because the rebase changed no source
+file. Same rule as last time — a figure whose as-of-commit does not exist is not a gated figure.
+
 **Note on the hashes:** the 2026-08-09 morning commits were rebased onto Grace's `f10fad0` (pushed
 2026-08-07, README wording, no source files) before pushing, so their first hashes are dead
 and every citation in this file, JOURNAL Entry 40 and the FIXES file was rewritten to the
@@ -88,7 +96,7 @@ and therefore excluded from `source-lines-total` by definition; the figure is un
 | | |
 |---|---|
 | **Quantity** | Test cases collected and passing under `pytest` at repo root. Grain = pytest test items (parametrized cases count individually), not test functions or files. |
-| **Value** | **308 collected, 308 passing** at commit `7361812` |
+| **Value** | **308 collected, 308 passing** at commit `7b87028` |
 | **Class** | MEASUREMENT |
 | **Derivation** | `.venv/bin/python -m pytest -q` (count also in `scripts/repo_stats.sh` → `tests-collected`) |
 | **Gate evidence** | ran `.venv/bin/python -m pytest -q` 2026-08-16, saw `308 passed, 1 warning in 24.84s`; `repo_stats.sh` agrees at `tests-collected:   308` |
@@ -125,7 +133,7 @@ a claim that the system works end to end.
 | **Value** | **CONFIRMED — none, ever** |
 | **Class** | MEASUREMENT |
 | **Derivation** | `bash scripts/repo_stats.sh` → `never-committed` (script exits 1 if it ever fails) |
-| **Gate evidence** | re-passed 2026-08-16 at commit `7361812` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. Previously re-passed 2026-08-09 at `f1394e9`, and independently re-derived that day (Entry 42): all 99 paths ever added, on all branches, checked against `data/`, `.env`, audio and DB patterns — none. First passed 2026-07-30. |
+| **Gate evidence** | re-passed 2026-08-16 at commit `7b87028` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. Previously re-passed 2026-08-09 at `f1394e9`, and independently re-derived that day (Entry 42): all 99 paths ever added, on all branches, checked against `data/`, `.env`, audio and DB patterns — none. First passed 2026-07-30. |
 | **Invalidated by** | any commit that adds such a path; any history rewrite |
 | **Last sent** | never |
 | **Status** | **RTR 2026-08-16** — this row is *invalidated by every subsequent commit*, so today's pass does **not** discharge the pre-flip run: **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |
