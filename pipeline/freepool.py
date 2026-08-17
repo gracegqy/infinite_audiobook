@@ -31,36 +31,56 @@ def build_pool(conn, channel=None, limit: int = config.POOL_BATCH_SIZE,
     channel = channel or db.active_channel(conn)
     known = db.known_titles(conn)
 
-    # free_llm looks at a wider shortlist than it returns, so the pick has
-    # something to choose between; free takes exactly what it needs.
-    want = config.free_shortlist_size(limit) if use_llm else limit
+    # Both modes now assemble the same wide shortlist. free_llm needs it so the
+    # pick has something to choose between; free needs it because verification
+    # walks down the list until the batch is full (Entry 43), and a list exactly
+    # `limit` long leaves nowhere to walk — a channel where half the candidates
+    # are collections would return half a pool and no way to do better. The
+    # modes still differ in the one thing that matters: who picks.
+    want = config.free_shortlist_size(limit)
     candidates = sources.gather(conn, channel, known, want, log=log)
     if not candidates:
         log("[freepool] no candidates — sources cover this channel but returned "
             "nothing (everything may already be in the library).")
 
+    # Verify BEFORE the pick, and fill to a target (Entry 43). Both halves
+    # changed. Before: the model chose from unverified metadata and the free
+    # verifier ran over its picks afterwards, so a collection volume cost a
+    # spare — and once the spares were gone, a pool slot. But nothing in the
+    # shortlist says how LONG a text is, so the model cannot avoid that trap
+    # any better than the ranking can: the answer only exists in the fetched
+    # text. Verifying first means the model chooses among texts already known
+    # to be usable, and its judgement goes on what it can actually judge.
+    rejected: list[dict] = []
+    if verify_refs and candidates:
+        need = limit + config.SELECTION_SPARES if use_llm else limit
+        log(f"[freepool] verifying references until {need} pass "
+            f"({len(candidates)} available, no API cost)…")
+        examined = verify.fill(candidates, need, log=log)
+        candidates = [c for c in examined if c.get("verified") is not False]
+        # kept in the ledger record, never offered onward: the rejections are
+        # the evidence for why a thin build was thin (Entry 25's rule).
+        rejected = [c for c in examined if c.get("verified") is False]
+
     run_id = None
-    if use_llm and candidates:
+    if use_llm and len(candidates) > limit:
         candidates, run_id = curate.run_selection(conn, channel, candidates,
                                                   limit, log=log)
+        # every pick is already verified, so spares are pure surplus now
+        candidates = candidates[:limit]
+    elif use_llm and candidates:
+        # Nothing to choose: the batch would take every verified candidate
+        # whatever the model said. Paying to rank a list that cannot be cut is
+        # the same class of waste as the empty-list call below — and a thin
+        # channel is exactly where it would happen, so exactly where a silent
+        # charge would be least expected.
+        log(f"[freepool] {len(candidates)} verified candidates for a batch of "
+            f"{limit} — taking them all, no selection call to pay for.")
     elif use_llm:
         log("[freepool] skipping the selection call — nothing to choose from, "
             "so it would cost money to pick from an empty list.")
 
-    if verify_refs and candidates:
-        log(f"[freepool] verifying {len(candidates)} references (no API cost)…")
-        candidates = verify.annotate(candidates, log=log)
-        if use_llm:
-            # The model ranked `limit` + spares; drop what the free verifier
-            # rejected and keep the best `limit` that survive, so a Gutenberg
-            # collection volume costs a spare rather than a slot in the pool.
-            kept = [c for c in candidates if c.get("verified") is not False]
-            dropped = len(candidates) - len(kept)
-            candidates = kept[:limit]
-            if dropped:
-                log(f"[freepool] {dropped} rejected pick(s) replaced from spares")
-
-    payload = json.dumps(candidates, ensure_ascii=False)
+    payload = json.dumps(candidates + rejected, ensure_ascii=False)
     if run_id is None:
         # free mode (or an empty free_llm build): its own $0 ledger row.
         db.record_curation_run(conn, channel["id"], LEDGER_MODEL_FREE, 0.0, 0,

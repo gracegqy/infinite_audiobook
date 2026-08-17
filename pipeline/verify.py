@@ -48,6 +48,47 @@ def check_candidate(candidate: dict) -> tuple[bool | None, str]:
     return True, f"ok: {len(paragraphs)} paragraphs, {len(text)} chars"
 
 
+def fill(candidates: list[dict], want: int, log=print) -> list[dict]:
+    """Verify in rank order until `want` candidates pass, then stop.
+
+    Entry 43. `annotate` checks a fixed slice and keeps whatever survives, which
+    is right when most candidates are usable — the horror channel's are. It is
+    wrong when they are not: the Gutenberg catalog carries no length field, so
+    "one short story or a 400-page novel?" is answerable ONLY by fetching, and
+    ranking by reputation puts the famous novels first. The French sci-fi channel
+    had 16 usable candidates among 104 matching records and a 40-slot build found
+    5 of them, because the slice filled up with Verne before reaching any of them.
+
+    Walking further costs HTTP and nothing else — no key, no model, no fee — so
+    the honest fix is to keep verifying until the pool is full rather than to
+    guess harder from metadata that does not carry the answer.
+
+    Returns only the candidates actually EXAMINED, each stamped like `annotate`
+    does; the unexamined tail is dropped rather than stored unverified, so the
+    pool never holds a candidate nobody checked. An uncheckable candidate
+    (ok=None, network trouble) counts toward `want` and stays, on the same
+    "a flaky moment is not a verdict" rule as everywhere else.
+    """
+    examined, usable = [], 0
+    for c in candidates:
+        if usable >= want:
+            break
+        verdict, note = check_candidate(c)
+        c["verified"], c["verify_note"] = verdict, note
+        examined.append(c)
+        if verdict is False:
+            log(f"  [verify] REJECT {c.get('title')!r}: {note}")
+        else:
+            usable += 1
+            if verdict is None:
+                log(f"  [verify] UNKNOWN {c.get('title')!r}: {note}")
+    short = want - usable
+    log(f"[verify] {usable}/{want} usable after checking {len(examined)} "
+        f"candidate(s)"
+        + (f" — {short} short, the source is exhausted" if short > 0 else ""))
+    return examined
+
+
 def annotate(candidates: list[dict], log=print) -> list[dict]:
     """Stamp each candidate with `verified` / `verify_note` in place and report
     the yield. Candidates are never dropped from the record — the full batch

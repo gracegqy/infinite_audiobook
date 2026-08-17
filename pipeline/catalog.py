@@ -46,6 +46,11 @@ CURATED_SHELVES = ("horror", "classics of literature", "short stories",
 # A record on the Novels shelf is a novel — drop it before spending a fetch.
 NOVEL_SHELF = "category: novels"
 SHORT_STORY_SHELF = "category: short stories"
+# How far a Novels-shelf record drops in the ranking (see is_shelved_as_novel).
+# Big enough to put it behind everything with a curated shelf, small enough that
+# it is still reached when the top of the list runs out — which is the whole
+# point of demoting rather than excluding.
+NOVEL_SHELF_PENALTY = 4
 
 
 # ---- pure logic ----
@@ -77,11 +82,23 @@ def matches(row, keywords: list[str], avoid: list[str]) -> bool:
     return any(k in hay for k in keywords)
 
 
-def is_probably_short(row) -> bool:
-    """Drop records Gutenberg files as novels. Cheap pre-filter only — the real
-    arbiter is the length gate in verify/ingest, which reads the actual text."""
+def is_shelved_as_novel(row) -> bool:
+    """On the `Category: Novels` shelf, without a short-story shelf to offset it.
+
+    This USED to exclude the record (`is_probably_short`, Entry 29). Entry 43
+    measured what that cost outside English: Gutenberg applies the Novels shelf
+    loosely, and on French rows it carries novellas and single short stories
+    too — 11 of the 16 usable French sci-fi candidates sit on it, among them
+    Rosny's *Les Xipéhuz* and Wells's *Dans l'abîme*. Excluding on it threw away
+    two thirds of the channel's supply to save a few fetches.
+
+    So it now DEMOTES instead of excluding (see `reputation_score`): the record
+    stays reachable, and the length gate — which reads the actual text and is
+    the only thing that can really tell — remains the arbiter, exactly as this
+    module's docstring always claimed.
+    """
     shelves = (row.get("Bookshelves") or "").lower()
-    return NOVEL_SHELF not in shelves or SHORT_STORY_SHELF in shelves
+    return NOVEL_SHELF in shelves and SHORT_STORY_SHELF not in shelves
 
 
 # Title markers for multi-story volumes. The length gate alone is NOT enough
@@ -89,23 +106,45 @@ def is_probably_short(row) -> bool:
 # collection is ~60k chars and sails through, so catalog mode's first run
 # returned mostly collections. Titles announce them reliably, and unlike the
 # length gate this costs no fetch.
-COLLECTION_MARKERS = (
-    "works of", "complete works", "complete tales", "collection",
-    "and other", "anthology", "omnibus", "selected ", "volume",
-    "short stories", "ghost stories", "collected ",
-)
+#
+# Keyed BY LANGUAGE since Entry 43. The list was English-only, so the first
+# non-English channel got no collection filtering at all: 25 of the 30 French
+# sci-fi candidates were collections or novels, and "Contes bruns", "Histoires
+# extraordinaires" and "Les fleurs animées - Tome 1" all read as single stories.
+# A source cannot be channel-general (AMENDMENT_01) while its filters speak one
+# language. An unlisted language falls back to the shared markers alone.
+COLLECTION_MARKERS = {
+    "en": ("works of", "complete works", "complete tales", "and other",
+           "selected ", "short stories", "ghost stories", "collected "),
+    # plural forms only: "contes"/"histoires" announce a volume, while the
+    # singular "Conte"/"Histoire" is how French titles a single story
+    # ("L'élixir de vie: Conte magique", "Histoire du véritable Gribouille").
+    "fr": ("contes", "histoires", "nouvelles", "récits", "recits", "tome ",
+           "suivi de", "et autres", "oeuvres", "œuvres", "choisies", "choisis",
+           "recueil"),
+    "zh": ("全集", "文集", "小说集", "故事集", "选集"),
+}
+# Markers that carry across every language this project serves.
+COLLECTION_MARKERS_ANY = ("collection", "anthology", "anthologie", "omnibus",
+                          "volume", "complete", "complet")
+# A bare plural ending says the same thing as an explicit marker.
+COLLECTION_ENDINGS = {
+    "en": ("tales", "stories"),
+    "fr": ("contes", "histoires", "nouvelles", "récits"),
+}
 
 
-def looks_like_collection(title: str) -> bool:
+def looks_like_collection(title: str, language: str = "en") -> bool:
     """True when the TITLE itself says multi-story volume. Deliberately errs
     toward rejecting: a missed single story costs nothing (the catalog has 514
     candidates), while an accepted collection wastes a fetch and, worse, could
     render hours of the wrong audio."""
     low = f" {(title or '').lower()} "
-    if any(m in low for m in COLLECTION_MARKERS):
+    markers = COLLECTION_MARKERS_ANY + COLLECTION_MARKERS.get(language, ())
+    if any(m in low for m in markers):
         return True
-    # a bare plural "…Tales"/"…Stories" ending is the same signal
-    return low.rstrip().rstrip(".").endswith(("tales", "stories"))
+    endings = COLLECTION_ENDINGS.get(language, ())
+    return bool(endings) and low.rstrip().rstrip(".").endswith(endings)
 
 
 def reputation_score(row) -> int:
@@ -117,6 +156,8 @@ def reputation_score(row) -> int:
     score += min(3, len([s for s in (row.get("Subjects") or "").split(";") if s.strip()]))
     if SHORT_STORY_SHELF in hay:
         score += 2
+    if is_shelved_as_novel(row):
+        score -= NOVEL_SHELF_PENALTY
     return score
 
 
@@ -181,12 +222,12 @@ def select(rows, channel, known_titles, limit: int) -> list[dict]:
     for row in rows:
         if row.get("Type") != "Text" or row.get("Language") != language:
             continue
-        if not matches(row, keywords, avoid) or not is_probably_short(row):
+        if not matches(row, keywords, avoid):
             continue
         cand = to_candidate(row, language)
         if not cand["source_ref"] or not cand["title"]:
             continue
-        if looks_like_collection(cand["title"]):
+        if looks_like_collection(cand["title"], language):
             continue
         if cand["title"].lower() in known:
             continue

@@ -86,6 +86,62 @@ def test_annotate_stamps_and_counts(monkeypatch):
     assert any("1/3 usable" in m for m in logs)
 
 
+# ---- fill: verify until the pool is full (Entry 43) ----
+
+def _verdicts(monkeypatch, by_title):
+    monkeypatch.setattr(verify, "check_candidate",
+                        lambda c: by_title[c["title"]])
+
+
+def test_fill_stops_as_soon_as_the_batch_is_full(monkeypatch):
+    """The horror channel's candidates nearly all verify, so this must not turn
+    a cheap build into 40 pointless fetches."""
+    checked = []
+    monkeypatch.setattr(verify, "check_candidate",
+                        lambda c: (checked.append(c["title"]), (True, "ok"))[1])
+    out = verify.fill([cand(title=f"S{i}") for i in range(10)], 3,
+                      log=lambda *a: None)
+    assert checked == ["S0", "S1", "S2"]
+    assert [c["title"] for c in out] == ["S0", "S1", "S2"]
+
+
+def test_fill_walks_past_rejections_to_fill_the_batch(monkeypatch):
+    """The French sci-fi case: 16 usable among 104, ranked below the novels."""
+    _verdicts(monkeypatch, {"a": (False, "too long"), "b": (False, "too long"),
+                            "c": (True, "ok"), "d": (True, "ok")})
+    out = verify.fill([cand(title=t) for t in "abcd"], 2, log=lambda *a: None)
+    assert [c["title"] for c in out] == ["a", "b", "c", "d"]
+    assert [c["verified"] for c in out] == [False, False, True, True]
+
+
+def test_fill_drops_the_tail_it_never_examined(monkeypatch):
+    """An unchecked candidate must not reach the pool wearing no verdict —
+    that is the pre-Entry-25 behaviour the verifier exists to end."""
+    _verdicts(monkeypatch, {"a": (True, "ok"), "b": (True, "ok"),
+                            "c": (True, "ok")})
+    out = verify.fill([cand(title=t) for t in "abc"], 1, log=lambda *a: None)
+    assert [c["title"] for c in out] == ["a"]
+    assert all("verified" in c for c in out)
+
+
+def test_fill_counts_an_uncheckable_candidate_toward_the_batch(monkeypatch):
+    """Same rule as everywhere else: a flaky moment is not a verdict, so an
+    unknown is kept — and kept means it fills a slot."""
+    _verdicts(monkeypatch, {"a": (None, "could not check now"),
+                            "b": (True, "ok")})
+    out = verify.fill([cand(title="a"), cand(title="b")], 1,
+                      log=lambda *a: None)
+    assert [c["title"] for c in out] == ["a"]
+    assert out[0]["verified"] is None
+
+
+def test_fill_says_so_when_the_source_runs_out(monkeypatch):
+    _verdicts(monkeypatch, {"a": (True, "ok"), "b": (False, "too long")})
+    logs = []
+    verify.fill([cand(title="a"), cand(title="b")], 5, log=logs.append)
+    assert any("1/5 usable" in m and "exhausted" in m for m in logs)
+
+
 # ---- the pool honors the verdicts ----
 
 def _run(conn, candidates):

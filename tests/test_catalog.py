@@ -91,15 +91,65 @@ def test_select_ranks_curated_shelves_first(conn):
     assert picked[0]["title"] == "Curated Story"
 
 
-def test_select_skips_novels_wrong_language_and_non_text(conn):
+def test_select_skips_wrong_language_and_non_text(conn):
     rows = [
-        row(20, "A Novel", shelves="Category: Novels"),
         row(21, "French Story", language="fr"),
         row(22, "An Audio Thing", typ="Sound"),
         row(23, "Good Story"),
     ]
     assert [c["title"] for c in catalog.select(rows, _channel(conn), [], limit=9)] \
         == ["Good Story"]
+
+
+def test_novel_shelf_demotes_but_no_longer_excludes(conn):
+    """Entry 43: excluding on `Category: Novels` threw away 11 of the 16 usable
+    French sci-fi candidates — Gutenberg files novellas and single stories there
+    outside English. It now ranks last, and the length gate (which reads the
+    text) decides. A ranked-last record is still reachable when the top runs
+    out, which is the whole difference."""
+    rows = [row(20, "Shelved As A Novel", shelves="Category: Novels"),
+            row(23, "Good Story")]
+    assert [c["title"] for c in catalog.select(rows, _channel(conn), [], limit=9)] \
+        == ["Good Story", "Shelved As A Novel"]
+
+
+# ---- collection detection outside English (Entry 43) ----
+
+@pytest.mark.parametrize("title", [
+    "Contes bruns",
+    "Histoires extraordinaires",
+    "Nouvelles histoires extraordinaires",
+    "Les fleurs animées - Tome 1",
+    "La Mort de la Terre, roman, suivi de contes",
+    "Vingt mille Lieues Sous Les Mers — Complete",
+])
+def test_french_collection_titles_rejected(title):
+    assert catalog.looks_like_collection(title, "fr"), title
+
+
+@pytest.mark.parametrize("title", [
+    "Micromégas",
+    "Les Xipéhuz",
+    "Dans l'abîme",
+    "La mandragore",
+    "L'élixir de vie: Conte magique",      # singular Conte = one story
+    "Histoire du véritable Gribouille",    # singular Histoire, likewise
+])
+def test_french_single_story_titles_kept(title):
+    assert not catalog.looks_like_collection(title, "fr"), title
+
+
+def test_markers_are_scoped_to_the_channel_language():
+    """The French markers must not leak into an English channel, where
+    "Nouvelles" is not a word and "Stories" already has its own rule."""
+    assert not catalog.looks_like_collection("Contes bruns", "en")
+    assert catalog.looks_like_collection("Contes bruns", "fr")
+
+
+def test_unknown_language_still_gets_the_shared_markers():
+    """An unlisted language loses its own markers, not all of them."""
+    assert catalog.looks_like_collection("Antologia — Volume 2", "pt")
+    assert not catalog.looks_like_collection("Uma História", "pt")
 
 
 def test_select_excludes_known_titles(conn):

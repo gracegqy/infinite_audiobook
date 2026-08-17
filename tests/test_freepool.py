@@ -147,11 +147,20 @@ def patch_sources(monkeypatch, produced):
                         lambda conn, ch, known, limit, log=print: produced[:limit])
 
 
+def patch_verdicts(monkeypatch, reject_titles=()):
+    """Fake the network half of verification, leaving verify.fill's real
+    walk-until-full logic under test."""
+    monkeypatch.setattr(
+        "pipeline.verify.check_candidate",
+        lambda c: ((False, "collection volume") if c["title"] in reject_titles
+                   else (True, "ok: 12 paragraphs, 9000 chars")))
+
+
 def test_free_mode_makes_no_model_call_and_logs_zero_cost(conn, monkeypatch):
     patch_sources(monkeypatch, cands(10))
     monkeypatch.setattr(config, "anthropic_client", lambda: pytest.fail(
         "free mode must never call the model"))
-    monkeypatch.setattr("pipeline.verify.annotate", lambda c, log=print: c)
+    patch_verdicts(monkeypatch)
     out = freepool.build_pool(conn, limit=4, use_llm=False, log=lambda *a: None)
     assert len(out) == 4
     row = conn.execute("SELECT * FROM curation_runs ORDER BY id DESC").fetchone()
@@ -166,7 +175,7 @@ def test_free_llm_shortlist_is_wider_than_the_batch(conn, monkeypatch):
                         lambda conn, ch, known, limit, log=print: (
                             asked.update(limit=limit) or cands(limit)))
     patch_model(monkeypatch, json.dumps([{"i": i, "why": "x"} for i in range(4)]))
-    monkeypatch.setattr("pipeline.verify.annotate", lambda c, log=print: c)
+    patch_verdicts(monkeypatch)
     freepool.build_pool(conn, limit=4, use_llm=True, log=lambda *a: None)
     assert asked["limit"] == config.free_shortlist_size(4) > 4
 
@@ -176,13 +185,27 @@ def test_one_build_writes_exactly_one_ledger_row(conn, monkeypatch):
     candidates. A second row would double-count the spend in R11."""
     patch_sources(monkeypatch, cands(30))
     patch_model(monkeypatch, json.dumps([{"i": i, "why": "x"} for i in range(3)]))
-    monkeypatch.setattr("pipeline.verify.annotate", lambda c, log=print: c)
+    patch_verdicts(monkeypatch)
     freepool.build_pool(conn, limit=3, use_llm=True, log=lambda *a: None)
     rows = conn.execute("SELECT * FROM curation_runs").fetchall()
     assert len(rows) == 1
     stored = json.loads(rows[0]["candidates_json"])
     assert isinstance(stored, list) and len(stored) == 3
     assert rows[0]["cost_usd"] > 0
+
+
+def test_a_batch_that_takes_everything_does_not_buy_a_selection_call(conn, monkeypatch):
+    """Entry 43: a thin channel's verified list can be shorter than the batch,
+    and then the pick cannot cut anything — every candidate goes in whatever the
+    model says. Charging for that is the empty-list waste in a costume."""
+    patch_sources(monkeypatch, cands(3))
+    patch_verdicts(monkeypatch)
+    monkeypatch.setattr(config, "anthropic_client", lambda: pytest.fail(
+        "must not pay to rank a list that cannot be cut"))
+    out = freepool.build_pool(conn, limit=40, use_llm=True, log=lambda *a: None)
+    assert len(out) == 3
+    row = conn.execute("SELECT * FROM curation_runs ORDER BY id DESC").fetchone()
+    assert row["cost_usd"] == 0 and row["model"] == freepool.LEDGER_MODEL_FREE
 
 
 def test_empty_source_result_does_not_buy_a_selection_call(conn, monkeypatch):
@@ -262,22 +285,56 @@ def test_quotas_are_a_noop_for_a_single_class_channel():
     assert curate.apply_class_quotas(ranked, 3) == ranked
 
 
-def test_rejected_picks_are_replaced_from_spares(conn, monkeypatch):
-    """A Gutenberg collection volume must cost a spare, not a pool slot."""
-    shortlist = cands(30)
-    patch_sources(monkeypatch, shortlist)
-    patch_model(monkeypatch, json.dumps(
-        [{"i": i, "why": "x"} for i in range(9)]))
-
-    def annotate(candidates, log=print):
-        for n, c in enumerate(candidates):
-            c["verified"] = n not in (0, 1)   # first two are collections
-        return candidates
-    monkeypatch.setattr("pipeline.verify.annotate", annotate)
+def test_rejected_candidates_never_reach_the_model(conn, monkeypatch):
+    """Entry 43 inverted the order: verification runs BEFORE the pick. Nothing
+    in the shortlist says how LONG a text is, so a pick spent on a collection
+    was a pick the model had no way to avoid spending — it used to cost a
+    spare, and once spares ran out, a pool slot. The model is now offered
+    survivors only, and judges what it can actually judge."""
+    patch_sources(monkeypatch, cands(30))
+    patch_verdicts(monkeypatch, reject_titles={"Story 0", "Story 1"})
+    seen = {}
+    patch_model(monkeypatch,
+                json.dumps([{"i": i, "why": "x"} for i in range(3)]),
+                capture=seen)
 
     out = freepool.build_pool(conn, limit=3, use_llm=True, log=lambda *a: None)
-    assert len(out) == 3
-    assert all(c["verified"] is not False for c in out)
+
+    assert len(out) == 3 and all(c["verified"] is True for c in out)
+    prompt = seen["messages"][0]["content"]
+    # "] Story 0 (" — the rendered list line, so this cannot pass by matching
+    # the "Story 0" inside "Story 10"
+    assert "] Story 0 (" not in prompt and "] Story 1 (" not in prompt
+    assert "] Story 2 (" in prompt
+
+
+def test_rejections_stay_in_the_ledger_row(conn, monkeypatch):
+    """They are the evidence for why a thin build was thin — and the reason a
+    dead reference is never re-proposed (Entry 25's rule, kept)."""
+    patch_sources(monkeypatch, cands(30))
+    patch_verdicts(monkeypatch, reject_titles={"Story 0", "Story 1"})
+    patch_model(monkeypatch, json.dumps([{"i": i, "why": "x"} for i in range(3)]))
+
+    freepool.build_pool(conn, limit=3, use_llm=True, log=lambda *a: None)
+
+    stored = json.loads(conn.execute(
+        "SELECT candidates_json FROM curation_runs ORDER BY id DESC").fetchone()[0])
+    assert [c["title"] for c in stored if c["verified"] is False] \
+        == ["Story 0", "Story 1"]
+
+
+def test_a_thin_source_is_walked_further_rather_than_returning_short(conn, monkeypatch):
+    """The French sci-fi case (Entry 43): most candidates are unusable, so a
+    fixed slice returns almost nothing. Verification keeps walking until the
+    batch is full."""
+    patch_sources(monkeypatch, cands(40))
+    # every third candidate is usable — a 4-slot pool needs 10 checked, which
+    # is more than `limit`, so free mode has to gather wider than it returns
+    patch_verdicts(monkeypatch,
+                   reject_titles={f"Story {i}" for i in range(40) if i % 3})
+    out = freepool.build_pool(conn, limit=4, use_llm=False, log=lambda *a: None)
+    assert [c["title"] for c in out] == \
+        ["Story 0", "Story 3", "Story 6", "Story 9"]
 
 
 def test_selection_asks_for_spares_beyond_the_batch(conn, monkeypatch):
