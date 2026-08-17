@@ -214,12 +214,17 @@ Re-derived from the DB at Entry-43 close.
 
 **Channel 2 — French Sci-Fi (3 rows, all acquired Entry 43)**
 
-- *Relation d'un voyage du Pole Arctique au Pole Antarctique* — ready, 48.1 min,
-  kokoro/**ff_siwis** (the Phase-1 approved French voice; no settings row needed,
-  it is the `config.VOICE_OPTIONS` default)
-- *Voyage dans la lune avant 1900* — ready
-- *Dans l'abîme* (Wells in French) — rendering at Entry-43 close; **re-check its
-  status before assuming the queue is 3/3**
+All three **ready**, all kokoro/**ff_siwis** (the Phase-1 approved French voice;
+no settings row needed, it is the `config.VOICE_OPTIONS` default). Queue 3/3,
+confirmed from the DB and `/api/channels` at Entry-43 close.
+
+- *Relation d'un voyage du Pole Arctique au Pole Antarctique* — 48.1 min, 77 paras
+- *Voyage dans la lune avant 1900* — 18.9 min, 55 paras
+- *Dans l'abîme* (Wells in French) — 75.4 min, 309 paras
+
+**Unheard.** French TTS passed its Phase-1 probe on sample text only (Entry 12–14);
+these are the first real French stories, and nobody has listened to one. A voice
+verdict is Grace's and is not implied by `status='ready'`.
 
 **Pools, plural.** Horror: 29 usable candidates (Entry 37's build, untouched;
 read its order before trusting it — ranks 4–14 are eleven consecutive Lovecraft
