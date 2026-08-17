@@ -71,15 +71,21 @@ cold-started machine has an empty library and refills through the pool (below).
 
 ## Accounts & identity
 
-- Repo: `https://github.com/gracegqy/infinite_audiobook` (personal account `gracegqy`;
+- Repo: `github.com/gracegqy/infinite_audiobook` (personal account `gracegqy`;
   commit identity Grace / gracegumails@gmail.com — the 2026-07 commits carry the
-  uchicago address, accepted in Entry 39; HTTPS + macOS keychain credential). Visibility
-  is whatever GitHub says, not what this line remembers.
-- **Claude Code's filesystem sandbox blocks `git push`** — `credential.helper` is
-  `osxkeychain` and keychain reads are denied, so the helper returns nothing and git
-  tries to prompt on a non-TTY ("could not read Username… Device not configured").
-  Pushing from your own terminal always works; an agent session needs a sandbox
-  override for that one command.
+  uchicago address, accepted in Entry 39). Visibility is whatever GitHub says, not
+  what this line remembers.
+- **`git push` works from an agent session** (corrected Entry 43, which pushed).
+  The remote is **SSH** — `git@github-personal:gracegqy/infinite_audiobook.git`, a
+  host alias in `~/.ssh/config` — so the keychain-credential problem this entry used
+  to describe does not arise. `credential.helper` is still `osxkeychain`, but nothing
+  asks it. If a push ever does fail with "could not read Username", check whether the
+  remote has been switched back to HTTPS before assuming the sandbox.
+- **Expect to rebase.** Grace pushes from her own terminal, so an agent session that
+  has been running for a while will find the remote ahead. Rebase, then **re-run the
+  R1/R2/R3 gates at the new hashes** — `docs/REPORTABLE_NUMBERS.md` treats a figure
+  whose as-of-commit no longer exists as ungated (this has now happened twice,
+  Entries 40 and 43).
 - API keys live in `.env`, read server-side only. **A key appearing in frontend code,
   a URL, or the Settings screen is a bug, full stop** — `data/app.db` is copied into
   `backups/` unencrypted, so a key stored in settings would turn every snapshot into
