@@ -24,7 +24,7 @@ LEDGER_MODEL_FREE = "free-sources"  # not a model; recorded so cost is auditable
 
 def build_pool(conn, channel=None, limit: int = config.POOL_BATCH_SIZE,
                use_llm: bool = False, verify_refs: bool = True,
-               log=print) -> list[dict]:
+               log=print, progress=None) -> list[dict]:
     """One free-source pool build. Raises sources.NoFreeSource when nothing
     covers the channel — never falls back to the paid path, which would be a
     silent spend (AMENDMENT_04 A)."""
@@ -38,6 +38,8 @@ def build_pool(conn, channel=None, limit: int = config.POOL_BATCH_SIZE,
     # are collections would return half a pool and no way to do better. The
     # modes still differ in the one thing that matters: who picks.
     want = config.free_shortlist_size(limit)
+    if progress:
+        progress.phase("gathering")
     candidates = sources.gather(conn, channel, known, want, log=log)
     if not candidates:
         log("[freepool] no candidates — sources cover this channel but returned "
@@ -56,14 +58,33 @@ def build_pool(conn, channel=None, limit: int = config.POOL_BATCH_SIZE,
         need = limit + config.SELECTION_SPARES if use_llm else limit
         log(f"[freepool] verifying references until {need} pass "
             f"({len(candidates)} available, no API cost)…")
-        examined = verify.fill(candidates, need, log=log)
+        if progress:
+            # The bar measures the WALK (how far down the ranked list we are),
+            # not the goal — the walk is what takes the minutes, and it stops
+            # early whenever `need` is met. A bar that finishes early is honest;
+            # one that sticks at 100% while still fetching is not, which is what
+            # sizing it to `need` would have done on a channel full of rejects.
+            progress.phase("verifying", total=len(candidates))
+        examined = verify.fill(
+            candidates, need, log=log,
+            on_progress=(progress.verified if progress else None),
+            should_abort=(progress.cancelled if progress else None))
         candidates = [c for c in examined if c.get("verified") is not False]
         # kept in the ledger record, never offered onward: the rejections are
         # the evidence for why a thin build was thin (Entry 25's rule).
         rejected = [c for c in examined if c.get("verified") is False]
 
+    # A cancel during verification must not be followed by a PAID call — the
+    # one moment a build could still spend money after being told to stop.
+    stopped = bool(progress and progress.cancelled())
+
     run_id = None
-    if use_llm and len(candidates) > limit:
+    if use_llm and stopped and candidates:
+        log("[freepool] cancelled — keeping the verified candidates, skipping "
+            "the selection call rather than paying for a build you stopped.")
+    elif use_llm and len(candidates) > limit:
+        if progress:
+            progress.phase("selecting")
         candidates, run_id = curate.run_selection(conn, channel, candidates,
                                                   limit, log=log)
         # every pick is already verified, so spares are pure surplus now

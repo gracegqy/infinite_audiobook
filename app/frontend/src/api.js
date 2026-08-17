@@ -5,7 +5,15 @@ async function req(path, opts = {}) {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });
-  if (!r.ok) throw new Error(`${opts.method || "GET"} ${path} -> ${r.status}`);
+  if (!r.ok) {
+    // Surface the server's own words. A refused pool build explains itself in
+    // `detail` — the cost estimate, the spend cap, or which sources do not
+    // cover the channel — and a bare status code would throw away exactly the
+    // sentence the screen exists to show.
+    let detail = "";
+    try { detail = (await r.json()).detail || ""; } catch { /* not JSON */ }
+    throw new Error(detail || `${opts.method || "GET"} ${path} -> ${r.status}`);
+  }
   return r.json();
 }
 
@@ -47,6 +55,15 @@ export const updateChannel = (id, body) =>
   req(`/api/channels/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const activateChannel = (id) =>
   req(`/api/channels/${id}/activate`, { method: "POST" });
+
+// pool builds (Entry 43) — the "Grace-initiated" build of AMENDMENT_04 A,
+// reachable from the phone instead of only a terminal.
+export const listPoolJobs = () => req("/api/pool-jobs");
+export const buildPool = (id, approve_spend = false) =>
+  req(`/api/channels/${id}/build`,
+      { method: "POST", body: JSON.stringify({ approve_spend }) });
+export const cancelBuild = (id) =>
+  req(`/api/channels/${id}/build/cancel`, { method: "POST" });
 
 // render control (AMENDMENT_06)
 export const listRenders = () => req("/api/renders");

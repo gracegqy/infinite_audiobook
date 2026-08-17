@@ -14,17 +14,54 @@ const BLANK = { name: "", genre: "", language: "en", era: "", topics: [],
 const csv = (a) => (a || []).join(", ");
 const parseCsv = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
+const usd = (n) => (n === 0 ? "$0" : `$${n < 0.01 ? n.toFixed(4) : n.toFixed(2)}`);
+
 export default function Channels({ onChanged }) {
   const [data, setData] = useState(null);
   const [editing, setEditing] = useState(null); // id, or "new"
   const [draft, setDraft] = useState(BLANK);
   const [error, setError] = useState(null);
+  // Channels we have just asked to build, before the subprocess has written
+  // its first job row (a second or two). Without this the button press looks
+  // like it did nothing — the exact failure this whole screen is fixing.
+  const [starting, setStarting] = useState([]);
 
   const load = () => api.listChannels().then(setData).catch((e) => setError(String(e)));
   useEffect(() => { load(); }, []);
 
+  const building = data ? data.channels.filter(
+    (ch) => (ch.build && ch.build.active) || starting.includes(ch.id)) : [];
+  // Poll only while something is running: a build takes minutes, and a screen
+  // that polls forever is a battery bug on a phone.
+  useEffect(() => {
+    if (building.length === 0) return undefined;
+    const t = setInterval(load, (data && data.poll_ms) || 2000);
+    return () => clearInterval(t);
+  }, [building.length, data && data.poll_ms]);
+  // Drop the optimistic flag as soon as the real job row appears.
+  useEffect(() => {
+    if (!data || starting.length === 0) return;
+    const seen = data.channels.filter((ch) => ch.build && ch.build.active)
+      .map((ch) => ch.id);
+    if (seen.length) setStarting((s) => s.filter((id) => !seen.includes(id)));
+  }, [data]);
+
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>loading…</p>;
+
+  const build = (ch, approve) => {
+    setError(null);
+    setStarting((s) => [...s, ch.id]);
+    api.buildPool(ch.id, approve)
+      .then(() => load())
+      .catch((e) => {
+        setStarting((s) => s.filter((id) => id !== ch.id));
+        setError(String(e.message || e));
+      });
+  };
+
+  const stopBuild = (id) =>
+    api.cancelBuild(id).then(load).catch((e) => setError(String(e.message || e)));
 
   const startEdit = (ch) => {
     setEditing(ch.id);
@@ -78,6 +115,8 @@ export default function Channels({ onChanged }) {
                   <div className="card-ev">topics: {csv(ch.topics)}</div>}
                 {ch.exclusions.length > 0 &&
                   <div className="card-ev">avoid: {csv(ch.exclusions)}</div>}
+                <PoolState ch={ch} data={data} starting={starting.includes(ch.id)}
+                           onStop={() => stopBuild(ch.id)} />
               </div>
               <div className="card-actions">
                 <button onClick={() => startEdit(ch)}>edit</button>
@@ -88,6 +127,18 @@ export default function Channels({ onChanged }) {
                       "re-targets to it; your other stories stay in the library."))
                       activate(ch.id);
                   }}>activate</button>
+                )}
+                {!(ch.build && ch.build.active) && !starting.includes(ch.id)
+                  && ch.no_free_source_reason === null && (
+                  <button onClick={() => {
+                    if (!data.build_needs_approval) return build(ch, false);
+                    if (window.confirm(
+                      `This build is estimated at ${usd(data.build_estimate_usd)} ` +
+                      `(${data.build_estimate_note}). Start it?`))
+                      build(ch, true);
+                  }}>
+                    build pool · {usd(data.build_estimate_usd)}
+                  </button>
                 )}
               </div>
             </>
@@ -105,6 +156,62 @@ export default function Channels({ onChanged }) {
           + new channel
         </button>
       )}
+    </div>
+  );
+}
+
+// AMENDMENT_04 A: "an empty pool produces a notice with the cost estimate."
+// That notice existed only in the CLI until Entry 43, so on the phone a channel
+// with nothing to draw from looked exactly like a full one — which is how
+// activating a new channel came to look like a no-op for six days.
+function PoolState({ ch, data, starting, onStop }) {
+  const job = ch.build;
+  const live = starting || (job && job.active);
+
+  if (live) {
+    const pct = !job || job.fraction == null ? null : Math.round(job.fraction * 100);
+    return (
+      <div className="pool">
+        <div className={pct == null ? "render-track indet" : "render-track"}>
+          <div className="render-fill"
+               style={pct == null ? undefined : { width: `${pct}%` }} />
+        </div>
+        <div className="card-ev">
+          {starting && !job ? "starting…" : (
+            <>
+              {job.label}
+              {job.total ? ` ${job.checked}/${job.total}` : ""}
+              {job.phase === "verifying" ? ` · ${job.usable} usable so far` : ""}
+            </>
+          )}
+          {job && <button className="link" onClick={onStop}>stop</button>}
+        </div>
+      </div>
+    );
+  }
+
+  if (ch.no_free_source_reason) {
+    return (
+      <div className="card-ev warn">
+        no free source covers this channel — {ch.no_free_source_reason} Switch
+        curation to AI web search in Settings, or add a source.
+      </div>
+    );
+  }
+  if (ch.pool_candidates === 0) {
+    return (
+      <div className="card-ev warn">
+        no candidates in the pool — nothing can be queued until you build one
+        ({usd(data.build_estimate_usd)} in {data.curation_mode} mode).
+        {job && job.note ? ` Last build: ${job.note}` : ""}
+      </div>
+    );
+  }
+  return (
+    <div className="card-ev">
+      {ch.pool_candidates} candidate{ch.pool_candidates === 1 ? "" : "s"} in the
+      pool · sources: {ch.free_sources.join(", ") || "none"}
+      {job && job.state === "cancelled" ? " · last build was stopped" : ""}
     </div>
   );
 }

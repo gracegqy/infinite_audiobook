@@ -208,6 +208,42 @@ def test_a_batch_that_takes_everything_does_not_buy_a_selection_call(conn, monke
     assert row["cost_usd"] == 0 and row["model"] == freepool.LEDGER_MODEL_FREE
 
 
+def test_a_cancelled_build_never_buys_the_selection_call(conn, monkeypatch):
+    """The one moment a stopped build could still spend: verification is
+    cancelled, and the paid pick runs anyway on what survived (Entry 43)."""
+    patch_sources(monkeypatch, cands(30))
+    patch_verdicts(monkeypatch)
+    monkeypatch.setattr(config, "anthropic_client", lambda: pytest.fail(
+        "a cancelled build must not pay for a pick"))
+
+    class Progress:
+        def phase(self, phase, total=None): pass
+        def verified(self, checked, usable): pass
+        def cancelled(self): return True
+
+    out = freepool.build_pool(conn, limit=3, use_llm=True, progress=Progress(),
+                              log=lambda *a: None)
+    assert out == [], "cancelled before any candidate was verified"
+
+
+def test_progress_is_reported_through_the_build(conn, monkeypatch):
+    patch_sources(monkeypatch, cands(10))
+    patch_verdicts(monkeypatch)
+    phases, ticks = [], []
+
+    class Progress:
+        def phase(self, phase, total=None): phases.append((phase, total))
+        def verified(self, checked, usable): ticks.append((checked, usable))
+        def cancelled(self): return False
+
+    freepool.build_pool(conn, limit=3, use_llm=False, progress=Progress(),
+                        log=lambda *a: None)
+    assert phases[0] == ("gathering", None)
+    # the bar measures the WALK, so its total is the list length, not the goal
+    assert ("verifying", 10) in phases
+    assert ticks == [(1, 1), (2, 2), (3, 3)]
+
+
 def test_empty_source_result_does_not_buy_a_selection_call(conn, monkeypatch):
     patch_sources(monkeypatch, [])
     monkeypatch.setattr(config, "anthropic_client", lambda: pytest.fail(

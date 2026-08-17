@@ -138,6 +138,13 @@ button.danger { color: var(--danger); }
   color: var(--dim); margin-bottom: 4px; }
 .bookmark button { background: var(--card-now); color: var(--fg);
   border: none; border-radius: 6px; padding: 3px 8px; }
+/* pool-build state on a channel card (Entry 43) — reuses the render bar's
+   track/fill so a build and a render read as the same kind of "working". */
+.pool { margin-top: 6px; }
+.pool .card-ev { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.card-ev.warn { color: var(--warn, #e0b070); }
+button.link { background: none; border: none; color: var(--dim);
+  text-decoration: underline; padding: 0; font-size: inherit; cursor: pointer; }
 /* render progress + controls (AMENDMENT_06) */
 .render { margin-top: 8px; border-top: 1px solid #2c2c3c; padding-top: 8px;
   flex-basis: 100%; }

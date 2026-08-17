@@ -48,7 +48,8 @@ def check_candidate(candidate: dict) -> tuple[bool | None, str]:
     return True, f"ok: {len(paragraphs)} paragraphs, {len(text)} chars"
 
 
-def fill(candidates: list[dict], want: int, log=print) -> list[dict]:
+def fill(candidates: list[dict], want: int, log=print,
+         on_progress=None, should_abort=None) -> list[dict]:
     """Verify in rank order until `want` candidates pass, then stop.
 
     Entry 43. `annotate` checks a fixed slice and keeps whatever survives, which
@@ -68,10 +69,21 @@ def fill(candidates: list[dict], want: int, log=print) -> list[dict]:
     pool never holds a candidate nobody checked. An uncheckable candidate
     (ok=None, network trouble) counts toward `want` and stays, on the same
     "a flaky moment is not a verdict" rule as everywhere else.
+
+    `on_progress(checked, usable)` and `should_abort()` are the hooks the
+    background build reports and stops through (Entry 43). Both are optional and
+    default to nothing, so every non-UI caller — tests, the CLI — is unchanged.
+    A cancelled walk returns what it examined rather than raising: those
+    verdicts were paid for in HTTP and are just as true as the ones that came
+    before the button.
     """
     examined, usable = [], 0
     for c in candidates:
         if usable >= want:
+            break
+        if should_abort and should_abort():
+            log(f"[verify] cancelled after {len(examined)} candidate(s) — "
+                f"keeping the {usable} already verified")
             break
         verdict, note = check_candidate(c)
         c["verified"], c["verify_note"] = verdict, note
@@ -82,6 +94,8 @@ def fill(candidates: list[dict], want: int, log=print) -> list[dict]:
             usable += 1
             if verdict is None:
                 log(f"  [verify] UNKNOWN {c.get('title')!r}: {note}")
+        if on_progress:
+            on_progress(len(examined), usable)
     short = want - usable
     log(f"[verify] {usable}/{want} usable after checking {len(examined)} "
         f"candidate(s)"

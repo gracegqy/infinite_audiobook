@@ -18,8 +18,8 @@ from fastapi import Body, Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import (backup, budget, config, curate, db, renderjob, sources,
-                      tag, taste, worker)
+from pipeline import (backup, budget, buildpool, config, curate, db, pool,
+                      pooljob, renderjob, sources, tag, taste, worker)
 from pipeline.models import OffsetsManifest, StoryMeta
 
 # Settings copy for the curation modes. Kept beside the API rather than in the
@@ -123,10 +123,24 @@ def default_rerender_runner(story_id: str, voice: str) -> None:
         start_new_session=True)
 
 
+def default_build_runner(channel_id: int, approve_spend: bool) -> None:
+    """Spawn the background pool build (Entry 43) — detached and logged, like
+    the re-render. Progress and control travel through `pool_jobs`, not through
+    this handle: the server must be restartable mid-build without orphaning it."""
+    config.INTERIM_DIR.mkdir(parents=True, exist_ok=True)
+    log = (config.INTERIM_DIR / f"buildpool_{channel_id}.log").open("ab")
+    subprocess.Popen(
+        [sys.executable, "-m", "pipeline.buildpool", "--channel", str(channel_id)]
+        + (["--approved-spend"] if approve_spend else []),
+        cwd=config.ROOT, stdout=log, stderr=subprocess.STDOUT,
+        start_new_session=True)
+
+
 def create_app(db_path=None, library_dir=None, samples_dir=None,
-               rerender_runner=default_rerender_runner) -> FastAPI:
-    """App factory — paths and the re-render runner are injectable so tests run
-    against a temp DB/library and never spawn a real render."""
+               rerender_runner=default_rerender_runner,
+               build_runner=default_build_runner) -> FastAPI:
+    """App factory — paths and the two runners are injectable so tests run
+    against a temp DB/library and never spawn a real render or build."""
     library_dir = library_dir or config.LIBRARY_DIR
     samples_dir = samples_dir or config.VOICE_SAMPLES_DIR
     app = FastAPI(title="infinite_audiobook")
@@ -450,14 +464,34 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         for f in CHANNEL_LIST_FIELDS:
             d[f] = curate.channel_list_field(row, f"{f}_json")
         d["unread"] = worker.unread_count(c, row["id"])
+        # AMENDMENT_04 A requires an empty pool to produce "a notice with the
+        # cost estimate". The CLI printed one and this screen printed nothing,
+        # so a channel with no candidates looked exactly like a full one — which
+        # is how a channel switch came to look like a no-op (Entry 43).
+        d["pool_candidates"] = len(pool.pool_candidates(c, channel_id=row["id"]))
+        covering, skipped = sources.for_channel(row)
+        d["free_sources"] = [s.name for s in covering]
+        d["no_free_source_reason"] = (
+            None if covering else
+            " ".join(f"{s.name}: {why}" for s, why in skipped))
+        job = pooljob.get(c, row["id"])
+        d["build"] = job.as_dict() if job else None
         return d
 
     @app.get("/api/channels")
     def list_channels(c=Depends(get_conn)):
+        pooljob.active(c)  # reap dead builds before reporting any of them
+        mode = db.effective_curation_mode(c)
+        est, how = buildpool.estimate_for(c, mode)
         return {"channels": [_channel_dict(c, r) for r in c.execute(
             "SELECT * FROM channels ORDER BY id")],
             "queue_depth": config.QUEUE_DEPTH,
-            "languages": sorted(config.VOICE_OPTIONS)}
+            "languages": sorted(config.VOICE_OPTIONS),
+            "curation_mode": mode,
+            "build_estimate_usd": round(est, 4),
+            "build_estimate_note": how,
+            "build_needs_approval": est > config.CURATION_SPEND_CONFIRM_USD,
+            "poll_ms": 2000}
 
     def _validate(language: str | None, name):
         if language is not None and language not in config.VOICE_OPTIONS:
@@ -531,6 +565,60 @@ def create_app(db_path=None, library_dir=None, samples_dir=None,
         c.commit()
         return _channel_dict(
             c, c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone())
+
+    # ---- pool builds (Entry 43): the button AMENDMENT_04 A's "Grace-initiated"
+    # always allowed, now reachable from the phone instead of only a terminal.
+    @app.post("/api/channels/{cid}/build")
+    def build_pool_for(cid: int, body: dict = Body(default={}),
+                       c=Depends(get_conn)):
+        """Start a pool build for this channel, in the background.
+
+        Everything that could refuse is checked HERE, before a process exists:
+        coverage, the spend cap, and — over CURATION_SPEND_CONFIRM_USD — an
+        explicit approval in the body. The subprocess re-checks all three rather
+        than trusting this, so neither entry point is the only guard."""
+        row = c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone()
+        if row is None:
+            raise HTTPException(404, f"no channel {cid}")
+        existing = pooljob.get(c, cid)
+        if existing and existing.as_dict()["active"] \
+                and pooljob.pid_alive(existing.pid):
+            raise HTTPException(409, "a build is already running for this channel")
+
+        mode = db.effective_curation_mode(c)
+        if mode in ("free", "free_llm"):
+            covering, skipped = sources.for_channel(row)
+            if not covering:
+                raise HTTPException(422, "no free source covers this channel: "
+                                    + " ".join(f"{s.name}: {why}"
+                                               for s, why in skipped))
+        est, how = buildpool.estimate_for(c, mode)
+        if mode != "free":
+            try:
+                budget.check(c, est)
+            except budget.CapExceeded as e:
+                raise HTTPException(409, str(e))
+        if est > config.CURATION_SPEND_CONFIRM_USD and not body.get("approve_spend"):
+            raise HTTPException(409, f"this build is estimated at ${est:.2f} "
+                                     f"({how}) — approve the spend to start it")
+
+        build_runner(cid, bool(body.get("approve_spend")))
+        return {"started": True, "channel_id": cid,
+                "estimate_usd": round(est, 4), "estimate_note": how}
+
+    @app.post("/api/channels/{cid}/build/cancel")
+    def cancel_build(cid: int, c=Depends(get_conn)):
+        """Stop at the next candidate. What is already verified is kept — those
+        verdicts cost HTTP and are no less true for the build being stopped."""
+        if pooljob.get(c, cid) is None:
+            raise HTTPException(404, f"no build for channel {cid}")
+        pooljob.set_control(c, cid, "cancel")
+        return pooljob.get(c, cid).as_dict()
+
+    @app.get("/api/pool-jobs")
+    def list_pool_jobs(c=Depends(get_conn)):
+        return {"builds": [j.as_dict() for j in pooljob.active(c)],
+                "poll_ms": 2000}
 
     # ---- render jobs (AMENDMENT_06: progress bar + pause/cancel) ----
 

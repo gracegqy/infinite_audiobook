@@ -139,6 +139,31 @@ CREATE TABLE IF NOT EXISTS render_jobs(
   started_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- Entry 43: pool-build progress, over the same cross-process channel
+-- `render_jobs` gives a render. One row per CHANNEL, rewritten on each build.
+-- Why it exists: a build is now a long walk — the first French Sci-Fi build
+-- verified 79 candidates over several minutes — and AMENDMENT_04 A already
+-- requires that an empty pool "produces a notice with the cost estimate". The
+-- CLI printed that; the app showed nothing at all, so a channel with an empty
+-- pool and a full one looked identical on the phone. Cancel is here for the
+-- same reason as the render's: a walk you cannot stop from the room you are in
+-- is one you have to wait out.
+CREATE TABLE IF NOT EXISTS pool_jobs(
+  channel_id INTEGER PRIMARY KEY REFERENCES channels(id),
+  pid INTEGER,
+  phase TEXT NOT NULL CHECK(phase IN
+    ('gathering','verifying','selecting','acquiring')),
+  checked INTEGER NOT NULL DEFAULT 0,
+  total INTEGER,
+  usable INTEGER NOT NULL DEFAULT 0,
+  control TEXT NOT NULL DEFAULT 'run' CHECK(control IN ('run','cancel')),
+  state TEXT NOT NULL DEFAULT 'running' CHECK(state IN
+    ('running','done','cancelled','failed')),
+  note TEXT,
+  started_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 # Default row = the horror brief. Nothing outside this row says "horror"

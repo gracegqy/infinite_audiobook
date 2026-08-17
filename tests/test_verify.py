@@ -142,6 +142,32 @@ def test_fill_says_so_when_the_source_runs_out(monkeypatch):
     assert any("1/5 usable" in m and "exhausted" in m for m in logs)
 
 
+def test_fill_reports_progress_after_every_candidate(monkeypatch):
+    """The bar on the phone is driven from here — one event per candidate, with
+    the running usable count, so a walk that rejects 20 in a row still visibly
+    moves (Entry 43)."""
+    _verdicts(monkeypatch, {"a": (False, "too long"), "b": (True, "ok"),
+                            "c": (True, "ok")})
+    seen = []
+    verify.fill([cand(title=t) for t in "abc"], 2, log=lambda *a: None,
+                on_progress=lambda checked, usable: seen.append((checked, usable)))
+    assert seen == [(1, 0), (2, 1), (3, 2)]
+
+
+def test_fill_stops_when_told_to_and_keeps_what_it_verified(monkeypatch):
+    """Cancel is checked BEFORE each fetch, so pressing stop does not buy one
+    more HTTP round trip. What was already verified is returned — those
+    verdicts are no less true for the build being stopped."""
+    checked = []
+    monkeypatch.setattr(verify, "check_candidate",
+                        lambda c: (checked.append(c["title"]), (True, "ok"))[1])
+    out = verify.fill([cand(title=f"S{i}") for i in range(5)], 5,
+                      log=lambda *a: None,
+                      should_abort=lambda: len(checked) >= 2)
+    assert checked == ["S0", "S1"]
+    assert [c["title"] for c in out] == ["S0", "S1"]
+
+
 # ---- the pool honors the verdicts ----
 
 def _run(conn, candidates):
