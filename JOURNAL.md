@@ -5,6 +5,152 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 46 — 2026-08-19 — Correcting Entry 45: this app cannot run on Linux as written (afconvert), and the host is now a $0 free tier
+
+Same day as Entry 45, while writing the execution checklist. Two facts landed that Entry 45
+did not have. Recorded as a new entry rather than an edit, per the append-only rule;
+AMENDMENT_07 stands unamended, since neither fact changes the ruling — only the work.
+
+### 1. The migration is a code port, not a config change
+
+`pipeline/synthesize.py` shells out to **`afconvert`** twice — `:198` encodes the 64k AAC m4a,
+`:66` decodes non-wav engine output — and `afconvert` is macOS-only (CoreAudio). There is no
+`ffmpeg` anywhere in this repo. **On a Linux host this app fails at the encode step**, which
+is the last stage of every render.
+
+Entry 45 said the migration needed no code change. That was wrong, and it was wrong because I
+checked the *network* seam (bind address, host allowlist) and not the *subprocess* seam. The
+sibling repo is worse off: `ebook_readaloud/scripts/check_offsets.py` calls `afinfo`, so its
+standing offsets check cannot run on Linux at all.
+
+The mitigation is real, and it is a property of how this project was built: **the verifier
+already exists.** An encoder swap is exactly the kind of change `check_offsets.py` was written
+to catch, and once it is re-pointed at `ffprobe` it proves the port rather than being trusted
+alongside it. The planned shape is `shutil.which` selecting `afconvert` or `ffmpeg` — the Mac
+path keeps working unchanged, and neither is a silent fallback for the other.
+
+### 2. Cost was a false constraint
+
+Grace, on being asked to choose a paid host: *"wait, why are we generating cost? didn't we
+agree on a free option?"* No such agreement existed — the assessment priced a VPS at ~$5–10/mo
+and said so explicitly — but the challenge was right that $0 had never been properly explored,
+and it is available. **Oracle Cloud Always Free ARM: 2 OCPU / 12 GB / 200 GB storage / 10 TB
+egress, permanently free.** That is ample; this repo's whole library is 244 MB.
+
+So AMENDMENT_07's retirement of the brief's **`$0/mo`** clause turns out to be unnecessary.
+The clause survives. Only **"never leave her machines"** is actually superseded. The amendment
+is not edited — this entry is the correction, and the amendment's ruling is unaffected either
+way.
+
+Oracle's own reliability is the new open risk, and it is not small: they halved the free ARM
+allowance in June 2026 with no announcement and terminated over-limit instances on 18 Aug
+2026, they reclaim instances that sit idle, and ARM capacity is frequently exhausted at
+provisioning. The Mac copy stays as the rollback.
+
+### The revised plan
+
+**Passerelle migrates first; this app waits on a probe.** Session 1 moves `french_passerelle`
+(no audio path, unaffected by any of the above) and then spends fifteen minutes on the one
+question nobody can answer from here: *do Kokoro, misaki and spacy install and run on ARM
+Linux at all?* If yes, the port happens and this app follows. If no, this app stays on the Mac
+with launchd + `pmset -c sleep 0`, and phone-anywhere listening becomes an offline-caching
+problem instead — with the honest caveat that iOS evicts PWA storage, so that path may not
+deliver.
+
+Grace chose this sequencing precisely because Session 1 is identical under both outcomes.
+
+### Measurements invalidated by this change
+
+**None, still — nothing has run.** But the expiry noted in Entry 45 is now sharper: the
+throughput figures in this repo are measurements of **this Mac *and* the afconvert encoder**,
+not of the Mac alone. If the port lands, the encoder under those numbers changes too, and the
+re-measurement covers both variables at once.
+
+### Where to work from
+
+`_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md` — self-contained,
+session by session, with the gates written as commands. The spec beside it carries the
+reasoning. TASKS.md Phase 8 is updated to match.
+## Entry 45 — 2026-08-19 — Hosting moves off the laptop: a tailnet host, not a public deploy (AMENDMENT_07)
+
+Grace: *"is there a way to change the hosting now, so that I can access the apps on mobile
+alone anytime without needing to boot the local server on my laptop?"* — asked across all
+three self-hosted apps at once (this one, `ebook_readaloud`, `french_passerelle`).
+
+### The ask split in two, and only one half was a hosting problem
+
+**"Without booting the server"** is a launchd job. `scripts/scheduler.sh` is already that
+pattern for the render worker, and it needs no hosting change at all.
+
+**"Anytime"** is the real blocker, and it is not about hosting either — it is that a laptop
+is not a server. `pmset -g custom` on this Mac reports `sleep 1` on both battery and AC. The
+machine suspends aggressively, so the phone can reach the app only while the Mac happens to
+be awake, plugged in, and home. No amount of server configuration fixes a sleeping host.
+
+### The correction that shaped the decision
+
+Grace's follow-up proposed public cloud hosting, on the reading that the brief's "not public"
+line was about ebook licensing rather than about machines — *"as long as i don't share the
+ebooks with others, i don't see the issue"*. She is right about the licensing, and the
+amendment records that ruling as hers.
+
+But the plan conflated two separable choices. **A cloud VM joined to her tailnet is already
+remote hosting**: Tailscale is a mesh, not a tunnel back to the Mac, so a VM peer is
+reachable from the phone anywhere with the laptop off. That is the entire capability she
+asked for. A *public* URL adds only two things she does not want — sharing with other people,
+and access from a device without Tailscale — and it costs a great deal more than it looks:
+
+- **No app here has any auth.** Grepped, not recalled: no auth middleware in
+  `app/server.py`. `POST /api/channels/{cid}/build` runs the paid Anthropic curation path,
+  `PUT /api/settings` rewrites the spend cap, and the render routes pin the CPU. Public means
+  building auth first, on three apps, to buy a capability she does not want.
+- **The sibling repo's guard already admits a tailnet host unmodified** —
+  `ebook_readaloud/pipeline/config.py:143` allows `*.ts.net`, so a MagicDNS name passes with
+  zero code change, where a public deploy means removing that guard.
+
+Grace approved tailnet-only. AMENDMENT_07 is written, and states the tailnet-vs-public
+reasoning explicitly, because "cloud hosting" is exactly the phrase a future session will
+read and reach for a public deploy on.
+
+### What the amendment actually contradicts
+
+The brief's interview answer 3 — *"Hosting: Grace's Mac + Tailscale; app and audio never
+leave her machines. $0/mo."* Two clauses die: **"never leave her machines"** and **"$0/mo"**.
+Everything else in the brief, and the whole private-use content posture, survives untouched.
+The honest cost, named in the amendment rather than glossed: the audio and story text move
+onto a machine she does not physically hold, under a provider's terms.
+
+### Not executed, and the docs deliberately still say Mac
+
+Nothing has moved. The app runs on the Mac, `README.md` still describes the Mac deployment,
+and that is correct until it isn't — editing the README now would document a deployment that
+does not exist, which is the failure this repo's `Done = artifact-verified` rule exists to
+prevent. The README edits are **recorded as owed** in TASKS.md and specified line-by-line in
+the shared spec. That matters more here than in the sibling repos: this is Grace's only
+public repo, and `README.md:134-135` is its public statement of the content-rights posture
+— *"listening on one machine only … nothing is served publicly"*. **"One machine only" stops
+being true at migration**, and a portfolio README claiming a stricter posture than the
+deployment has is worse than one that states the real thing.
+
+### Measurements invalidated by this change
+
+**None yet — the decision changes no measurement, because nothing has moved.** What it does
+is put an expiry on a class of them: every throughput figure in this repo (Kokoro's ~6.9×
+realtime and the chars/s tables) is a *measurement of this Mac*, and at migration they stop
+describing the machine the app runs on. Gate M2 re-measures on the host before any library
+moves, and no cloud figure is estimated anywhere in the meantime.
+
+### Where the procedure lives
+
+`_META_working_knowledge/reference/tailnet_host_migration.md` — shared with the other two
+apps, since all three land on the same host. Five gates: M1 measure the workload here, M2
+benchmark Kokoro on a trial box, M3 migrate Passerelle first (smallest, no audio), M4 the
+audio apps, M5 the documentation truth pass. Host price and cloud throughput are both left
+deliberately unpriced there, per `NUMBERS_PROTOCOL.md`.
+
+**Still Grace's, and unchanged by any of this:** the Phase 6 re-gate at batch 40, the
+`/security-review`, and the cold-start test.
+
 ## Entry 44 — 2026-08-17 — Pool builds from the app: the notice the amendment already required, and the button it always allowed
 
 Grace, after Entry 43: *"is there a way to make this process smoother? i.e., start the

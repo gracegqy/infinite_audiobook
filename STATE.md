@@ -1,4 +1,4 @@
-# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 44 · 2026-08-17
+# STATE — infinite_audiobook        Reconciled through JOURNAL Entry 46 · 2026-08-19
 
 > PURE CURRENT STATE. No history (JOURNAL's job), no session summaries. Superseded content
 > is DELETED, not annotated.
@@ -19,8 +19,16 @@
 ## Confirmed findings
 
 - Sourcing = classics + modern web fiction, private-use only; TTS = Kokoro-local first
-  with OpenAI fallback; hosting = Mac + Tailscale; Anthropic + OpenAI keys exist
-  (interview, docs/BRIEF_VERBATIM.md).
+  with OpenAI fallback; Anthropic + OpenAI keys exist (interview,
+  docs/BRIEF_VERBATIM.md).
+- **Hosting: still this Mac + Tailscale — and decided 2026-08-19 to move** to an
+  always-on host joined to the tailnet, still tailnet-only, no public URL
+  (docs/AMENDMENT_07). The brief's "never leave her machines / $0/mo" clauses are
+  superseded — **the `$0/mo` clause survives after all** (Entry 46: the host is Oracle's
+  Always Free ARM tier, 2 OCPU/12 GB/200 GB). Nothing has moved. **And it is a code port, not
+  a config change:** `pipeline/synthesize.py` shells out to macOS-only `afconvert` at `:198`
+  (encode) and `:66` (decode), so this app cannot run on a Linux host as written. Work from
+  `_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md`.
 - Pipeline is channel-driven (editable genre/language/topic criteria), not
   horror-hardcoded (docs/AMENDMENT_01).
 - Git identity/remote conventions: personal repos use account `gracegqy`, commit
@@ -71,6 +79,27 @@ production). Both channels' queues are filled (horror 2 unread + 2 in_progress,
 French Sci-Fi 3), so **nothing in the build track is time-sensitive.** Note that
 the queue counter follows the ACTIVE channel only — horror's stories are still
 in the library and still playable, they just no longer count.
+
+**New track, decided 2026-08-19 and not started: the hosting migration
+(AMENDMENT_07, Entry 45).** The app moves off this Mac onto an always-on host on
+Grace's tailnet — still tailnet-only, no public URL, rendering moves with it.
+Nothing is executed. Gates M1–M5 and the whole procedure live in
+`_META_working_knowledge/reference/tailnet_host_migration.md`; the two next
+next thing is **not this app at all**: Session 1 migrates `french_passerelle` (no
+audio path, so no port needed) and ends with a 15-minute probe — do Kokoro,
+misaki and spacy install and run on ARM Linux? That answer decides whether this
+app gets ported and moved (branch A) or stays on the Mac behind launchd +
+`pmset -c sleep 0` (branch B). **Host is settled and free** — Oracle Always Free
+ARM, $0/mo, no figure to record. The open risk is Oracle's reliability, not cost.
+Grace installs any launchd job, not Claude (the `scheduler.sh` rule).
+
+**README edits owed at M5, not before (Grace's instruction, Entry 45).** This is
+her only public repo, so these are reader-facing. `README.md:10-11` ("runs on one
+Mac … not a hosted service"), `:45` (network row), `:154-160` ("Running it"), and
+above all **`:134-135`, the content-rights paragraph — "listening on one machine
+only" stops being true at migration.** Line-by-line list in the shared spec. They
+are written *after* the migration is real: editing them now would document a
+deployment that does not exist.
 
 **But there is now a dated external track (Entry 39).** This repo is the P0 of
 `~/Code/ACTIVE/internship_application/PORTFOLIO_TODO.md`: it must be public, with

@@ -23,9 +23,15 @@ Tailscale. Private, personal-use only.
 - Curation is LLM-driven (Anthropic key) against editable **channel** criteria
   (genre/language/topic — see docs/AMENDMENT_01). Never hardcode "horror" anywhere except
   the default channel's config row.
+- **Hosting: currently Grace's Mac + Tailscale. Decided 2026-08-19 (AMENDMENT_07) to move
+  to an always-on host joined to her tailnet — still tailnet-only, no public URL, rendering
+  moves with the app. NOT EXECUTED: until Phase 8's gate passes, the app is on the Mac and
+  the README correctly says so.** Read the amendment before touching serve/bind/deploy —
+  "cloud hosting" here means a tailnet peer, never a public surface.
 - Content rights posture: classics = public domain; modern web fiction = author-owned,
   stored for private listening only. Never deploy content publicly; never commit story
-  text or audio to git.
+  text or audio to git. (AMENDMENT_07 does not weaken this: a tailnet host is not a public
+  deploy, and no-redistribution is unchanged.)
 - API keys live in `.env` (gitignored). Remote: `gracegqy/infinite_audiobook`; commit
   identity Grace / gracegumails@gmail.com (the personal-repo convention — the 2026-07
   commits carry the uchicago address, accepted for publication in Entry 39).

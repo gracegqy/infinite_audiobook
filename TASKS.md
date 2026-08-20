@@ -224,6 +224,40 @@ STATE next-action 2 — Grace rules before any re-gate spend).
 
 ---
 
+## Phase 8 — Hosting migration to a tailnet host   · Owner: Both   · **NOT STARTED**
+**Authority:** `docs/AMENDMENT_07_hosting_moves_to_a_tailnet_host.md` (BINDING, 2026-08-19).
+**Goal:** the app is reachable from Grace's phone with her laptop off — on an always-on host
+joined to her tailnet, still tailnet-only, no public URL.
+**Procedure:** work from `_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md`
+(self-contained, session by session); the spec beside it holds the reasoning. Do not duplicate
+either here.
+**BLOCKER found 2026-08-19 (Entry 46):** `pipeline/synthesize.py` calls macOS-only `afconvert`
+at `:198` (encode) and `:66` (decode). This app **cannot run on a Linux host as written** — the
+migration includes a port to `ffmpeg`, selected by `shutil.which` so the Mac path is unchanged.
+**Gated on a probe:** whether Kokoro/misaki/spacy run on ARM Linux at all is answered in
+Session 1, before any of this starts.
+**Actions:** M1 measure peak render RSS + `du -sh data/` on this Mac (sizes the box) · M2
+benchmark Kokoro on a trial box against this repo's measured chars/s and 6.9x-realtime
+baselines · M4 move app + `data/` + `.env`, keep port 8123, keep `serve.sh`'s
+refuse-to-start-without-a-Tailscale-IP behavior · re-point the scheduler launchd job —
+**Grace installs it, not Claude** · M5 the README edits below.
+**Gate:** a story played end to end on the phone, laptop off; `scripts/serve.sh` still
+refuses to start without a resolved Tailscale IP; no public surface at any point.
+**README edits owed at M5 (Grace's instruction, Entry 45) — this is the only public repo, so
+these are reader-facing, and they are written after the migration is real, never before:**
+`README.md:10-11` "runs on one Mac … not a hosted service" · `:45` the network row · `:154-160`
+"Running it" · **`:134-135` the content-rights paragraph, where "listening on one machine
+only" stops being true** — the most important of the four, because it is this repo's public
+statement of its licensing posture and it must not claim a stricter one than the deployment
+has. Also `docs/RUNBOOK.md` (cold start, backup destination).
+**Deliberately not in scope:** auth, accounts, sharing, public URL. If any of those is ever
+wanted it is a new amendment with `/security-review` in front of it.
+**Host settled and free:** Oracle Cloud Always Free ARM (2 OCPU / 12 GB / 200 GB), $0/mo — so
+AMENDMENT_07's retirement of the brief's `$0/mo` clause turns out unnecessary and that clause
+survives. Open risk is Oracle's reliability (silent term changes, idle reclamation, ARM
+capacity), not cost. Also open: what backs up the host (Entry 37's off-machine backup half was
+written against this Mac).
+
 ## Standing rules applied every phase
 
 `/verify` before nontrivial commits · `/code-review` at phase close · session-close ritual
