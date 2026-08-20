@@ -34,9 +34,18 @@ Tailscale. Private, personal-use only.
   the default channel's config row.
 - **Hosting: currently Grace's Mac + Tailscale. Decided 2026-08-19 (AMENDMENT_07) to move
   to an always-on host joined to her tailnet — still tailnet-only, no public URL, rendering
-  moves with the app. NOT EXECUTED: until Phase 8's gate passes, the app is on the Mac and
-  the README correctly says so.** Read the amendment before touching serve/bind/deploy —
-  "cloud hosting" here means a tailnet peer, never a public surface.
+  moves with the app. **ABANDONED 2026-08-20 — the move will not
+  happen and the app stays on the Mac. The README stays correct as written.** Oracle's ARM free tier was quota-blocked at Limit 0 and GCP's free tier deletes the
+  instance at 90 days without a billable account; neither is $0 in perpetuity, which was the
+  binding constraint. Record: `_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md`
+  §1.0b + SESSION 2B. AMENDMENT_07 is immutable and still describes the decision that was
+  taken then; this bullet records that it was reversed. Read it before touching
+  serve/bind/deploy — "cloud hosting" there means a tailnet peer, never a public surface.
+- **The `afconvert` → `ffmpeg` port is NOT needed.** It existed only to run this pipeline on
+  Linux. `pipeline/synthesize.py` stays on `afconvert`; do not "portably" rewrite it.
+- `scripts/server-agent.sh {install|uninstall|status}` is the launchd wrapper that keeps
+  `serve.sh` answering across reboots. Distinct from `scripts/scheduler.sh` (the worker).
+  **Claude may run `status`; Grace runs `install`/`uninstall`.**
 - Content rights posture: classics = public domain; modern web fiction = author-owned,
   stored for private listening only. Never deploy content publicly; never commit story
   text or audio to git. (AMENDMENT_07 does not weaken this: a tailnet host is not a public
