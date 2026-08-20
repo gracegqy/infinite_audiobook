@@ -1,12 +1,12 @@
 <!-- BOARD
-next: Re-gate preference adaptation at POOL_BATCH_SIZE = 40 (Entry 37 showed batch-12 results do not describe production). Then the two owed checks: `/security-review` and the cold-start test.
+next: Re-run the curation A/B at `POOL_BATCH_SIZE = 40`
 -->
 
 # CLAUDE.md — infinite_audiobook
 
 > **What this is:** Self-hosted read-aloud fiction library — LLM curation + TTS pipeline + phone player. The one public repo.
 > **Read order:** STATE.md → TASKS.md → JOURNAL.md
-> **Next physical act:** Re-gate preference adaptation at POOL_BATCH_SIZE = 40 (Entry 37 showed batch-12 results do not describe production). Then the two owed checks: `/security-review` and the cold-start test.
+> **Next physical act:** Re-run the curation A/B at `POOL_BATCH_SIZE = 40`
 > **Where this sits:** `python3 _META_working_knowledge/scripts/board.py` — status is derived there, never stored here.
 
 At session start, read STATE.md and JOURNAL.md, then the current phase in TASKS.md, before
