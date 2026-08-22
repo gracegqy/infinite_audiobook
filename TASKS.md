@@ -222,6 +222,91 @@ STATE next-action 2 — Grace rules before any re-gate spend).
 > Prompt: *"Fresh session, read-only: audit infinite_audiobook. Trust nothing in prose;
 > re-derive every STATE/TASKS claim from artifacts. Report gaps."*
 
+**`/security-review` prompt (written 2026-08-22, Entry 49; still owed).** Paste verbatim into
+a fresh session. It is long on purpose: it names this project's real surfaces, so the review
+starts from the code rather than from a generic checklist, and it lists what has already been
+risk-accepted so the report is not padded with them.
+
+> Fresh session, read-only until I say otherwise. Run /security-review on
+> infinite_audiobook (~/Code/ACTIVE/infinite_audiobook). Read CLAUDE.md, STATE.md and the
+> newest JOURNAL entries first, then work from artifacts — run things, do not trust prose,
+> including this prompt.
+>
+> WHAT THIS IS. A self-hosted read-aloud fiction library on my Mac: an LLM curates short
+> fiction, a Python pipeline fetches and cleans it, local TTS narrates it, and a FastAPI
+> server serves a React PWA to my phone over Tailscale. Sole user, no accounts, no auth.
+> The repo is PUBLIC (github.com/gracegqy/infinite_audiobook); the data is not.
+>
+> THREAT MODEL, in priority order.
+> 1. Untrusted input from the open web reaching code that acts. Curation is model output;
+>    story text and source URLs come from Gutenberg and wiki pages. That data reaches
+>    urllib fetches, filesystem paths, subprocess arguments, SQL and the browser. This is
+>    the review's centre of gravity.
+> 2. Anything that could turn tailnet-reachable into internet-reachable, or leak a key.
+>    scripts/serve.sh must refuse to start rather than guess a bind address; keys live in
+>    .env and must never reach the frontend, a log, or an error body.
+> 3. Spend. Paid paths are reachable from unauthenticated HTTP on the tailnet. A bug that
+>    uncaps or bypasses pipeline/budget.py costs real money.
+>
+> SURFACES I ALREADY KNOW ABOUT — start here, then go past this list, and tell me if the
+> list itself is wrong:
+> - pipeline/fetch.py:25 `_get` — urllib.request.urlopen on URLs the curation model chose.
+>   Redirects, non-http schemes, SSRF into the tailnet or localhost, response size.
+> - app/server.py:120 and :132 — subprocess.Popen spawning detached jobs; `story_id` and
+>   `channel_id` become argv and log filenames (`rerender_{story_id}.log`).
+> - app/server.py:208 and every other `{sid}` route — `library_dir / sid / ...`. Traversal
+>   appears to be blocked incidentally, because `story_or_404` hits the DB first, not by a
+>   path check. Verify that holds on EVERY route that builds a path from a URL parameter,
+>   and say whether an incidental guard is good enough.
+> - pipeline/db.py:199 and :439 — f-string SQL building column lists and placeholders.
+>   Establish whether those fragments can ever come from outside a whitelist.
+> - pipeline/synthesize.py:65 and :197 — subprocess into afconvert with paths.
+> - app/server.py:571 (paid build), :710 (PUT /api/settings rewrites the spend cap) —
+>   unauthenticated on the tailnet by design. Check the cap cannot be raised, bypassed or
+>   raced, and that "approve spend" cannot be forged by the client.
+> - scripts/export_offline.py, scripts/export_m4b.py — write files from story text and ids.
+>   Entry 49 fixed a `</script>` injection in the HTML exporter; check the fix and look for
+>   siblings (the m4b exporter builds ffmetadata from titles).
+> - The frontend under app/frontend/src/ — story text rendered in React. Confirm nothing
+>   reaches innerHTML by any path.
+>
+> ALREADY ACCEPTED, do not re-report as new (argue with the ruling if you think it is
+> wrong, but do it in one paragraph):
+> - No authentication anywhere. Deliberate: the server binds a Tailscale interface only.
+> - A CGNAT 100.x address and two of my email addresses appear in JOURNAL.md and probe
+>   files, and in git history. Ruled acceptable in Entry 39.
+> - edge-tts calls an undocumented Microsoft endpoint for Chinese narration.
+> - Two paid calls sit outside the spend cap by documented choice (tag-at-ingest, the
+>   per-story TTS fallback), pending a design ruling.
+>
+> HOW TO REPORT. Findings only where you can show the path from input to effect: file,
+> line, the input, and what it reaches. For anything you rate high, give me a reproduction
+> I can run — a curl, a crafted story file under HR_DATA_DIR, a test — not an argument.
+> Rate severity against THIS deployment (one user, tailnet-only, no session to steal), not
+> against a public web app; an inflated rating wastes my time and a deflated one costs me
+> later, so say which way you are unsure. Explicitly list what you did NOT cover.
+>
+> RULES OF THIS REPO.
+> - data/ is never committed. .env is never committed, never printed, never echoed into a
+>   file you create. Never point a script or a browser at the live server or data/ — use
+>   HR_DATA_DIR with a copy, or scripts/ui_sandbox.sh. Check whether I am listening first
+>   (progress.updated_at advancing means a live client).
+> - Do not fix anything during the review. Findings first, all of them, then I decide what
+>   gets fixed and in what order. Entry 42 set that rule: a reviewer who starts editing
+>   stops reviewing.
+> - Read-only means read-only: no commits, no pushes, no launchd install, no paid API call.
+>   A pool build costs money — do not trigger one.
+>
+> WHEN THE REVIEW IS DONE. Write the findings up as a JOURNAL entry (prepended, newest at
+> top, with a "measurements invalidated by this change:" line) and a numbered FIXES list I
+> can execute later, ordered by severity, each with the artifact check that will prove it
+> closed. Then stop and tell me what you found before touching a line of code.
+>
+> This review has been owed since before the repo went public, and the repo went public
+> anyway. Treat it as overdue, not as a formality — and if the honest answer is that the
+> surface is smaller than the paperwork implies, say that plainly rather than manufacturing
+> findings to justify the exercise.
+
 ---
 
 ## Phase 8 — Hosting migration to a tailnet host   · Owner: Both   · **CANCELLED 2026-08-20**
