@@ -71,8 +71,8 @@ definition of "working" is the phone over Tailscale, never desktop localhost.
 
 ## Tests
 
-**344 tests, all passing at commit `5250eb1`** — the count is not maintained by hand; the
-same committed script derives it and every other repo-scale figure:
+**344 tests, all passing at commit `0aff502`** (re-derived 2026-08-22) — the count is not
+maintained by hand; the same committed script derives it and every other repo-scale figure:
 
 ```
 bash scripts/repo_stats.sh

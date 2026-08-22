@@ -5,6 +5,84 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 48 — 2026-08-22 — Reading the published repo as a stranger would: what the governance stack was telling a reader
+
+Grace asked whether the public repo needed updating, framed explicitly as a portfolio piece.
+So the pass was done from the reader's side — not "is this correct" but "what does this file
+say about how the project is run, to someone who has never seen it". The code came out fine.
+The governance layer did not, which is the layer the README makes an argument about.
+
+### The finding that mattered
+
+**`STATE.md` was three days stale on the one decision that reversed a BINDING amendment**
+(Entry 47), while `CLAUDE.md` recorded the reversal — so the two documents contradicted each
+other, and `README.md` says in as many words that STATE "is always more current than this
+README". A reader who spot-checks that sentence finds it false on the first attempt. For a
+repo whose thesis is *the machinery that makes the verification real*, that is not a stale
+doc; it is a counter-example to the pitch, sitting one click from the pitch.
+
+Fixed by reconciling STATE and CANCELLING TASKS Phase 8 rather than deleting it — a plan
+that was made and reversed is worth more standing than absent, which is the same reason
+Phase 6 is published RE-OPENED.
+
+### What a reader could see that was never meant for them
+
+`STATE.md` told anyone who scrolled that this repo was the P0 of an internship-application
+pipeline, with a delivery deadline, plus a parenthetical noting that a packet codename was
+being kept out of the soon-public doc. That is the audience reading the machinery aimed at
+the audience. Removed from STATE and TASKS. **JOURNAL keeps its copy** — Entry 39 named the
+packet and Grace ruled the append-only rule holds; that ruling stands and is hers, and the
+cost is one line deep inside a 2,500-line file rather than in the doc a reader consults first.
+
+The same class of problem, all now fixed: every doc still described the repo as *awaiting*
+publication ("blocks the flip", "re-run immediately before flipping public") when it has been
+public since 2026-08-20; STATE still said screenshots were owed and that README carried a
+`<!-- SCREENSHOTS -->` placeholder, both untrue since Entry 42; and `_META_working_knowledge/`
+citations read as dangling paths to a machine the reader cannot see, so the folder map now
+says once what that path is and why nothing load-bearing is missing.
+
+**`/security-review` is the one that does not close with an edit.** It was written down as
+blocking publication; publication happened without it. It is now recorded as *overdue* rather
+than *pending*, in STATE and in the R3 conditioning note, because the surface it was meant to
+cover — model output driving HTTP fetches, file writes and subprocess TTS — is live and
+public. The honest state is "unreviewed", and a public repo that documents its own unreviewed
+attack surface is worse off than one that either reviews it or does not advertise it.
+
+### Presentation, where it was costing something real
+
+- **`LICENSE` was plain MIT with a content-rights clause appended, so GitHub gave up and
+  labelled the repo "Other" (`NOASSERTION`).** The clause is now `NOTICE`, at more length,
+  and LICENSE is byte-plain MIT so the sidebar reads MIT. The posture is unchanged — two
+  claims, deliberately two files, because a skimming reader merges them otherwise.
+- **`requirements.txt` was nine bare names and one `>=`.** Now floors pinned to the versions
+  this venv is actually verified on (Python 3.12.12, 344 green today), with the reasoning
+  written down: floors state what is known to work; freezing a clone to a snapshot makes it
+  unbuildable in a year. torch is deliberately absent — it arrives via kokoro.
+- **`docs/RUNBOOK.md` did not know `scripts/server-agent.sh` exists**, though CLAUDE.md
+  referenced it and it is what makes the app always-on; its troubleshooting table still said
+  `launchctl list | grep horror`, stale since the rename. Both fixed, and the RUNBOOK gained
+  the offline exporters and an explanation of the `HR_` prefix (kept on purpose: renaming it
+  breaks every shell profile, sandbox script and plist already using it, to buy tidiness).
+- `CLAUDE.md`'s hosting bullet had nested `**`, which unbolded the word ABANDONED and bolded
+  the paragraph after it — the single most important status line in the file, rendered wrong
+  on GitHub.
+
+### Measurements invalidated by this change
+
+**R1 re-gated: 12,383 at `5250eb1` → 12,899 at `0aff502`**, reconciled exactly
+(`+516 / −0`, three new files, no edits to existing source). **R2 re-gated: 344 → 344**, and
+the zero is recorded as the finding — 516 source lines arrived with no tests. **R3 re-passed**
+at `0aff502` with `clean-worktree: yes`. `README.md`'s test line now cites `0aff502` instead
+of `5250eb1`. No pipeline, curation, TTS, player or taste behaviour was touched, so no gate
+evidence moves and the library, queue, taste profile and spend ledger are untouched.
+
+### Still owed, and not by Claude
+
+`/security-review` in a fresh session (overdue, above), the ~60s phone recording, and the
+cold-start test that is the literal Phase 7 gate. The recording is the highest-value item
+left for a reader: the README says nobody can run this, so a demonstration is the only
+evaluation available, and GitHub renders mp4 inline.
+
 ## Entry 47 — 2026-08-22 — Backfill: the migration was abandoned on 2026-08-20 and never journaled; the two export scripts, and the sandbox rule they broke
 
 Two working days (2026-08-20, 2026-08-21) produced a commit, a new launchd wrapper and two

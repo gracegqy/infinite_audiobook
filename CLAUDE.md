@@ -1,12 +1,12 @@
 <!-- BOARD
-next: Re-run the curation A/B at `POOL_BATCH_SIZE = 40`
+next: `/security-review` in a fresh session — overdue, the repo is public
 -->
 
 # CLAUDE.md — infinite_audiobook
 
 > **What this is:** Self-hosted read-aloud fiction library — LLM curation + TTS pipeline + phone player. The one public repo.
 > **Read order:** STATE.md → TASKS.md → JOURNAL.md
-> **Next physical act:** Re-run the curation A/B at `POOL_BATCH_SIZE = 40`
+> **Next physical act:** `/security-review` in a fresh session (overdue — the repo is public and that surface is unreviewed). Then the curation A/B re-run at `POOL_BATCH_SIZE = 40`.
 > **Where this sits:** `python3 _META_working_knowledge/scripts/board.py` (private, see folder map) — status is derived there, never stored here.
 
 At session start, read STATE.md and JOURNAL.md, then the current phase in TASKS.md, before
