@@ -5,6 +5,47 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 49 — 2026-08-22 — Found while writing the security-review prompt: the offline exporter could be made to close its own `<script>` tag
+
+Writing the `/security-review` prompt meant enumerating this project's real attack surface
+rather than describing it in the abstract, and that enumeration found a live one — in code
+committed six hours earlier in Entry 47. Recorded as a new entry, per the append-only rule,
+rather than edited into Entry 47 or 48.
+
+**The defect.** `scripts/export_offline.py` builds its page by substituting `json.dumps(...)`
+output into a `<script>` block in an HTML template. `json.dumps` does not escape `/`, and the
+HTML parser terminates a script element at the first literal `</script>` **inside the string
+literal as much as outside it**. Story text comes off the open web — Gutenberg and the
+creepypasta wiki — so a story containing that seven-character sequence, whether by malice or
+by a page about HTML, ends the script block early and everything after it is parsed as markup.
+The rest of the exporter is careful in exactly the way that makes this the only hole:
+every field reaches the DOM through `textContent`, never `innerHTML`.
+
+**Severity, stated honestly rather than inflated.** The output is a local file Grace AirDrops
+to her own phone; there is no session, no cookie and no origin worth stealing, and the
+attacker would have to get a chosen string into a story she has already curated and rendered.
+It is not remote code execution against a service. It is still a real injection with reachable
+input, and "the blast radius is small" is not a reason to ship a known one.
+
+**The fix**, three lines, at the point of substitution: `</` → `<\/`, plus `U+2028`/`U+2029`,
+which are legal in JSON but terminate a line in JavaScript source. Both transforms are inert
+to a JSON decoder — `"<\/"` and `"</"` decode to the identical string — so the payload the
+page reads is unchanged.
+
+**Verified, not reasoned.** A payload built from `boo </script><img src=x onerror=alert(1)>`
+plus a raw `U+2028` contains `</script>` before the transform and does not after it, and
+`json.loads` returns an object equal to the untransformed one. End to end, the real exporter
+on `smile-dog` writes a 7.4 MB file whose payload parses back to 29 paragraphs and whose body
+contains exactly one `</script>` — the template's own closing tag.
+
+### Measurements invalidated by this change
+
+None material: three lines and a comment in one script. R1 moves as every commit moves it;
+re-derive with `bash scripts/repo_stats.sh` before quoting. Tests unchanged at 344 — and this
+is the second time in one day the exporters' missing tests are the thing being written about,
+which is the argument for paying that debt: this fix has no regression test, and the check
+that proved it lives in this entry rather than in `tests/`.
+
 ## Entry 48 — 2026-08-22 — Reading the published repo as a stranger would: what the governance stack was telling a reader
 
 Grace asked whether the public repo needed updating, framed explicitly as a portfolio piece.

@@ -93,6 +93,17 @@ def build(story: pathlib.Path) -> str:
         "paras": paras,
     }, ensure_ascii=False)
 
+    # json.dumps does not escape "/", so a story containing the literal text
+    # "</script>" would close this file's <script> block during HTML parsing and
+    # everything after it would be parsed as markup. The story text comes off the
+    # open web, so that is reachable input, not a hypothetical. Escaping the
+    # sequence keeps the JSON string value identical ("<\/" and "</" decode the
+    # same in JS) while making it inert to the HTML parser. U+2028/9 are the other
+    # two characters that are legal JSON but break a JS source line.
+    payload = (payload.replace("</", "<\\/")
+                      .replace("\u2028", "\\u2028")
+                      .replace("\u2029", "\\u2029"))
+
     return (TEMPLATE
             .replace("__PAYLOAD__", payload)
             .replace("__AUDIO__", f"data:{AUDIO_MIME};base64,{audio_b64}"))
