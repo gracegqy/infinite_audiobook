@@ -2,10 +2,11 @@
 
 Operating manual for the running system.
 
-**Verification status (Entry 38):** the scheduler, backup and budget commands below
-were run and their output checked. The cold-start sequence, key rotation and restore
-are written from the code and have **not** been executed end-to-end — the cold-start
-test is itself the Phase 7 gate, and it is still owed.
+**Verification status (Entry 38, updated 2026-08-22):** the scheduler, backup and budget
+commands below were run and their output checked; the server-agent commands were verified
+2026-08-22 (`status` → `loaded: yes`, `answering: 200`). The cold-start sequence, key
+rotation and restore are written from the code and have **not** been executed end-to-end —
+the cold-start test is itself the Phase 7 gate, and it is still owed.
 
 ## Resume prompt (paste into any new session)
 
@@ -65,6 +66,14 @@ none of them is a committed constant:
 | `HR_TAILSCALE_IP` | `serve.sh` exits 2 if the `tailscale` CLI is also missing | fallback bind address only; the live CLI value always wins |
 | `HR_CONTACT_EMAIL` | the outbound `User-Agent` drops its contact clause | politeness contact for Gutenberg / wiki fetches |
 | `HR_DATA_DIR` | state lives in `./data` | redirects db + library + interim at once; how sandboxed runs avoid the real library |
+| `HR_SCHEDULER_CONFIRM` | `scheduler.sh install` refuses a non-interactive run (exit 3) | set to `yes` to override from a script — the deliberate escape hatch, so an agent invocation cannot install a launchd job by accident |
+| `HR_SERVER_AGENT_CONFIRM` | `server-agent.sh install` refuses a non-interactive run (exit 3) | same guard, same escape hatch, for the serving job |
+
+**Why `HR_`:** the project was called `horror_readaloud` until 2026-08-09, when the channel
+system made "horror" a default rather than the subject and it was renamed
+`infinite_audiobook`. The env prefix was left alone on purpose — renaming it would break
+every shell profile, sandbox script and launchd plist already using it, to buy nothing but
+tidiness. Read `HR_` as this project's namespace, not as a genre.
 
 `data/` is not in the repo, by design — no story text or audio is ever committed. A
 cold-started machine has an empty library and refills through the pool (below).
@@ -151,6 +160,60 @@ Free modes draw on the registry in `pipeline/sources.py`; if no registered sourc
 covers the active channel the build stops and names the reasons rather than running
 empty. A paid build estimated over `CURATION_SPEND_CONFIRM_USD` ($1.00) prints the
 estimate and aborts unless re-run with `--yes-spend`.
+
+## Listening offline (plane, dead zone, laptop shut)
+
+The app is reachable only while this Mac is awake and on the tailnet. Two exporters bake a
+rendered story into a file the phone keeps locally — neither needs a server afterwards.
+
+```
+.venv/bin/python scripts/export_m4b.py --list        # what can be exported
+.venv/bin/python scripts/export_m4b.py damned        # substring match on id/slug
+.venv/bin/python scripts/export_offline.py damned    # single self-contained .html
+```
+
+| exporter | gives you | costs you |
+|---|---|---|
+| `export_m4b.py` | `.m4b` with chapter marks — Apple Books opens it natively: lock-screen controls, speed, sleep timer, remembered position. No re-encode (the pipeline already writes 64k AAC in an MP4 container, and `.m4b` *is* that container), so it is instant and bit-identical. Needs `ffmpeg`. | **no synced text highlight** |
+| `export_offline.py` | one `.html` with audio, text and the offsets manifest inlined — the highlight works, on a laptop or iPad | a large single file; mobile Safari can stall past ~60 MB, and the script warns |
+
+Deliberately **not** a PWA cache: iOS evicts PWA storage without warning, which is the one
+failure you cannot debug on a train. A file in Files is not evictable.
+
+Output defaults under `data/interim/` (gitignored). **These files contain the full story text
+and audio, so they are `data/` in every sense that matters:** private listening only, never a
+deploy, never a `git add`. Both exporters resolve paths through `pipeline.config`, so
+`HR_DATA_DIR` redirects them like everything else.
+
+## Server agent (launchd) — **Grace runs this, never Claude**
+
+Keeps `serve.sh` answering across reboots, so the phone reaches the app without anyone
+opening a terminal. **Distinct from the scheduler below:** this job serves, that job
+renders. Running one does not start the other.
+
+```
+bash scripts/server-agent.sh status      # loaded? and is it actually answering?
+bash scripts/server-agent.sh install     # load the job; starts immediately
+bash scripts/server-agent.sh uninstall   # unload and remove
+```
+
+`status` is the useful one: it reports the launchd state, the resolved Tailscale IP, and
+an HTTP code from the running server, so "loaded" and "working" are separated. A healthy
+run looks like `loaded: yes (pid=…)` + `answering: 200`. **Claude may run `status`; only
+Grace runs `install`/`uninstall`** — same rule as the scheduler.
+
+Two traps are handled inside the script, both worth knowing before editing it:
+
+- **launchd does not source `~/.zshrc`**, so `PATH` is set explicitly in the plist. A job
+  that works in your shell and fails under launchd is almost always this.
+- **`launchctl list | grep -q` reports a loaded job as absent.** `grep -q` closes the pipe
+  on its first match, `launchctl` then dies of `SIGPIPE`, and `pipefail` marks the whole
+  pipeline failed. Any status check written that way lies in the safe-looking direction.
+
+This is what "always on" means for this project. The alternative — moving the app to an
+always-on cloud host — was planned as Phase 8 and **cancelled** (JOURNAL Entry 47): no free
+tier is $0 in perpetuity, and $0/mo was binding. The Mac stays the host, which also means
+`pmset` matters: a sleeping laptop serves nothing, however well the job is installed.
 
 ## Scheduler (launchd) — **Grace runs this, never Claude**
 
@@ -259,7 +322,8 @@ files, but a story added after that snapshot becomes invisible to the app.
 |---|---|
 | Phone can't reach the app | Tailscale disconnected on either device; or serve.sh printed the fallback-IP warning. Re-check the printed URL. |
 | Worker log empty for hours | the `-u` flag is missing from the plist — reinstall via `scheduler.sh`. |
-| `scheduler.sh status` says `loaded: no` after install | check `launchctl list \| grep horror`; the plist may have failed to load. |
+| `scheduler.sh status` says `loaded: no` after install | check `launchctl list \| grep infinite-audiobook` (the labels are `com.gracegu.infinite-audiobook.worker` and `.server`); the plist may have failed to load. |
+| Phone reaches nothing after a reboot | the server agent is not loaded — `bash scripts/server-agent.sh status`. `loaded: yes` with no `answering: 200` means the process is up but not serving; check the Tailscale IP it resolved. |
 | Pool build exits 4, $0 spent | spend cap breached. Raise `spend_cap_usd` or wait for the window to roll. |
 | Pool build stops naming a channel | no registered free source covers it — use `llm` mode or add an adapter. |
 | A story renders with random pauses | hard-wrapped source text reaching TTS; the clean stage must unwrap lines within paragraphs (probe 1b). |

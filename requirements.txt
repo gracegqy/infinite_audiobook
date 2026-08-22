@@ -1,11 +1,22 @@
-# Pipeline + app runtime deps (Phase 3+). Install: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-kokoro>=0.9
-soundfile
-numpy
-edge-tts
-anthropic
-openai
-fastapi
-uvicorn
-httpx
-pytest
+# Pipeline + app runtime deps (Phase 3+).
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# Pinned to the versions this project is actually verified on: Python 3.12.12,
+# 344 tests green 2026-08-22. They are lower bounds (`>=`), not equalities —
+# a floor states what is known to work without freezing a clone to a snapshot
+# that will be unbuildable in a year. If a newer release breaks something,
+# pin that one line to `==` with the reason beside it, rather than freezing
+# the whole file.
+#
+# torch is not listed: it arrives as a kokoro dependency (~2 GB), and pinning a
+# torch version here would fight kokoro's own resolver for no benefit.
+kokoro>=0.9.4          # local TTS, en + fr; pulls torch, misaki, spacy
+soundfile>=0.14.0      # wav io around the per-paragraph synthesis
+numpy>=2.5.1
+edge-tts>=7.2.8        # zh narration (undocumented endpoint; degrade rule = OpenAI TTS)
+anthropic>=0.117.0     # curation (Messages API, web search, prompt caching)
+openai>=2.46.0         # per-story TTS fallback only
+fastapi>=0.139.2
+uvicorn>=0.51.0
+httpx>=0.28.1          # source fetches; also the TestClient transport
+pytest>=9.1.1

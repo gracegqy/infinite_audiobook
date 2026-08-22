@@ -1,0 +1,24 @@
+NOTICE — infinite_audiobook
+==========================
+
+The MIT license in LICENSE covers the CODE in this repository, and nothing else.
+
+It does not, and cannot, grant any rights in the fiction this pipeline fetches.
+
+  * No story text and no audio is in this repository, and none ever has been.
+    `data/` is gitignored, and `bash scripts/repo_stats.sh` fails loudly if any
+    path under `data/` or matching `.env` was ever added in any commit on any
+    branch.
+
+  * Public-domain classics (Project Gutenberg and similar) are public domain.
+
+  * Modern web fiction remains the property of its authors. This pipeline
+    fetches, stores and narrates it for private listening on one machine only.
+    Nothing is redistributed, nothing is served publicly, and the application
+    binds a Tailscale interface rather than a public one.
+
+  * Anyone running this code is responsible for their own use of the material
+    it fetches. A permissive license on a fetcher is not permission to
+    redistribute what it fetches.
+
+See the "Content rights" section of README.md for the full posture.

@@ -33,8 +33,8 @@
 composition or not at all. The README deliberately points at the script instead of freezing
 a number in prose.
 
-**Reconciliation (G4) — a prior figure did not reproduce.** `internship_application/PORTFOLIO_TODO.md`
-(2026-07-29) records **10,654 tracked LOC across 93 files**. The file count reproduces exactly
+**Reconciliation (G4) — a prior figure did not reproduce.** A private planning doc outside
+this repo (2026-07-29) records **10,654 tracked LOC across 93 files**. The file count reproduces exactly
 (93). The line count **does not**: the same repo content at the same commit (`a681ec2`, no
 commits between the two measurements) yields **10,753** under this row's definition — a gap of
 99 lines that no tested variation of the file set explains (excluding probes → 9,959;
@@ -151,11 +151,11 @@ a claim that the system works end to end.
 | **Gate evidence** | re-passed 2026-08-17 at commit `5250eb1`, and 2026-08-16 at `7b87028` (`bash scripts/repo_stats.sh`, exit 0): `never-committed:   CONFIRMED — no data/ or .env path was ever added in any commit on any branch`. Previously re-passed 2026-08-09 at `f1394e9`, and independently re-derived that day (Entry 42): all 99 paths ever added, on all branches, checked against `data/`, `.env`, audio and DB patterns — none. First passed 2026-07-30. |
 | **Invalidated by** | any commit that adds such a path; any history rewrite |
 | **Last sent** | never |
-| **Status** | **RTR 2026-08-17** — this row is *invalidated by every subsequent commit*, so today's pass does **not** discharge the pre-flip run: **re-run immediately before flipping the repo public** (PORTFOLIO_TODO P0 #7) |
+| **Status** | **RTR 2026-08-22** — re-passed at `00b2e04` (`never-committed: CONFIRMED`). The repo is now public, so the pre-publication run this row once gated is discharged; the row is still *invalidated by every subsequent commit*, so re-run before any outward quote and after any history rewrite |
 
 **Conditioning (G5):** this checks *paths*, not content. It proves `data/` and `.env` were
 never added; it does not prove no secret was ever pasted into some other file. That is the
-`/security-review`'s job (PORTFOLIO_TODO P0 #3), which is still owed.
+`/security-review`'s job, which is still owed — and now overdue, since the repo is public.
 
 ### R4 — Curation cost per pool build
 

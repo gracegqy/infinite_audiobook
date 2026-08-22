@@ -7,7 +7,7 @@ next: Re-run the curation A/B at `POOL_BATCH_SIZE = 40`
 > **What this is:** Self-hosted read-aloud fiction library — LLM curation + TTS pipeline + phone player. The one public repo.
 > **Read order:** STATE.md → TASKS.md → JOURNAL.md
 > **Next physical act:** Re-run the curation A/B at `POOL_BATCH_SIZE = 40`
-> **Where this sits:** `python3 _META_working_knowledge/scripts/board.py` — status is derived there, never stored here.
+> **Where this sits:** `python3 _META_working_knowledge/scripts/board.py` (private, see folder map) — status is derived there, never stored here.
 
 At session start, read STATE.md and JOURNAL.md, then the current phase in TASKS.md, before
 acting.
@@ -32,15 +32,15 @@ Tailscale. Private, personal-use only.
 - Curation is LLM-driven (Anthropic key) against editable **channel** criteria
   (genre/language/topic — see docs/AMENDMENT_01). Never hardcode "horror" anywhere except
   the default channel's config row.
-- **Hosting: currently Grace's Mac + Tailscale. Decided 2026-08-19 (AMENDMENT_07) to move
-  to an always-on host joined to her tailnet — still tailnet-only, no public URL, rendering
-  moves with the app. **ABANDONED 2026-08-20 — the move will not
-  happen and the app stays on the Mac. The README stays correct as written.** Oracle's ARM free tier was quota-blocked at Limit 0 and GCP's free tier deletes the
-  instance at 90 days without a billable account; neither is $0 in perpetuity, which was the
-  binding constraint. Record: `_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md`
-  §1.0b + SESSION 2B. AMENDMENT_07 is immutable and still describes the decision that was
-  taken then; this bullet records that it was reversed. Read it before touching
-  serve/bind/deploy — "cloud hosting" there means a tailnet peer, never a public surface.
+- **Hosting: Grace's Mac + Tailscale, and staying there. The 2026-08-19 decision to move to
+  an always-on tailnet host (AMENDMENT_07) was ABANDONED 2026-08-20 — the move will not
+  happen, and the README stays correct as written.** Oracle's Always Free ARM tier came back
+  quota-blocked at Limit 0 and GCP's free tier deletes the instance at 90 days without a
+  billable account; neither is $0 in perpetuity, which was the binding constraint. Recorded
+  in JOURNAL Entry 47; TASKS Phase 8 is CANCELLED. AMENDMENT_07 is immutable and still
+  describes the decision as taken then; this bullet records the reversal. Read it before
+  touching serve/bind/deploy — "cloud hosting" there means a tailnet peer, never a public
+  surface.
 - **The `afconvert` → `ffmpeg` port is NOT needed.** It existed only to run this pipeline on
   Linux. `pipeline/synthesize.py` stays on `afconvert`; do not "portably" rewrite it.
 - `scripts/server-agent.sh {install|uninstall|status}` is the launchd wrapper that keeps
@@ -66,6 +66,12 @@ data/                # NEVER COMMITTED. library/ = per-story text+audio+meta; in
 tests/               # pure-logic unit tests, round-trip tests — exist from day one
 scripts/             # one-off tools
 ```
+
+> **Paths beginning `_META_working_knowledge/` are Grace's private working-knowledge repo**
+> — governance protocols, audit reports, cross-project reference. It is deliberately not
+> public and not vendored here. Those citations exist so *she* can retrace a decision; a
+> reader of this repo is not missing anything load-bearing, because every claim this repo
+> makes is gated by an artifact inside this repo.
 
 ## Standing rules (never violate)
 

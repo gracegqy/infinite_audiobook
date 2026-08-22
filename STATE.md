@@ -14,21 +14,27 @@
 | 4 — Player MVP | DONE | Full listen on phone over Tailscale | GATE PASSED on phone: Grace's kill+reopen resume report (Entry 20) + "1. >5min backgrounding worked properly" (Entry 21) — probe-5 backgrounding deferral retired; 71 tests; /code-review complete incl. the 3 owed Phase-3 angles |
 | 5 — Queue + sync + channels | DONE | Queue self-heals to 3 (AMENDMENT_02); sync visible on phone | **all 3 gate criteria PASSED.** queue: unread 1→3/3 in one worker cycle, 15 rows/15 distinct titles (Entry 27) · phone highlight: Grace (Entry 26) · channel-edit diff: excluding Lovecraft/cosmic horror dropped exactly those 2 titles and replaced them, $0.0264 (Entry 32). Scrubber re-confirmed by Grace. Close review done, 4 resilience bugs fixed + spend guard added (Entry 33); 200 tests green |
 | 6 — Preference adaptation | **RE-OPENED** | Curation demonstrably weighted by ratings | Entry 35 passed a controlled A/A′/B **at batch 12** (noise 1 title, effect 7–8; Lovecraft 7/12 → 0/12). **Entry 37 showed that does not describe production**: the first real build at `POOL_BATCH_SIZE = 40` took **11 of 12** Lovecraft. Mechanism works at the top of the ranking, does not exclude at depth. Grace ruled: record + **re-gate at batch 40** (not yet done) |
-| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). **Fresh-session audit DONE 2026-08-07** (`_META_working_knowledge/project_reports/8.7.26_horror_readaloud/`); its FIXES executed Entry 40 — 4 of 5 closed, FIX-5 is a decision on Grace. **Independent code review DONE 2026-08-09** (Entry 42 — fresh session, review completed before any writes; its own fixes, commit `f1394e9`, are the only unreviewed remainder: small, test-covered). Still owed: `/security-review`, cold-start test |
+| 7 — Hardening | **in progress** | Fresh-session audit + runbook complete | Entry 37 landed the scheduler, the spend cap, and the off-machine backup half (now opt-in). **RUNBOOK completed Entry 38** (cold start / rotation / restore written but NOT executed — the cold-start test IS the gate). **Fresh-session audit DONE 2026-08-07** (report held in Grace's private working-knowledge repo — see CLAUDE.md folder map); its FIXES executed Entry 40 — 4 of 5 closed, FIX-5 is a decision on Grace. **Independent code review DONE 2026-08-09** (Entry 42 — fresh session, review completed before any writes; its own fixes, commit `f1394e9`, are the only unreviewed remainder: small, test-covered). Still owed: `/security-review`, cold-start test |
 
 ## Confirmed findings
 
 - Sourcing = classics + modern web fiction, private-use only; TTS = Kokoro-local first
   with OpenAI fallback; Anthropic + OpenAI keys exist (interview,
   docs/BRIEF_VERBATIM.md).
-- **Hosting: still this Mac + Tailscale — and decided 2026-08-19 to move** to an
-  always-on host joined to the tailnet, still tailnet-only, no public URL
-  (docs/AMENDMENT_07). The brief's "never leave her machines / $0/mo" clauses are
-  superseded — **the `$0/mo` clause survives after all** (Entry 46: the host is Oracle's
-  Always Free ARM tier, 2 OCPU/12 GB/200 GB). Nothing has moved. **And it is a code port, not
-  a config change:** `pipeline/synthesize.py` shells out to macOS-only `afconvert` at `:198`
-  (encode) and `:66` (decode), so this app cannot run on a Linux host as written. Work from
-  `_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md`.
+- **Hosting: this Mac + Tailscale, and staying there.** The 2026-08-19 decision to move to
+  an always-on tailnet host (docs/AMENDMENT_07) was **ABANDONED 2026-08-20** (Entry 47):
+  Oracle's Always Free ARM tier came back quota-blocked at Limit 0, and GCP's free tier
+  deletes the instance at 90 days without a billable account. Neither is $0 in perpetuity,
+  which was the binding constraint, so the brief's "never leave her machines / $0/mo"
+  clauses stand unsuperseded after all. AMENDMENT_07 is immutable and still records the
+  decision as it was taken; this bullet records the reversal. **Two consequences, both of
+  which REMOVE work:** README.md is correct as written (no reader-facing edits are owed),
+  and the `afconvert` → `ffmpeg` port is **not needed** — `pipeline/synthesize.py` stays on
+  macOS-only `afconvert` at `:198` (encode) and `:66` (decode) by choice, not by debt.
+  Always-on is served instead by `scripts/server-agent.sh`, the launchd wrapper that keeps
+  `serve.sh` answering across reboots (installed; `bash scripts/server-agent.sh status`
+  2026-08-22 → `loaded: yes`, `200` on the tailnet address). Grace installs launchd jobs,
+  never Claude.
 - Pipeline is channel-driven (editable genre/language/topic criteria), not
   horror-hardcoded (docs/AMENDMENT_01).
 - Git identity/remote conventions: personal repos use account `gracegqy`, commit
@@ -80,52 +86,45 @@ French Sci-Fi 3), so **nothing in the build track is time-sensitive.** Note that
 the queue counter follows the ACTIVE channel only — horror's stories are still
 in the library and still playable, they just no longer count.
 
-**New track, decided 2026-08-19 and not started: the hosting migration
-(AMENDMENT_07, Entry 45).** The app moves off this Mac onto an always-on host on
-Grace's tailnet — still tailnet-only, no public URL, rendering moves with it.
-Nothing is executed. Gates M1–M5 and the whole procedure live in
-`_META_working_knowledge/reference/tailnet_host_migration.md`; the two next
-next thing is **not this app at all**: Session 1 migrates `french_passerelle` (no
-audio path, so no port needed) and ends with a 15-minute probe — do Kokoro,
-misaki and spacy install and run on ARM Linux? That answer decides whether this
-app gets ported and moved (branch A) or stays on the Mac behind launchd +
-`pmset -c sleep 0` (branch B). **Host is settled and free** — Oracle Always Free
-ARM, $0/mo, no figure to record. The open risk is Oracle's reliability, not cost.
-Grace installs any launchd job, not Claude (the `scheduler.sh` rule).
+**The hosting migration is OFF (Entry 47, 2026-08-20).** AMENDMENT_07's move to
+an always-on tailnet host is abandoned: no free tier is $0 in perpetuity (Oracle
+quota-blocked at Limit 0; GCP deletes at 90 days without a billable account), and
+$0/mo was the binding constraint. Phase 8 is CANCELLED in TASKS.md. Always-on is
+solved on this Mac instead, by `scripts/server-agent.sh` under launchd. **The
+README edits that were owed at M5 are owed no longer** — every line the migration
+would have falsified (the "one Mac" framing, the network row, "Running it", and
+above all the content-rights paragraph) is correct exactly as written, because
+nothing moved. Nothing reader-facing is outstanding from this track.
 
-**README edits owed at M5, not before (Grace's instruction, Entry 45).** This is
-her only public repo, so these are reader-facing. `README.md:10-11` ("runs on one
-Mac … not a hosted service"), `:45` (network row), `:154-160` ("Running it"), and
-above all **`:134-135`, the content-rights paragraph — "listening on one machine
-only" stops being true at migration.** Line-by-line list in the shared spec. They
-are written *after* the migration is real: editing them now would document a
-deployment that does not exist.
+**This repo is PUBLIC** — `gracegqy/infinite_audiobook`, MIT on the code only
+(LICENSE grants nothing in the fiction the pipeline fetches). Publication work is
+done: README, LICENSE, the env-var scrub, the numbers ledger (Entry 39), the
+independent code review and its fixes plus the README rebuild around the Phase 6
+case study (Entry 42), and the phone screenshots, which are live in
+`docs/screenshots/` and embedded in the README — the old `<!-- SCREENSHOTS -->`
+placeholder is gone. Being public raises the standard for every other file here:
+STATE, TASKS, JOURNAL and CLAUDE are all reader-visible, and a stale claim in one
+of them is read as evidence about how the project is run.
 
-**But there is now a dated external track (Entry 39).** This repo is the P0 of
-`~/Code/ACTIVE/internship_application/PORTFOLIO_TODO.md`: it must be public, with
-a link delivered into a dated application packet by **Aug 9** (which packet: that
-file — the codename stays out of this soon-public doc; Entry 39 still names it,
-which is Grace's append-only ruling to make). That file is the authority for the
-publication checklist; do not duplicate it here. Its Claude-able items are
-**done** (README, LICENSE, the env-var scrub, the numbers ledger; Entry 42 added
-the independent code review + fixes and the README restructure). What remains is
-Grace's by rule and blocks the flip:
+**Still owed on the public repo, in priority order:**
 
-- **`/security-review`, in a fresh session** — the app drives HTTP fetches, file
-  writes and subprocess TTS from model output, and no review has covered that
-  surface (Entry 42's swept secrets, history and binding only). The independent
-  `/code-review` half is DONE (Entry 42).
-- **Screenshots + a ~60s screen recording from the phone.** Nobody can run this
-  repo, so visuals are the only evaluation a reader gets. `README.md` carries a
-  `<!-- SCREENSHOTS -->` block ready to uncomment; shot list is inside it.
-  Start the server first.
-- **Flip public, then verify from logged-out** — and re-run
-  `bash scripts/repo_stats.sh` as the final gate: its `never-committed` check is
-  the one that proves no story text, audio or `.env` was ever committed.
+- **`/security-review`, in a fresh session — now overdue rather than pending.**
+  It was written down as blocking publication and publication happened anyway, so
+  the surface it was meant to cover is live and unreviewed: the app drives HTTP
+  fetches, file writes and subprocess TTS from model output. Entry 42's review
+  swept secrets, history and binding only. The independent `/code-review` half is
+  DONE (Entry 42).
+- **A ~60s screen recording from the phone.** The screenshots landed; the
+  recording did not. Nobody can run this repo — README says so — so a recording of
+  text-synced playback is the only demonstration a reader can get, and GitHub
+  renders mp4 inline in a README. Start the server first.
+- **Re-run `bash scripts/repo_stats.sh`** whenever a figure is quoted outward: its
+  `never-committed` check is the one that proves no story text, audio or `.env` was
+  ever committed on any branch. Last run 2026-08-22 at `00b2e04`: CONFIRMED.
 
-**Any number leaving this project** — README, résumé, application — now goes
+**Any number leaving this project** — README, résumé, anything outbound — goes
 through `docs/REPORTABLE_NUMBERS.md` first. Entry 39 seeded it and it immediately
-superseded a wrong LOC figure that had already been drafted into an application.
+superseded a wrong LOC figure that had already been drafted elsewhere.
 
 1. **RULE ON THE THIN PROFILE (Entry 38).** The evidence floor fixed `weird` but
    cut the profile from 16 reported tags to 5, and the liked side from 8 to
@@ -149,7 +148,8 @@ superseded a wrong LOC figure that had already been drafted into an application.
    (b) ledger-only, so spend is visible but not gated; (c) full cap coverage,
    which needs a ruling on what a cap-exhausted TTS fallback does to a
    renderable story. B/C need a JOURNAL spec first and possibly an AMENDMENT.
-   The task text is in `FIXES_HORROR_READALOUD.md`.
+   The task text is in the 2026-08-07 audit's FIXES file (private working-knowledge
+   repo; the project was named `horror_readaloud` at the time).
 5. **Decide where snapshots live (Entry 40).** `backup.BACKUP_DIR` is rooted at
    the repo, not under `DATA_DIR`, so `HR_DATA_DIR` does not redirect it — a
    sandboxed `worker --loop` now writes sandbox snapshots into the real

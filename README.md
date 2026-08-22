@@ -132,8 +132,10 @@ gitignored, and `git log --all --diff-filter=A` confirms no path under `data/` o
 Classic works are sourced from Project Gutenberg and are public domain. Modern web fiction
 remains the property of its authors and is fetched, stored, and narrated **for private
 listening on one machine only**. Nothing is redistributed, nothing is served publicly, and the
-app binds a Tailscale interface rather than a public one. The [LICENSE](LICENSE) covers the
-code in this repository; it grants nothing in the fiction the pipeline fetches.
+app binds a Tailscale interface rather than a public one. The [LICENSE](LICENSE) is plain MIT
+and covers the code in this repository; [NOTICE](NOTICE) states what it deliberately does not
+cover — the fiction the pipeline fetches. They are kept as two files because they are two
+different claims, and a reader who skims will otherwise merge them.
 
 ## Status
 

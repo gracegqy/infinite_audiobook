@@ -45,6 +45,17 @@ usage() { echo "usage: scripts/server-agent.sh {install|uninstall|status}" >&2; 
 
 case "$1" in
 install)
+  # Same speed bump scheduler.sh carries, and for the same reason: this writes a
+  # plist outside the repo and starts a persistent background process, so it
+  # refuses to run non-interactively -- which is exactly the shape an automated
+  # agent invocation has. CLAUDE.md says Grace installs launchd jobs and Claude
+  # may only run `status`; without this the rule is convention, not a control.
+  if [ ! -t 0 ] && [ "${HR_SERVER_AGENT_CONFIRM:-}" != "yes" ]; then
+    echo "refusing to install non-interactively." >&2
+    echo "run this yourself in a terminal, or set HR_SERVER_AGENT_CONFIRM=yes if" >&2
+    echo "you really mean it from a script." >&2
+    exit 3
+  fi
   mkdir -p "$(dirname "$LOG")"
   cat > "$PLIST" <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>

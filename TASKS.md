@@ -16,7 +16,8 @@ recorded evidence is a bug. Keep this file pristine in structure; annotate statu
 - [x] `.gitignore` proven: touched `data/library/x.mp3` + `.env`, `git add -A && git
       status --short` listed neither (2026-07-18).
 - [x] Private remote exists: GitHub API returned `HTTP 201, gracegqy/horror_readaloud
-      private: True`; `git push -u origin main` succeeded, `## main...origin/main` clean;
+      private: True` (the repo's name until the 2026-08-09 rename, and private until
+      publication — evidence is left as it was recorded); `git push -u origin main` succeeded, `## main...origin/main` clean;
       `git config user.email` = graceguqianying@uchicago.edu (2026-07-18).
 - [x] Smoke test run: `python3 --version` → 3.12.12; `node --version` → v25.8.1
       (2026-07-18).
@@ -205,8 +206,7 @@ JOURNAL; cold-start test from the runbook alone succeeds.
 **[IN PROGRESS]** Entry 39 landed the public-readiness work — README.md, MIT LICENSE,
 `$HR_TAILSCALE_IP`/`$HR_CONTACT_EMAIL` replacing committed machine-specific values,
 `scripts/repo_stats.sh`, and `docs/REPORTABLE_NUMBERS.md`. This does not advance the
-Phase 7 gate; it serves the Aug 9 publication deadline in
-`internship_application/PORTFOLIO_TODO.md` (see STATE next-actions).
+Phase 7 gate; it served publication, which has since happened (see STATE).
 Entry 37 landed the scheduler, spend cap and backup half.
 **Entry 38 completed RUNBOOK.md** and paid off the per-tag evidence floor. Still owed:
 independent `/code-review` (now ~1750 lines of same-session code across Entries 33–38,
@@ -214,18 +214,29 @@ and Grace must run it — it is blocked on being a fresh session), `/security-re
 fresh-session audit, and **the cold-start test from the runbook alone — the literal
 gate, never run**.
 **Status update 2026-08-09 (Entries 40–42):** fresh-session audit DONE 2026-08-07
-(`project_reports/8.7.26_horror_readaloud/`; FIXES executed, Entry 40) · independent
+(report in the private working-knowledge repo; FIXES executed, Entry 40) · independent
 `/code-review` DONE (Entry 42 — fresh session, review completed before any writes;
 fixes at `f1394e9`) · still owed: `/security-review` and the cold-start test. Phase 6 also re-opened: its gate ran at batch 12, production is
 batch 40, and Entry 38's floor changed the profile the re-gate would measure (see
 STATE next-action 2 — Grace rules before any re-gate spend).
-> Prompt: *"Fresh session, read-only: audit horror_readaloud. Trust nothing in prose;
+> Prompt: *"Fresh session, read-only: audit infinite_audiobook. Trust nothing in prose;
 > re-derive every STATE/TASKS claim from artifacts. Report gaps."*
 
 ---
 
-## Phase 8 — Hosting migration to a tailnet host   · Owner: Both   · **NOT STARTED**
-**Authority:** `docs/AMENDMENT_07_hosting_moves_to_a_tailnet_host.md` (BINDING, 2026-08-19).
+## Phase 8 — Hosting migration to a tailnet host   · Owner: Both   · **CANCELLED 2026-08-20**
+**CANCELLED (Entry 47).** No free tier is $0 in perpetuity — Oracle's Always Free ARM came
+back quota-blocked at Limit 0, GCP's free tier deletes the instance at 90 days without a
+billable account — and `$0/mo` was the binding constraint the whole plan rested on. The app
+stays on this Mac. **Always-on is solved without the move:** `scripts/server-agent.sh` is the
+launchd wrapper that keeps `serve.sh` answering across reboots (verified 2026-08-22:
+`bash scripts/server-agent.sh status` → `loaded: yes`, `200` on the tailnet address). Two
+consequences below are void as a result: the `afconvert` → `ffmpeg` port is **not needed**,
+and the M5 README edits are **not owed** — nothing moved, so every line they would have
+corrected is already true. The block below is left standing unedited as the record of a plan
+that was made and then reversed; no item in it is live.
+**Authority:** `docs/AMENDMENT_07_hosting_moves_to_a_tailnet_host.md` (2026-08-19, immutable —
+it records the decision as taken then; this status records the reversal).
 **Goal:** the app is reachable from Grace's phone with her laptop off — on an always-on host
 joined to her tailnet, still tailnet-only, no public URL.
 **Procedure:** work from `_META_working_knowledge/reference/tailnet_host_migration_CHECKLIST.md`

@@ -5,6 +5,109 @@
 > increase, so the numbers run downward as you scroll. "Append-only" is unchanged
 > in meaning: existing entries are never edited, corrections are new entries.
 
+## Entry 47 — 2026-08-22 — Backfill: the migration was abandoned on 2026-08-20 and never journaled; the two export scripts, and the sandbox rule they broke
+
+Two working days (2026-08-20, 2026-08-21) produced a commit, a new launchd wrapper and two
+new scripts, and **none of it reached this file**. Written now as a backfill, dated today and
+labelled as such rather than backdated — Entry 41 set that precedent for the rename commit.
+The gap is the finding, not a footnote to it: the session that *reversed a BINDING amendment*
+is exactly the one whose absence from the record does the most damage, and the reversal lived
+only in a commit message and a CLAUDE.md bullet until now.
+
+### 1. The hosting migration is OFF (commit `00b2e04`, 2026-08-20)
+
+AMENDMENT_07's move to an always-on tailnet host is abandoned. Both candidate hosts failed
+the one constraint the plan rested on:
+
+- **Oracle Cloud Always Free ARM** — the tier Entry 46 recorded as settled and free — came
+  back **quota-blocked at Limit 0**. The capacity is advertised; it is not obtainable.
+- **GCP's free tier** deletes the instance after **90 days** without a billable account.
+
+Neither is `$0/mo` *in perpetuity*, and `$0/mo` was binding (the brief's interview answer 3).
+So Entry 46's correction is itself corrected: the `$0/mo` clause does not merely survive the
+amendment, it **kills** it. AMENDMENT_07 stays immutable and still records the decision as it
+was taken on 2026-08-19; TASKS Phase 8 is marked CANCELLED and STATE's hosting bullet records
+the reversal. The app stays on this Mac.
+
+**Both consequences REMOVE work, which is worth stating plainly because a reversal usually
+adds it:**
+
+- **The `afconvert` → `ffmpeg` port is not needed.** It existed solely to run this pipeline
+  on Linux. `pipeline/synthesize.py` stays on macOS-only `afconvert` (`:198` encode, `:66`
+  decode) by choice now, not as debt. Entry 46's BLOCKER is void.
+- **The M5 README edits are not owed.** Every line the migration would have falsified — the
+  "one Mac" framing, the network row, "Running it", and above all the content-rights
+  paragraph's "listening on one machine only" — is correct *because nothing moved*. This is
+  the happier half of the reversal: the public repo needed no edit at all.
+
+### 2. `scripts/server-agent.sh` — always-on without the move
+
+The capability Grace actually asked for in Entry 45 ("access the app without booting the
+server") was always two problems, and only one of them was hosting. This is the other one:
+a launchd wrapper that keeps `serve.sh` answering across reboots, distinct from
+`scripts/scheduler.sh` (the render worker). **Grace installs it; Claude may only run
+`status`.** Two traps are handled inside it, both hit for real on a sibling project the same
+day:
+
+- launchd does not source `~/.zshrc`, so `PATH` is set explicitly in the plist.
+- `launchctl list | grep -q` reports a **loaded** job as absent: `grep -q` closes the pipe on
+  first match, `launchctl` dies of `SIGPIPE`, and `pipefail` marks the whole pipeline failed.
+
+Verified today, 2026-08-22: `bash scripts/server-agent.sh status` → `loaded: yes (pid=64132
+last-exit=0)`, `answering: 200`. The render worker's own job is **not** loaded
+(`scheduler.sh status` → `loaded: no`), which is a separate standing choice, not a fault.
+
+### 3. Two export scripts, written 2026-08-21, uncommitted until now
+
+Both answer the same gap: the app is reachable only while this Mac is awake and on the
+tailnet, so a plane or a dead zone means no listening at all.
+
+- **`scripts/export_offline.py`** bakes one rendered story — audio, text, and the paragraph
+  offsets that drive highlight sync — into a single self-contained `.html` needing no
+  network, no server, no service worker. Deliberately not a PWA cache: iOS evicts PWA
+  storage without warning, and a file in Files is not evictable.
+- **`scripts/export_m4b.py`** remuxes a rendered story to `.m4b` with chapter marks, which is
+  what an iPhone opens natively (Apple Books: lock-screen controls, speed, sleep timer,
+  remembered position). **No re-encode** — the pipeline already writes 64k AAC in an MP4
+  container and `.m4b` is that container renamed, so the stream is copied through
+  bit-identical. The trade is stated in the file: `.m4b` carries audio and chapters but
+  **not** the synced text highlight; the `.html` exporter is the one to use when the
+  highlight is the point.
+
+**A defect found while committing them, and fixed first.** Both scripts resolved the library
+themselves — `LIB = ROOT / "data" / "library"` — instead of importing `pipeline.config`.
+That silently defeats `HR_DATA_DIR`, so a script run "in the sandbox" would have read and
+written the **live** library, against the CLAUDE.md standing rule that exists precisely to
+stop that. Every other script in `scripts/` already goes through `pipeline.config`; these two
+were the third copy of a constant that should never have had a second. Fixed to
+`config.LIBRARY_DIR` / `config.INTERIM_DIR` before the commit.
+
+Verified both ways today: with `HR_DATA_DIR` pointed at an empty sandbox, both exit on
+`no rendered stories in <sandbox>/library` (proving redirection reaches them); against the
+real library, both list **17 exportable stories**. `ffmpeg` is present at
+`/opt/homebrew/bin/ffmpeg` and the m4b exporter guards its absence with a `shutil.which`
+check and a `brew install ffmpeg` message. **No story text or audio is committed** — output
+defaults under `data/interim/`, which is gitignored, and the exported files are treated
+exactly like `data/library/`: private listening, never a deploy, never a `git add`.
+
+### Measurements invalidated by this change
+
+`REPORTABLE_NUMBERS` **R1** (source lines, 12,383 at `5250eb1`): invalidated, as every commit
+invalidates it. `server-agent.sh` and the two export scripts move it — re-derive with
+`bash scripts/repo_stats.sh` before any outward quote; do not read a figure off this entry.
+The **test count is unchanged at 344** (these are scripts, not pipeline code, and they ship
+no tests — see the standing debt below). No pipeline, curation, TTS, player or taste
+behaviour was touched, so the spend ledger, taste profile, library and queue are all
+untouched, and no gate evidence moves.
+
+### Standing debt opened here
+
+The export scripts have **no tests**. They are one-shot operator tools rather than pipeline
+logic, which is the reason and not an excuse: `chapters()` in the m4b exporter is real
+fold-into-blocks arithmetic of exactly the kind CLAUDE.md says gets a unit test the day it is
+written, and its `title` placeholder loop currently does nothing. Recorded as debt rather
+than quietly shipped as fine.
+
 ## Entry 46 — 2026-08-19 — Correcting Entry 45: this app cannot run on Linux as written (afconvert), and the host is now a $0 free tier
 
 Same day as Entry 45, while writing the execution checklist. Two facts landed that Entry 45
